@@ -76,7 +76,7 @@ async def get_user_aircraft(
     db: AsyncIOMotorDatabase = Depends(get_database)
 ):
     """Get all aircraft for the current user"""
-    cursor = db.aircraft.find({"user_id": current_user.id}).sort("created_at", -1)
+    cursor = db.aircrafts.find({"user_id": current_user.id}).sort("created_at", -1)
     aircraft_list = await cursor.to_list(length=100)
     return [Aircraft(**aircraft) for aircraft in aircraft_list]
 
