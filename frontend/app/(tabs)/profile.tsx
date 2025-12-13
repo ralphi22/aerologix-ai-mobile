@@ -98,6 +98,14 @@ export default function ProfileScreen() {
       </View>
 
       <View style={styles.section}>
+        <Link href="/subscription" asChild>
+          <TouchableOpacity style={styles.manageButton}>
+            <Ionicons name="card-outline" size={20} color="#1E3A8A" />
+            <Text style={styles.manageButtonText}>Manage Subscription</Text>
+            <Ionicons name="chevron-forward" size={20} color="#94A3B8" />
+          </TouchableOpacity>
+        </Link>
+
         <TouchableOpacity style={styles.button} onPress={handleLogout}>
           <Ionicons name="log-out-outline" size={20} color="#EF4444" />
           <Text style={styles.buttonText}>Logout</Text>
