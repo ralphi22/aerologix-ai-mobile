@@ -98,8 +98,8 @@ export default function SubscriptionScreen() {
       
       <ScrollView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Choose Your Plan</Text>
-        <Text style={styles.subtitle}>Upgrade anytime to unlock more features</Text>
+        <Text style={styles.title}>Choisissez votre forfait</Text>
+        <Text style={styles.subtitle}>Passez à un plan supérieur à tout moment</Text>
 
         <View style={styles.billingToggle}>
           <TouchableOpacity
@@ -107,7 +107,7 @@ export default function SubscriptionScreen() {
             onPress={() => setBillingCycle('monthly')}
           >
             <Text style={[styles.toggleText, billingCycle === 'monthly' && styles.toggleTextActive]}>
-              Monthly
+              Mensuel
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -115,7 +115,7 @@ export default function SubscriptionScreen() {
             onPress={() => setBillingCycle('annual')}
           >
             <Text style={[styles.toggleText, billingCycle === 'annual' && styles.toggleTextActive]}>
-              Annual (Save 20%)
+              Annuel (-20%)
             </Text>
           </TouchableOpacity>
         </View>
