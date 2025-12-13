@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AeroLogix AI - Expo QR Code</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            background: linear-gradient(135deg, #1E3A8A 0%, #3B82F6 100%);
+            color: white;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            color: #1E293B;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            text-align: center;
+            max-width: 500px;
+        }
+        h1 {
+            color: #1E3A8A;
+            margin-bottom: 10px;
+            font-size: 32px;
+        }
+        .subtitle {
+            color: #64748B;
+            margin-bottom: 30px;
+            font-size: 16px;
+        }
+        #qrcode {
+            margin: 30px auto;
+            padding: 20px;
+            background: white;
+            border-radius: 10px;
+            display: inline-block;
+        }
+        .expo-url {
+            background: #F1F5F9;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            word-break: break-all;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            color: #1E3A8A;
+        }
+        .instructions {
+            text-align: left;
+            margin-top: 30px;
+            padding: 20px;
+            background: #F8FAFC;
+            border-radius: 10px;
+            border-left: 4px solid #1E3A8A;
+        }
+        .instructions h3 {
+            color: #1E3A8A;
+            margin-top: 0;
+        }
+        .instructions ol {
+            padding-left: 20px;
+        }
+        .instructions li {
+            margin: 10px 0;
+            color: #475569;
+        }
+        .airplane-icon {
+            font-size: 60px;
+            margin-bottom: 20px;
+        }
+        .status {
+            display: inline-block;
+            padding: 8px 16px;
+            background: #10B981;
+            color: white;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <div class="airplane-icon">✈️</div>
+        <h1>AeroLogix AI</h1>
+        <p class="subtitle">Aviation Maintenance Manager</p>
+        <div class="status">🟢 Server Running</div>
+        
+        <div id="qrcode"></div>
+        
+        <div class="expo-url">
+            <strong>Expo URL:</strong><br>
+            <span id="expo-url-text">exp://mobile-workflow.preview.emergentagent.com</span>
+        </div>
+
+        <div class="instructions">
+            <h3>📱 Comment scanner avec Expo Go</h3>
+            <ol>
+                <li><strong>Installez Expo Go</strong> sur votre iPhone
+                    <br><small>(App Store → Rechercher "Expo Go")</small>
+                </li>
+                <li><strong>Ouvrez Expo Go</strong> sur votre téléphone</li>
+                <li><strong>Scannez ce QR code</strong> avec l'app Expo Go
+                    <br><small>(Tap sur "Scan QR Code" dans l'app)</small>
+                </li>
+                <li><strong>Attendez le chargement</strong> (~30 secondes la première fois)</li>
+                <li><strong>L'app AeroLogix AI</strong> devrait s'ouvrir ! 🚀</li>
+            </ol>
+        </div>
+
+        <div style="margin-top: 30px; padding: 15px; background: #FEF3C7; border-radius: 8px; border-left: 4px solid #F59E0B;">
+            <strong style="color: #92400E;">⚠️ Première fois ?</strong>
+            <p style="color: #78350F; margin: 10px 0 0 0; font-size: 14px;">
+                Le chargement initial peut prendre 30-60 secondes. Soyez patient ! 😊
+            </p>
+        </div>
+    </div>
+
+    <script>
+        const expoUrl = 'exp://mobile-workflow.preview.emergentagent.com';
+        
+        // Générer le QR code
+        QRCode.toCanvas(document.createElement('canvas'), expoUrl, {
+            width: 300,
+            margin: 2,
+            color: {
+                dark: '#1E3A8A',
+                light: '#FFFFFF'
+            }
+        }, function (error, canvas) {
+            if (error) {
+                console.error(error);
+                document.getElementById('qrcode').innerHTML = '<p style="color: red;">Erreur de génération du QR code</p>';
+            } else {
+                document.getElementById('qrcode').appendChild(canvas);
+            }
+        });
+    </script>
+</body>
+</html>
