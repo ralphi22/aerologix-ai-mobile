@@ -135,7 +135,7 @@ async def update_aircraft(
         )
     
     # Fetch updated aircraft
-    updated_aircraft = await db.aircraft.find_one({"_id": aircraft_id})
+    updated_aircraft = await db.aircrafts.find_one({"_id": aircraft_id})
     logger.info(f"Aircraft {aircraft_id} updated for user {current_user.email}")
     
     return Aircraft(**updated_aircraft)
