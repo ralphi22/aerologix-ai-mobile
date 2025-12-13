@@ -255,10 +255,11 @@ export default function SubscriptionScreen() {
 
       <View style={styles.footer}>
         <Text style={styles.footerText}>
-          All plans include secure payment via Stripe and can be cancelled anytime.
+          Tous les abonnements incluent un paiement sécurisé via Stripe et peuvent être annulés à tout moment.
         </Text>
       </View>
     </ScrollView>
+    </SafeAreaView>
   );
 }
 
