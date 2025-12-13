@@ -44,8 +44,11 @@ app.add_middleware(
 )
 
 # Include routers
+from routes import aircraft
+
 app.include_router(auth.router)
 app.include_router(plans.router)
+app.include_router(aircraft.router)
 
 @app.get("/")
 async def root():
