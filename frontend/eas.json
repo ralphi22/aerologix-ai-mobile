@@ -13,11 +13,11 @@
       "env": {
         "NODE_OPTIONS": "--max-old-space-size=4096"
       },
-      "node": "22.12.0"
+      "node": "20.18.0"
     },
     "preview": {
       "distribution": "internal",
-      "node": "22.12.0"
+      "node": "20.18.0"
     },
     "production": {
       "ios": {
@@ -26,7 +26,7 @@
       "android": {
         "buildType": "apk"
       },
-      "node": "22.12.0"
+      "node": "20.18.0"
     }
   },
   "submit": {
