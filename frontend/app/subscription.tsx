@@ -136,7 +136,7 @@ export default function SubscriptionScreen() {
             >
               {isCurrentPlan && (
                 <View style={[styles.currentBadge, { backgroundColor: planColor }]}>
-                  <Text style={styles.currentBadgeText}>Current Plan</Text>
+                  <Text style={styles.currentBadgeText}>Plan actuel</Text>
                 </View>
               )}
 
