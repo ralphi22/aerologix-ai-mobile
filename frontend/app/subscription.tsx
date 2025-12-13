@@ -27,6 +27,7 @@ interface Plan {
 
 export default function SubscriptionScreen() {
   const { user } = useAuthStore();
+  const router = useRouter();
   const [plans, setPlans] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(true);
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('monthly');
@@ -37,7 +38,7 @@ export default function SubscriptionScreen() {
 
   const fetchPlans = async () => {
     try {
-      const response = await axios.get('https://avionics-hub-1.preview.emergentagent.com/api/plans');
+      const response = await api.get('/api/plans');
       setPlans(response.data);
     } catch (error) {
       console.error('Error fetching plans:', error);
