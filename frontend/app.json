@@ -44,9 +44,7 @@
     },
     "extra": {
       "apiUrl": "https://avionics-hub-1.preview.emergentagent.com/api",
-      "eas": {
-        "projectId": "aerologix-ai-mobile"
-      }
+      "eas": {}
     }
   }
 }
