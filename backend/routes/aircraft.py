@@ -87,7 +87,7 @@ async def get_aircraft(
     db: AsyncIOMotorDatabase = Depends(get_database)
 ):
     """Get a specific aircraft by ID"""
-    aircraft_doc = await db.aircraft.find_one({
+    aircraft_doc = await db.aircrafts.find_one({
         "_id": aircraft_id,
         "user_id": current_user.id
     })
