@@ -163,8 +163,8 @@ export default function SubscriptionScreen() {
                   <Ionicons name="airplane" size={16} color="#1E3A8A" />
                   <Text style={styles.featureText}>
                     {plan.features.max_aircrafts === -1
-                      ? 'Unlimited aircraft'
-                      : `${plan.features.max_aircrafts} aircraft`}
+                      ? 'Avions illimités'
+                      : `${plan.features.max_aircrafts} avion${plan.features.max_aircrafts > 1 ? 's' : ''}`}
                   </Text>
                 </View>
 
@@ -172,8 +172,8 @@ export default function SubscriptionScreen() {
                   <Ionicons name="camera" size={16} color="#1E3A8A" />
                   <Text style={styles.featureText}>
                     {plan.features.ocr_per_month === -1
-                      ? 'Unlimited OCR'
-                      : `${plan.features.ocr_per_month} OCR/month`}
+                      ? 'OCR illimité'
+                      : `${plan.features.ocr_per_month} OCR/mois`}
                   </Text>
                 </View>
 
@@ -181,50 +181,50 @@ export default function SubscriptionScreen() {
                   <Ionicons name="book" size={16} color="#1E3A8A" />
                   <Text style={styles.featureText}>
                     {plan.features.logbook_entries_per_month === -1
-                      ? 'Unlimited logbook'
-                      : `${plan.features.logbook_entries_per_month} logbook/month`}
+                      ? 'Carnet de vol illimité'
+                      : `${plan.features.logbook_entries_per_month} entrées/mois`}
                   </Text>
                 </View>
 
                 {plan.features.has_predictive_maintenance && (
                   <View style={styles.featureRow}>
                     <Ionicons name="analytics" size={16} color="#10B981" />
-                    <Text style={styles.featureText}>Predictive maintenance</Text>
+                    <Text style={styles.featureText}>Maintenance prédictive</Text>
                   </View>
                 )}
 
                 {plan.features.has_auto_notifications && (
                   <View style={styles.featureRow}>
                     <Ionicons name="notifications" size={16} color="#10B981" />
-                    <Text style={styles.featureText}>Auto notifications</Text>
+                    <Text style={styles.featureText}>Notifications auto</Text>
                   </View>
                 )}
 
                 {plan.features.has_mechanic_sharing && (
                   <View style={styles.featureRow}>
                     <Ionicons name="share-social" size={16} color="#10B981" />
-                    <Text style={styles.featureText}>Share with mechanic</Text>
+                    <Text style={styles.featureText}>Partage mécanicien</Text>
                   </View>
                 )}
 
                 {plan.features.has_parts_comparator && (
                   <View style={styles.featureRow}>
                     <Ionicons name="git-compare" size={16} color="#10B981" />
-                    <Text style={styles.featureText}>Parts comparator</Text>
+                    <Text style={styles.featureText}>Comparateur de pièces</Text>
                   </View>
                 )}
 
                 {plan.features.has_priority_support && (
                   <View style={styles.featureRow}>
                     <Ionicons name="headset" size={16} color="#10B981" />
-                    <Text style={styles.featureText}>Priority support</Text>
+                    <Text style={styles.featureText}>Support prioritaire</Text>
                   </View>
                 )}
 
                 {plan.features.has_advanced_analytics && (
                   <View style={styles.featureRow}>
                     <Ionicons name="stats-chart" size={16} color="#10B981" />
-                    <Text style={styles.featureText}>Advanced analytics</Text>
+                    <Text style={styles.featureText}>Analytique avancée</Text>
                   </View>
                 )}
               </View>
