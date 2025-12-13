@@ -65,7 +65,7 @@ async def create_aircraft(
         "updated_at": datetime.utcnow()
     }
     
-    await db.aircraft.insert_one(aircraft_dict)
+    await db.aircrafts.insert_one(aircraft_dict)
     logger.info(f"Aircraft {registration} created for user {current_user.email}")
     
     return Aircraft(**aircraft_dict)
