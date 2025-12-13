@@ -129,7 +129,7 @@ async def update_aircraft(
     
     if update_data:
         update_data["updated_at"] = datetime.utcnow()
-        await db.aircraft.update_one(
+        await db.aircrafts.update_one(
             {"_id": aircraft_id},
             {"$set": update_data}
         )
