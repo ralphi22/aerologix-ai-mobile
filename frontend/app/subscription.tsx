@@ -64,17 +64,17 @@ export default function SubscriptionScreen() {
 
   const handleUpgrade = (plan: Plan) => {
     if (user && user.subscription.plan === plan.tier) {
-      alert('You are already on this plan');
+      alert('Vous êtes déjà sur ce forfait');
       return;
     }
 
     alert(
-      'Stripe Integration Coming Soon!\n\n' +
-      `To upgrade to ${plan.name}, you'll be able to:\n` +
-      `• Pay ${billingCycle === 'monthly' ? `$${plan.monthly_price}/month` : `$${plan.annual_price}/year`}\n` +
-      `• Get ${plan.trial_days} days free trial\n` +
-      `• Cancel anytime\n\n` +
-      'Stripe payment will be integrated soon with your real Stripe keys.'
+      'Intégration Stripe à venir !\n\n' +
+      `Pour passer au forfait ${plan.name}, vous pourrez :\n` +
+      `• Payer ${billingCycle === 'monthly' ? `${plan.monthly_price}$/mois` : `${plan.annual_price}$/an`}\n` +
+      `• Profiter de ${plan.trial_days} jours d'essai gratuit\n` +
+      `• Annuler à tout moment\n\n` +
+      'Le paiement Stripe sera intégré prochainement avec vos vraies clés Stripe.'
     );
   };
 
