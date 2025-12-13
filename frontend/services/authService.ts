@@ -40,14 +40,14 @@ class AuthService {
     });
 
     const { access_token, user } = response.data;
-    await SecureStore.setItemAsync('auth_token', access_token);
+    await storage.setItem('auth_token', access_token);
     return user;
   }
 
   async signup(data: SignupData): Promise<User> {
     const response = await api.post('/api/auth/signup', data);
     const { access_token, user } = response.data;
-    await SecureStore.setItemAsync('auth_token', access_token);
+    await storage.setItem('auth_token', access_token);
     return user;
   }
 
@@ -57,11 +57,11 @@ class AuthService {
   }
 
   async logout(): Promise<void> {
-    await SecureStore.deleteItemAsync('auth_token');
+    await storage.deleteItem('auth_token');
   }
 
   async getToken(): Promise<string | null> {
-    return await SecureStore.getItemAsync('auth_token');
+    return await storage.getItem('auth_token');
   }
 }
 
