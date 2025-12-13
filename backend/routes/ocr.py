@@ -38,7 +38,7 @@ async def scan_document(
     
     # Verify aircraft belongs to user
     aircraft = await db.aircrafts.find_one({
-        "_id": ObjectId(scan_request.aircraft_id),
+        "_id": scan_request.aircraft_id,
         "user_id": current_user.id
     })
     
