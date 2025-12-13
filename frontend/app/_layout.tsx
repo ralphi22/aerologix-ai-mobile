@@ -1,13 +1,29 @@
-import { Stack } from 'expo-router';
+import { Stack, useRouter, useSegments } from 'expo-router';
 import { useEffect } from 'react';
 import { useAuthStore } from '../stores/authStore';
 
 export default function RootLayout() {
-  const loadUser = useAuthStore((state) => state.loadUser);
+  const { isAuthenticated, isLoading, loadUser } = useAuthStore();
+  const segments = useSegments();
+  const router = useRouter();
 
   useEffect(() => {
     loadUser();
   }, []);
+
+  useEffect(() => {
+    if (isLoading) return;
+
+    const inAuthGroup = segments[0] === '(tabs)';
+
+    if (!isAuthenticated && inAuthGroup) {
+      // Redirect to login if not authenticated
+      router.replace('/login');
+    } else if (isAuthenticated && !inAuthGroup) {
+      // Redirect to tabs if authenticated
+      router.replace('/(tabs)');
+    }
+  }, [isAuthenticated, isLoading, segments]);
 
   return (
     <Stack screenOptions={{ headerShown: false }}>
