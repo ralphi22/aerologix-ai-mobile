@@ -245,7 +245,7 @@ export default function SubscriptionScreen() {
                     isCurrentPlan && { color: '#64748B' },
                   ]}
                 >
-                  {isCurrentPlan ? 'Current Plan' : 'Upgrade Now'}
+                  {isCurrentPlan ? 'Plan actuel' : 'Passer à ce forfait'}
                 </Text>
               </TouchableOpacity>
             </View>
