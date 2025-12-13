@@ -109,7 +109,7 @@ async def update_aircraft(
 ):
     """Update an aircraft"""
     # Check if aircraft exists and belongs to user
-    existing = await db.aircraft.find_one({
+    existing = await db.aircrafts.find_one({
         "_id": aircraft_id,
         "user_id": current_user.id
     })
