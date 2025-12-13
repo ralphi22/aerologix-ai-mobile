@@ -80,14 +80,23 @@ export default function SubscriptionScreen() {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
+      <SafeAreaView style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#1E3A8A" />
-      </View>
+      </SafeAreaView>
     );
   }
 
   return (
-    <ScrollView style={styles.container}>
+    <SafeAreaView style={styles.safeArea}>
+      <View style={styles.topBar}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <Ionicons name="arrow-back" size={24} color="#1E3A8A" />
+        </TouchableOpacity>
+        <Text style={styles.topBarTitle}>Abonnements</Text>
+        <View style={{ width: 40 }} />
+      </View>
+      
+      <ScrollView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Choose Your Plan</Text>
         <Text style={styles.subtitle}>Upgrade anytime to unlock more features</Text>
