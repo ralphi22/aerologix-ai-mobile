@@ -8,7 +8,7 @@ from typing import List, Optional
 from datetime import datetime
 from bson import ObjectId
 from database.mongodb import get_database
-from routes.auth import get_current_user
+from services.auth_deps import get_current_user
 from services.ocr_service import ocr_service
 from models.ocr_scan import (
     OCRScanCreate, OCRScan, OCRScanResponse, 
