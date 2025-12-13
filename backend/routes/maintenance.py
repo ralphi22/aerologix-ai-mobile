@@ -7,7 +7,7 @@ from typing import List, Optional
 from datetime import datetime
 from bson import ObjectId
 from database.mongodb import get_database
-from services.auth_service import get_current_user
+from routes.auth import get_current_user
 from models.maintenance import (
     MaintenanceRecord, MaintenanceRecordCreate, 
     MaintenanceRecordUpdate, MaintenanceType
