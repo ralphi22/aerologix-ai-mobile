@@ -7,7 +7,7 @@ from typing import List, Optional
 from datetime import datetime
 from bson import ObjectId
 from database.mongodb import get_database
-from services.auth_service import get_current_user
+from services.auth_deps import get_current_user
 from models.parts import PartRecord, PartRecordCreate, PartRecordUpdate
 from models.user import User
 import logging
