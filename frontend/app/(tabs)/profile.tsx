@@ -188,6 +188,21 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#1E293B',
   },
+  manageButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+  },
+  manageButtonText: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1E3A8A',
+    marginLeft: 12,
+  },
   button: {
     flexDirection: 'row',
     alignItems: 'center',
