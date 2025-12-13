@@ -1,0 +1,404 @@
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useAuthStore } from '../stores/authStore';
+import axios from 'axios';
+
+interface Plan {
+  tier: string;
+  name: string;
+  description: string;
+  monthly_price: number;
+  annual_price: number;
+  trial_days: number;
+  features: {
+    max_aircrafts: number;
+    ocr_per_month: number;
+    logbook_entries_per_month: number;
+    has_predictive_maintenance: boolean;
+    has_auto_notifications: boolean;
+    has_parts_comparator: boolean;
+    has_priority_support: boolean;
+    has_mechanic_sharing: boolean;
+    has_advanced_analytics: boolean;
+  };
+}
+
+export default function SubscriptionScreen() {
+  const { user } = useAuthStore();
+  const [plans, setPlans] = useState<Plan[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('monthly');
+
+  useEffect(() => {
+    fetchPlans();
+  }, []);
+
+  const fetchPlans = async () => {
+    try {
+      const response = await axios.get('https://mobile-workflow.preview.emergentagent.com/api/plans');
+      setPlans(response.data);
+    } catch (error) {
+      console.error('Error fetching plans:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getPlanColor = (tier: string) => {
+    switch (tier) {
+      case 'BASIC':
+        return '#94A3B8';
+      case 'PILOT':
+        return '#3B82F6';
+      case 'MAINTENANCE_PRO':
+        return '#8B5CF6';
+      case 'FLEET_AI':
+        return '#F59E0B';
+      default:
+        return '#94A3B8';
+    }
+  };
+
+  const handleUpgrade = (plan: Plan) => {
+    if (user && user.subscription.plan === plan.tier) {
+      alert('You are already on this plan');
+      return;
+    }
+
+    alert(
+      'Stripe Integration Coming Soon!\n\n' +
+      `To upgrade to ${plan.name}, you'll be able to:\n` +
+      `• Pay ${billingCycle === 'monthly' ? `$${plan.monthly_price}/month` : `$${plan.annual_price}/year`}\n` +
+      `• Get ${plan.trial_days} days free trial\n` +
+      `• Cancel anytime\n\n` +
+      'Stripe payment will be integrated soon with your real Stripe keys.'
+    );
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#1E3A8A" />
+      </View>
+    );
+  }
+
+  return (
+    <ScrollView style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.title}>Choose Your Plan</Text>
+        <Text style={styles.subtitle}>Upgrade anytime to unlock more features</Text>
+
+        <View style={styles.billingToggle}>
+          <TouchableOpacity
+            style={[styles.toggleButton, billingCycle === 'monthly' && styles.toggleButtonActive]}
+            onPress={() => setBillingCycle('monthly')}
+          >
+            <Text style={[styles.toggleText, billingCycle === 'monthly' && styles.toggleTextActive]}>
+              Monthly
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.toggleButton, billingCycle === 'annual' && styles.toggleButtonActive]}
+            onPress={() => setBillingCycle('annual')}
+          >
+            <Text style={[styles.toggleText, billingCycle === 'annual' && styles.toggleTextActive]}>
+              Annual (Save 20%)
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      <View style={styles.plansContainer}>
+        {plans.map((plan) => {
+          const isCurrentPlan = user?.subscription.plan === plan.tier;
+          const planColor = getPlanColor(plan.tier);
+
+          return (
+            <View
+              key={plan.tier}
+              style={[
+                styles.planCard,
+                isCurrentPlan && { borderColor: planColor, borderWidth: 3 },
+              ]}
+            >
+              {isCurrentPlan && (
+                <View style={[styles.currentBadge, { backgroundColor: planColor }]}>
+                  <Text style={styles.currentBadgeText}>Current Plan</Text>
+                </View>
+              )}
+
+              <View style={[styles.planHeader, { backgroundColor: planColor }]}>
+                <Text style={styles.planName}>{plan.name}</Text>
+                <Text style={styles.planDescription}>{plan.description}</Text>
+              </View>
+
+              <View style={styles.planPricing}>
+                <Text style={styles.planPrice}>
+                  ${billingCycle === 'monthly' ? plan.monthly_price : plan.annual_price}
+                </Text>
+                <Text style={styles.planPeriod}>
+                  /{billingCycle === 'monthly' ? 'month' : 'year'}
+                </Text>
+              </View>
+
+              {plan.trial_days > 0 && (
+                <Text style={styles.trialText}>{plan.trial_days} days free trial</Text>
+              )}
+
+              <View style={styles.featuresContainer}>
+                <View style={styles.featureRow}>
+                  <Ionicons name="airplane" size={16} color="#1E3A8A" />
+                  <Text style={styles.featureText}>
+                    {plan.features.max_aircrafts === -1
+                      ? 'Unlimited aircraft'
+                      : `${plan.features.max_aircrafts} aircraft`}
+                  </Text>
+                </View>
+
+                <View style={styles.featureRow}>
+                  <Ionicons name="camera" size={16} color="#1E3A8A" />
+                  <Text style={styles.featureText}>
+                    {plan.features.ocr_per_month === -1
+                      ? 'Unlimited OCR'
+                      : `${plan.features.ocr_per_month} OCR/month`}
+                  </Text>
+                </View>
+
+                <View style={styles.featureRow}>
+                  <Ionicons name="book" size={16} color="#1E3A8A" />
+                  <Text style={styles.featureText}>
+                    {plan.features.logbook_entries_per_month === -1
+                      ? 'Unlimited logbook'
+                      : `${plan.features.logbook_entries_per_month} logbook/month`}
+                  </Text>
+                </View>
+
+                {plan.features.has_predictive_maintenance && (
+                  <View style={styles.featureRow}>
+                    <Ionicons name="analytics" size={16} color="#10B981" />
+                    <Text style={styles.featureText}>Predictive maintenance</Text>
+                  </View>
+                )}
+
+                {plan.features.has_auto_notifications && (
+                  <View style={styles.featureRow}>
+                    <Ionicons name="notifications" size={16} color="#10B981" />
+                    <Text style={styles.featureText}>Auto notifications</Text>
+                  </View>
+                )}
+
+                {plan.features.has_mechanic_sharing && (
+                  <View style={styles.featureRow}>
+                    <Ionicons name="share-social" size={16} color="#10B981" />
+                    <Text style={styles.featureText}>Share with mechanic</Text>
+                  </View>
+                )}
+
+                {plan.features.has_parts_comparator && (
+                  <View style={styles.featureRow}>
+                    <Ionicons name="git-compare" size={16} color="#10B981" />
+                    <Text style={styles.featureText}>Parts comparator</Text>
+                  </View>
+                )}
+
+                {plan.features.has_priority_support && (
+                  <View style={styles.featureRow}>
+                    <Ionicons name="headset" size={16} color="#10B981" />
+                    <Text style={styles.featureText}>Priority support</Text>
+                  </View>
+                )}
+
+                {plan.features.has_advanced_analytics && (
+                  <View style={styles.featureRow}>
+                    <Ionicons name="stats-chart" size={16} color="#10B981" />
+                    <Text style={styles.featureText}>Advanced analytics</Text>
+                  </View>
+                )}
+              </View>
+
+              <TouchableOpacity
+                style={[
+                  styles.upgradeButton,
+                  isCurrentPlan
+                    ? { backgroundColor: '#E2E8F0' }
+                    : { backgroundColor: planColor },
+                ]}
+                onPress={() => handleUpgrade(plan)}
+                disabled={isCurrentPlan}
+              >
+                <Text
+                  style={[
+                    styles.upgradeButtonText,
+                    isCurrentPlan && { color: '#64748B' },
+                  ]}
+                >
+                  {isCurrentPlan ? 'Current Plan' : 'Upgrade Now'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          );
+        })}
+      </View>
+
+      <View style={styles.footer}>
+        <Text style={styles.footerText}>
+          All plans include secure payment via Stripe and can be cancelled anytime.
+        </Text>
+      </View>
+    </ScrollView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#F1F5F9',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#F1F5F9',
+  },
+  header: {
+    padding: 24,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#1E293B',
+    textAlign: 'center',
+  },
+  subtitle: {
+    fontSize: 16,
+    color: '#64748B',
+    textAlign: 'center',
+    marginTop: 8,
+  },
+  billingToggle: {
+    flexDirection: 'row',
+    marginTop: 24,
+    backgroundColor: '#F1F5F9',
+    borderRadius: 12,
+    padding: 4,
+  },
+  toggleButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  toggleButtonActive: {
+    backgroundColor: '#1E3A8A',
+  },
+  toggleText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#64748B',
+  },
+  toggleTextActive: {
+    color: '#FFFFFF',
+  },
+  plansContainer: {
+    padding: 16,
+  },
+  planCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    marginBottom: 16,
+    overflow: 'hidden',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  currentBadge: {
+    paddingVertical: 8,
+    alignItems: 'center',
+  },
+  currentBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: 'bold',
+    textTransform: 'uppercase',
+  },
+  planHeader: {
+    padding: 20,
+  },
+  planName: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+  },
+  planDescription: {
+    fontSize: 14,
+    color: '#FFFFFF',
+    marginTop: 4,
+    opacity: 0.9,
+  },
+  planPricing: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    paddingHorizontal: 20,
+    paddingTop: 16,
+  },
+  planPrice: {
+    fontSize: 36,
+    fontWeight: 'bold',
+    color: '#1E293B',
+  },
+  planPeriod: {
+    fontSize: 16,
+    color: '#64748B',
+    marginLeft: 4,
+  },
+  trialText: {
+    fontSize: 14,
+    color: '#10B981',
+    paddingHorizontal: 20,
+    marginTop: 4,
+    fontWeight: '600',
+  },
+  featuresContainer: {
+    padding: 20,
+    gap: 12,
+  },
+  featureRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  featureText: {
+    fontSize: 14,
+    color: '#475569',
+    flex: 1,
+  },
+  upgradeButton: {
+    margin: 20,
+    marginTop: 0,
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  upgradeButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  footer: {
+    padding: 24,
+    alignItems: 'center',
+  },
+  footerText: {
+    fontSize: 12,
+    color: '#94A3B8',
+    textAlign: 'center',
+    lineHeight: 18,
+  },
+});
