@@ -1,0 +1,19 @@
+diff --git a/backend/.env b/backend/.env
+index 0f4322c..3494ad6 100644
+--- a/backend/.env
++++ b/backend/.env
+@@ -1,2 +1,10 @@
+-MONGO_URL="mongodb://localhost:27017"
+-DB_NAME="test_database"
+\ No newline at end of file
++MONGO_URL=mongodb://mongodb:27017/
++DB_NAME=aerologix_ai
++
++# Emergent LLM Key (OpenAI GPT-5.1 + Vision)
++EMERGENT_LLM_KEY=sk-emergent-eAf207608993771Ad9
++
++# Stripe API Keys (infrastructure only - add real keys later)
++STRIPE_SECRET_KEY=sk_test_placeholder
++STRIPE_PUBLISHABLE_KEY=pk_test_placeholder
++STRIPE_WEBHOOK_SECRET=whsec_placeholder
+\ No newline at end of file
