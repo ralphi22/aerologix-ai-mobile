@@ -8,8 +8,7 @@
       "developmentClient": true,
       "distribution": "internal",
       "ios": {
-        "simulator": true,
-        "packager": "npm"
+        "simulator": true
       },
       "env": {
         "NODE_OPTIONS": "--max-old-space-size=4096",
@@ -26,8 +25,7 @@
     },
     "production": {
       "ios": {
-        "simulator": false,
-        "packager": "npm"
+        "simulator": false
       },
       "android": {
         "buildType": "apk"
