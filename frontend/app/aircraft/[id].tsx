@@ -280,6 +280,11 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     opacity: 0.6,
   },
+  moduleCardActive: {
+    opacity: 1,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
   moduleIcon: {
     width: 48,
     height: 48,
