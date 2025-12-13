@@ -14,14 +14,14 @@
         "NODE_OPTIONS": "--max-old-space-size=4096",
         "RCT_NEW_ARCH_ENABLED": "0"
       },
-      "node": "20.18.0"
+      "node": "20.19.4"
     },
     "preview": {
       "distribution": "internal",
       "env": {
         "RCT_NEW_ARCH_ENABLED": "0"
       },
-      "node": "20.18.0"
+      "node": "20.19.4"
     },
     "production": {
       "ios": {
@@ -33,7 +33,7 @@
       "env": {
         "RCT_NEW_ARCH_ENABLED": "0"
       },
-      "node": "20.18.0"
+      "node": "20.19.4"
     }
   },
   "submit": {
