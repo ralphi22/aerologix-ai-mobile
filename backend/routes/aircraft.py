@@ -147,7 +147,7 @@ async def delete_aircraft(
     db: AsyncIOMotorDatabase = Depends(get_database)
 ):
     """Delete an aircraft"""
-    result = await db.aircraft.delete_one({
+    result = await db.aircrafts.delete_one({
         "_id": aircraft_id,
         "user_id": current_user.id
     })
