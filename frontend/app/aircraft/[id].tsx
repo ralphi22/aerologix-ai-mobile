@@ -171,13 +171,13 @@ export default function AircraftDetailScreen() {
         </View>
 
         <TouchableOpacity style={styles.editButton} onPress={handleEdit}>
-          <Ionicons name="create-outline" size={20} color="#1E3A8A" />
-          <Text style={styles.editButtonText}>Edit Aircraft</Text>
+          <Ionicons name="create-outline" size={20} color="#FFFFFF" />
+          <Text style={styles.editButtonText}>Modifier l'avion</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.deleteButton} onPress={handleDelete}>
           <Ionicons name="trash-outline" size={20} color="#EF4444" />
-          <Text style={styles.deleteButtonText}>Delete Aircraft</Text>
+          <Text style={styles.deleteButtonText}>Supprimer l'avion</Text>
         </TouchableOpacity>
       </View>
     </ScrollView>
