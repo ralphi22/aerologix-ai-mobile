@@ -70,21 +70,21 @@ export default function AircraftDetailScreen() {
 
       <View style={styles.content}>
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Aircraft Hours</Text>
+          <Text style={styles.sectionTitle}>Heures de vol</Text>
           <View style={styles.hoursGrid}>
             <View style={styles.hoursCard}>
               <Ionicons name="speedometer" size={32} color="#1E3A8A" />
-              <Text style={styles.hoursLabel}>Airframe</Text>
+              <Text style={styles.hoursLabel}>Cellule</Text>
               <Text style={styles.hoursValue}>{selectedAircraft.airframe_hours}h</Text>
             </View>
             <View style={styles.hoursCard}>
               <Ionicons name="settings" size={32} color="#1E3A8A" />
-              <Text style={styles.hoursLabel}>Engine</Text>
+              <Text style={styles.hoursLabel}>Moteur</Text>
               <Text style={styles.hoursValue}>{selectedAircraft.engine_hours}h</Text>
             </View>
             <View style={styles.hoursCard}>
               <Ionicons name="sync" size={32} color="#1E3A8A" />
-              <Text style={styles.hoursLabel}>Propeller</Text>
+              <Text style={styles.hoursLabel}>Hélice</Text>
               <Text style={styles.hoursValue}>{selectedAircraft.propeller_hours}h</Text>
             </View>
           </View>
