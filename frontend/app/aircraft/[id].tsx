@@ -27,27 +27,22 @@ export default function AircraftDetailScreen() {
     );
   }
 
-  const handleDelete = () => {
-    Alert.alert(
-      'Delete Aircraft',
-      `Are you sure you want to delete ${selectedAircraft.registration}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await deleteAircraft(selectedAircraft._id);
-              Alert.alert('Success', 'Aircraft deleted');
-              router.back();
-            } catch (error) {
-              Alert.alert('Error', 'Failed to delete aircraft');
-            }
-          },
-        },
-      ]
-    );
+  const handleDelete = async () => {
+    const confirmed = window.confirm(`Are you sure you want to delete ${selectedAircraft.registration}?`);
+    if (confirmed) {
+      try {
+        await deleteAircraft(selectedAircraft._id);
+        alert('Aircraft deleted successfully');
+        router.back();
+      } catch (error: any) {
+        console.error('Delete error:', error);
+        alert('Failed to delete aircraft: ' + (error.response?.data?.detail || error.message));
+      }
+    }
+  };
+
+  const handleEdit = () => {
+    router.push(`/aircraft/edit/${selectedAircraft._id}`);
   };
 
   return (
