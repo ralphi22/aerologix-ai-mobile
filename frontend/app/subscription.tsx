@@ -36,7 +36,7 @@ export default function SubscriptionScreen() {
 
   const fetchPlans = async () => {
     try {
-      const response = await axios.get('https://mobile-workflow.preview.emergentagent.com/api/plans');
+      const response = await axios.get('https://avionics-hub-1.preview.emergentagent.com/api/plans');
       setPlans(response.data);
     } catch (error) {
       console.error('Error fetching plans:', error);
