@@ -28,7 +28,7 @@ async def create_part_record(
     # If aircraft_id provided, verify it belongs to user
     if record.aircraft_id:
         aircraft = await db.aircrafts.find_one({
-            "_id": ObjectId(record.aircraft_id),
+            "_id": record.aircraft_id,
             "user_id": current_user.id
         })
         
@@ -63,7 +63,7 @@ async def get_aircraft_parts(
     
     # Verify aircraft belongs to user
     aircraft = await db.aircrafts.find_one({
-        "_id": ObjectId(aircraft_id),
+        "_id": aircraft_id,
         "user_id": current_user.id
     })
     
@@ -123,7 +123,7 @@ async def get_part_record(
     """Get a specific part record"""
     
     record = await db.part_records.find_one({
-        "_id": ObjectId(record_id),
+        "_id": record_id,
         "user_id": current_user.id
     })
     
@@ -147,7 +147,7 @@ async def update_part_record(
     """Update a part record"""
     
     record = await db.part_records.find_one({
-        "_id": ObjectId(record_id),
+        "_id": record_id,
         "user_id": current_user.id
     })
     
@@ -161,7 +161,7 @@ async def update_part_record(
     update_dict["updated_at"] = datetime.utcnow()
     
     await db.part_records.update_one(
-        {"_id": ObjectId(record_id)},
+        {"_id": record_id},
         {"$set": update_dict}
     )
     
@@ -177,7 +177,7 @@ async def delete_part_record(
     """Delete a part record"""
     
     result = await db.part_records.delete_one({
-        "_id": ObjectId(record_id),
+        "_id": record_id,
         "user_id": current_user.id
     })
     

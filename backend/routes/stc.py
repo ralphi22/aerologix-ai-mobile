@@ -27,7 +27,7 @@ async def create_stc_record(
     
     # Verify aircraft belongs to user
     aircraft = await db.aircrafts.find_one({
-        "_id": ObjectId(record.aircraft_id),
+        "_id": record.aircraft_id,
         "user_id": current_user.id
     })
     
@@ -61,7 +61,7 @@ async def get_stc_records(
     
     # Verify aircraft belongs to user
     aircraft = await db.aircrafts.find_one({
-        "_id": ObjectId(aircraft_id),
+        "_id": aircraft_id,
         "user_id": current_user.id
     })
     
@@ -93,7 +93,7 @@ async def get_stc_record(
     """Get a specific STC record"""
     
     record = await db.stc_records.find_one({
-        "_id": ObjectId(record_id),
+        "_id": record_id,
         "user_id": current_user.id
     })
     
@@ -117,7 +117,7 @@ async def update_stc_record(
     """Update an STC record"""
     
     record = await db.stc_records.find_one({
-        "_id": ObjectId(record_id),
+        "_id": record_id,
         "user_id": current_user.id
     })
     
@@ -131,7 +131,7 @@ async def update_stc_record(
     update_dict["updated_at"] = datetime.utcnow()
     
     await db.stc_records.update_one(
-        {"_id": ObjectId(record_id)},
+        {"_id": record_id},
         {"$set": update_dict}
     )
     
@@ -147,7 +147,7 @@ async def delete_stc_record(
     """Delete an STC record"""
     
     result = await db.stc_records.delete_one({
-        "_id": ObjectId(record_id),
+        "_id": record_id,
         "user_id": current_user.id
     })
     

@@ -30,7 +30,7 @@ async def create_maintenance_record(
     
     # Verify aircraft belongs to user
     aircraft = await db.aircrafts.find_one({
-        "_id": ObjectId(record.aircraft_id),
+        "_id": record.aircraft_id,
         "user_id": current_user.id
     })
     
@@ -66,7 +66,7 @@ async def get_maintenance_records(
     
     # Verify aircraft belongs to user
     aircraft = await db.aircrafts.find_one({
-        "_id": ObjectId(aircraft_id),
+        "_id": aircraft_id,
         "user_id": current_user.id
     })
     
@@ -98,7 +98,7 @@ async def get_maintenance_record(
     """Get a specific maintenance record"""
     
     record = await db.maintenance_records.find_one({
-        "_id": ObjectId(record_id),
+        "_id": record_id,
         "user_id": current_user.id
     })
     
@@ -122,7 +122,7 @@ async def update_maintenance_record(
     """Update a maintenance record"""
     
     record = await db.maintenance_records.find_one({
-        "_id": ObjectId(record_id),
+        "_id": record_id,
         "user_id": current_user.id
     })
     
@@ -140,7 +140,7 @@ async def update_maintenance_record(
     update_dict["updated_at"] = datetime.utcnow()
     
     await db.maintenance_records.update_one(
-        {"_id": ObjectId(record_id)},
+        {"_id": record_id},
         {"$set": update_dict}
     )
     
@@ -156,7 +156,7 @@ async def delete_maintenance_record(
     """Delete a maintenance record"""
     
     result = await db.maintenance_records.delete_one({
-        "_id": ObjectId(record_id),
+        "_id": record_id,
         "user_id": current_user.id
     })
     

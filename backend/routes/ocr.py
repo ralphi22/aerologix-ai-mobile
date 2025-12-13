@@ -49,7 +49,7 @@ async def scan_document(
         )
     
     # Check OCR quota
-    user_doc = await db.users.find_one({"_id": ObjectId(current_user.id)})
+    user_doc = await db.users.find_one({"_id": current_user.id})
     ocr_limit = user_doc.get("limits", {}).get("ocr_per_month", 3)
     
     if ocr_limit != -1:  # -1 = unlimited
@@ -99,7 +99,7 @@ async def scan_document(
         if ocr_result["success"]:
             # Update scan with results
             await db.ocr_scans.update_one(
-                {"_id": ObjectId(scan_id)},
+                {"_id": scan_id},
                 {
                     "$set": {
                         "status": OCRStatus.COMPLETED.value,
@@ -124,7 +124,7 @@ async def scan_document(
         else:
             # Update scan with error
             await db.ocr_scans.update_one(
-                {"_id": ObjectId(scan_id)},
+                {"_id": scan_id},
                 {
                     "$set": {
                         "status": OCRStatus.FAILED.value,
@@ -145,7 +145,7 @@ async def scan_document(
         logger.error(f"OCR scan {scan_id} failed: {str(e)}")
         
         await db.ocr_scans.update_one(
-            {"_id": ObjectId(scan_id)},
+            {"_id": scan_id},
             {
                 "$set": {
                     "status": OCRStatus.FAILED.value,
@@ -174,7 +174,7 @@ async def get_ocr_history(
     
     # Verify aircraft belongs to user
     aircraft = await db.aircrafts.find_one({
-        "_id": ObjectId(aircraft_id),
+        "_id": aircraft_id,
         "user_id": current_user.id
     })
     
@@ -223,7 +223,7 @@ async def get_ocr_scan(
     """
     
     scan = await db.ocr_scans.find_one({
-        "_id": ObjectId(scan_id),
+        "_id": scan_id,
         "user_id": current_user.id
     })
     
@@ -269,7 +269,7 @@ async def apply_ocr_results(
     
     # Get OCR scan
     scan = await db.ocr_scans.find_one({
-        "_id": ObjectId(scan_id),
+        "_id": scan_id,
         "user_id": current_user.id
     })
     
@@ -316,7 +316,7 @@ async def apply_ocr_results(
             if hours_update:
                 hours_update["updated_at"] = now
                 await db.aircrafts.update_one(
-                    {"_id": ObjectId(aircraft_id)},
+                    {"_id": aircraft_id},
                     {"$set": hours_update}
                 )
                 logger.info(f"Updated aircraft {aircraft_id} hours: {hours_update}")
@@ -458,7 +458,7 @@ async def apply_ocr_results(
         
         # Update OCR scan status to APPLIED
         await db.ocr_scans.update_one(
-            {"_id": ObjectId(scan_id)},
+            {"_id": scan_id},
             {
                 "$set": {
                     "status": OCRStatus.APPLIED.value,
@@ -498,7 +498,7 @@ async def get_ocr_quota_status(
     Get current OCR quota status for the user
     """
     
-    user_doc = await db.users.find_one({"_id": ObjectId(current_user.id)})
+    user_doc = await db.users.find_one({"_id": current_user.id})
     ocr_limit = user_doc.get("limits", {}).get("ocr_per_month", 3)
     
     # Count OCR scans this month

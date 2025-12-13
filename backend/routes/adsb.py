@@ -30,7 +30,7 @@ async def create_adsb_record(
     
     # Verify aircraft belongs to user
     aircraft = await db.aircrafts.find_one({
-        "_id": ObjectId(record.aircraft_id),
+        "_id": record.aircraft_id,
         "user_id": current_user.id
     })
     
@@ -68,7 +68,7 @@ async def get_adsb_records(
     
     # Verify aircraft belongs to user
     aircraft = await db.aircrafts.find_one({
-        "_id": ObjectId(aircraft_id),
+        "_id": aircraft_id,
         "user_id": current_user.id
     })
     
@@ -108,7 +108,7 @@ async def get_adsb_record(
     """Get a specific AD/SB record"""
     
     record = await db.adsb_records.find_one({
-        "_id": ObjectId(record_id),
+        "_id": record_id,
         "user_id": current_user.id
     })
     
@@ -132,7 +132,7 @@ async def update_adsb_record(
     """Update an AD/SB record"""
     
     record = await db.adsb_records.find_one({
-        "_id": ObjectId(record_id),
+        "_id": record_id,
         "user_id": current_user.id
     })
     
@@ -150,7 +150,7 @@ async def update_adsb_record(
     update_dict["updated_at"] = datetime.utcnow()
     
     await db.adsb_records.update_one(
-        {"_id": ObjectId(record_id)},
+        {"_id": record_id},
         {"$set": update_dict}
     )
     
@@ -166,7 +166,7 @@ async def delete_adsb_record(
     """Delete an AD/SB record"""
     
     result = await db.adsb_records.delete_one({
-        "_id": ObjectId(record_id),
+        "_id": record_id,
         "user_id": current_user.id
     })
     
@@ -189,7 +189,7 @@ async def get_adsb_summary(
     
     # Verify aircraft belongs to user
     aircraft = await db.aircrafts.find_one({
-        "_id": ObjectId(aircraft_id),
+        "_id": aircraft_id,
         "user_id": current_user.id
     })
     
