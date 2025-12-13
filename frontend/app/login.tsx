@@ -34,7 +34,8 @@ export default function LoginScreen() {
       } else {
         await login(email, password);
       }
-      router.replace('/(tabs)');
+      // Utiliser push au lieu de replace pour éviter les problèmes de navigation
+      router.push('/(tabs)');
     } catch (error: any) {
       Alert.alert('Error', error.response?.data?.detail || 'Authentication failed');
     }
