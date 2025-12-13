@@ -35,7 +35,7 @@ async def create_aircraft(
     registration = format_registration(aircraft.registration)
     
     # Check if registration already exists for this user
-    existing = await db.aircraft.find_one({
+    existing = await db.aircrafts.find_one({
         "user_id": current_user.id,
         "registration": registration
     })
