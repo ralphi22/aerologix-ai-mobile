@@ -24,7 +24,7 @@ async def create_aircraft(
     """Create a new aircraft for the current user"""
     # Check user aircraft limit based on plan
     if current_user.limits.max_aircrafts != -1:  # -1 = unlimited
-        user_aircraft_count = await db.aircraft.count_documents({"user_id": current_user.id})
+        user_aircraft_count = await db.aircrafts.count_documents({"user_id": current_user.id})
         if user_aircraft_count >= current_user.limits.max_aircrafts:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
