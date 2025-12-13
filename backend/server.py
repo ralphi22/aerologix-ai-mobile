@@ -49,6 +49,11 @@ from routes import aircraft
 app.include_router(auth.router)
 app.include_router(plans.router)
 app.include_router(aircraft.router)
+app.include_router(ocr.router)
+app.include_router(maintenance.router)
+app.include_router(adsb.router)
+app.include_router(stc.router)
+app.include_router(parts.router)
 
 @app.get("/")
 async def root():
