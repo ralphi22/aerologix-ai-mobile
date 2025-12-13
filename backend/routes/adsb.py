@@ -7,6 +7,7 @@ from typing import List, Optional
 from datetime import datetime
 from bson import ObjectId
 from database.mongodb import get_database
+from services.auth_deps import get_current_user
 from models.adsb import (
     ADSBRecord, ADSBRecordCreate, ADSBRecordUpdate,
     ADSBType, ADSBStatus
