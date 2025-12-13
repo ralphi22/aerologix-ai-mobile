@@ -102,15 +102,38 @@ export default function AircraftDetailScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Modules</Text>
           
-          <TouchableOpacity style={styles.moduleCard} disabled>
-            <View style={styles.moduleIcon}>
-              <Ionicons name="camera" size={24} color="#94A3B8" />
+          <TouchableOpacity 
+            style={[styles.moduleCard, styles.moduleCardActive]}
+            onPress={() => router.push({
+              pathname: '/ocr/scan',
+              params: { aircraftId: selectedAircraft._id, registration: selectedAircraft.registration }
+            })}
+          >
+            <View style={[styles.moduleIcon, { backgroundColor: '#EFF6FF' }]}>
+              <Ionicons name="scan" size={24} color="#3B82F6" />
             </View>
             <View style={styles.moduleContent}>
-              <Text style={styles.moduleName}>OCR History</Text>
-              <Text style={styles.moduleSubtitle}>Scanned maintenance reports</Text>
+              <Text style={styles.moduleName}>Scanner OCR</Text>
+              <Text style={styles.moduleSubtitle}>Analyser un document de maintenance</Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color="#CBD5E1" />
+            <Ionicons name="chevron-forward" size={20} color="#3B82F6" />
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={[styles.moduleCard, styles.moduleCardActive]}
+            onPress={() => router.push({
+              pathname: '/ocr/history',
+              params: { aircraftId: selectedAircraft._id, registration: selectedAircraft.registration }
+            })}
+          >
+            <View style={[styles.moduleIcon, { backgroundColor: '#F0FDF4' }]}>
+              <Ionicons name="time" size={24} color="#10B981" />
+            </View>
+            <View style={styles.moduleContent}>
+              <Text style={styles.moduleName}>Historique OCR</Text>
+              <Text style={styles.moduleSubtitle}>Rapports scannés</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#10B981" />
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.moduleCard} disabled>
@@ -119,7 +142,7 @@ export default function AircraftDetailScreen() {
             </View>
             <View style={styles.moduleContent}>
               <Text style={styles.moduleName}>Maintenance</Text>
-              <Text style={styles.moduleSubtitle}>Maintenance tracking & history</Text>
+              <Text style={styles.moduleSubtitle}>Suivi et historique maintenance</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color="#CBD5E1" />
           </TouchableOpacity>
@@ -130,7 +153,7 @@ export default function AircraftDetailScreen() {
             </View>
             <View style={styles.moduleContent}>
               <Text style={styles.moduleName}>AD/SB</Text>
-              <Text style={styles.moduleSubtitle}>Airworthiness Directives & Service Bulletins</Text>
+              <Text style={styles.moduleSubtitle}>Directives et bulletins de service</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color="#CBD5E1" />
           </TouchableOpacity>
@@ -141,7 +164,7 @@ export default function AircraftDetailScreen() {
             </View>
             <View style={styles.moduleContent}>
               <Text style={styles.moduleName}>STC</Text>
-              <Text style={styles.moduleSubtitle}>Supplemental Type Certificates</Text>
+              <Text style={styles.moduleSubtitle}>Certificats de type supplémentaires</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color="#CBD5E1" />
           </TouchableOpacity>
