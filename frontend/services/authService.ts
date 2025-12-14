@@ -33,7 +33,7 @@ class AuthService {
     formData.append('username', credentials.email);
     formData.append('password', credentials.password);
 
-    const response = await api.post('/api/auth/login', formData, {
+    const response = await api.post('/auth/login', formData, {
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
       },
@@ -45,14 +45,14 @@ class AuthService {
   }
 
   async signup(data: SignupData): Promise<User> {
-    const response = await api.post('/api/auth/signup', data);
+    const response = await api.post('/auth/signup', data);
     const { access_token, user } = response.data;
     await storage.setItem('auth_token', access_token);
     return user;
   }
 
   async getCurrentUser(): Promise<User> {
-    const response = await api.get('/api/auth/me');
+    const response = await api.get('/auth/me');
     return response.data;
   }
 
