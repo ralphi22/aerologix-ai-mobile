@@ -22,7 +22,15 @@
       },
       "node": "18.18.0"
     },
+    "testflight": {
+      "distribution": "store",
+      "ios": {
+        "simulator": false
+      },
+      "node": "18.18.0"
+    },
     "production": {
+      "distribution": "store",
       "ios": {
         "simulator": false
       },
@@ -33,6 +41,11 @@
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "ios": {
+        "appleId": "votre-apple-id@email.com",
+        "ascAppId": "VOTRE_APP_STORE_CONNECT_APP_ID"
+      }
+    }
   }
 }
