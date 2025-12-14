@@ -29,7 +29,6 @@
     },
     "plugins": [
       "expo-router",
-      "./plugins/withPodfileFix",
       [
         "expo-splash-screen",
         {

@@ -36,4 +36,8 @@ yarn-error.*
 # typescript
 *.tsbuildinfo
 
+# lockfiles - let EAS generate fresh ones
+yarn.lock
+package-lock.json
+
 app-example
