@@ -4,274 +4,306 @@ The user wants to build a productivity mobile application for iOS and Android fo
 
 **PRODUCT REQUIREMENTS:**
 - **User Management:** Account creation and subscription-based access.
-- **Subscription Tiers:** Four plans (BASIC, PILOT, MAINTENANCE PRO, FLEET AI) with different feature limits (number of aircraft, OCR scans, etc.).
-- **Aircraft Management:** Users can add, view, edit, and delete their aircraft. Each aircraft has a custom background photo and detailed information.
+- **Subscription Tiers:** Four plans (BASIC, PILOT, MAINTENANCE PRO, FLEET AI) with different feature limits.
+- **Aircraft Management:** Users can add, view, edit, and delete their aircraft.
 - **Core Modules:**
-    - **OCR:** Use a device camera and AI (OpenAI Vision) to read and process written maintenance/logbook reports.
+    - **OCR:** Use a device camera and AI (OpenAI Vision) to read and process maintenance/logbook reports, automatically detecting ADs/SBs.
     - **Logbook:** Automated and manual logbook entries.
     - **Maintenance Tracking:** Track maintenance records, ADs/SBs, and Time Between Overhaul (TBO).
     - **ELT Monitoring:** Track ELT expiration dates.
-    - **Predictive AI:** Generate predictive reports on costs and maintenance using AI (OpenAI GPT).
-    - **Notifications:** Push notifications for key events (ELT, TBO, inspections).
+    - **Predictive AI:** Generate predictive reports on costs and maintenance.
+    - **Notifications:** Push notifications for key events.
 - **Navigation:** A three-tab layout: Aircraft, AI Assistant, and Profile.
-- **Workflow:** The user wants a professional workflow that eventually allows building native iOS apps for TestFlight, separate from the Expo Go development process.
+- **Workflow:** The user wants a professional workflow to build native iOS apps for TestFlight via Expo Application Services (EAS).
 </original_problem_statement>
-
 **User's preferred language**: French (fr-FR). The next agent MUST continue the conversation in French.
 
 **what currently exists?**
-The project AeroLogix AI has been set up with a FastAPI backend and an Expo (React Native) frontend.
+The project has a functional FastAPI backend and an Expo (React Native) frontend.
 
-- **Backend (Layer 1 & 2 - Operational):**
-    - Clean architecture with , , .
-    - User authentication (signup/login with JWT) is functional.
-    - Subscription plan endpoint () returns the four defined plans.
-    - Aircraft CRUD endpoints () are implemented, allowing creation, listing, and fetching of aircraft for an authenticated user. The registration number is automatically formatted to uppercase.
+- **Backend:**
+    - User authentication (signup/login) and aircraft CRUD are operational.
+    - A complete OCR module has been implemented and tested. This includes API endpoints (, , , etc.) and data models (, , etc.) for processing scanned documents and extracting structured data like Airworthiness Directives (ADs) and Service Bulletins (SBs). An architectural improvement was made by creating  to resolve circular dependencies.
 
-- **Frontend (Partially Implemented):**
-    - A cross-platform storage solution () has been implemented to handle JWT tokens on both web () and mobile ().
-    - The main navigation structure is in place:
-        - A login/signup flow.
-        - A 3-tab layout for authenticated users: , , .
-    - Screens Created: Login/Signup, Aircraft List, Add Aircraft, Aircraft Detail, Profile, AI Assistant (placeholder), Subscription (placeholder).
-    - Users can successfully sign up, log in, view their profile, and add an aircraft via the web preview.
+- **Frontend:**
+    - The authentication flow and main 3-tab navigation are in place.
+    - The Subscription Management screen is now fully implemented and functional, displaying all plans fetched from the backend, with UI translated to French.
+    - A basic UI for the OCR feature has been created (), accessible from the aircraft detail page.
+    - The web preview, which was broken due to dependency issues, has been successfully restored and is now functional.
 
 **Last working item**:
-- Last item agent was working: The agent was addressing a user request that the Delete Aircraft button was not working and there was no way to edit an aircraft's details (like hours) after creation. The agent added an Edit button to the  screen and created a new file for the edit screen . This was done concurrently with creating a new subscription page .
-- Status: IN PROGRESS
+- Last item agent was working: The agent was in a deep and complex debugging session to resolve a series of cascading failures preventing the user from successfully building the iOS app using Expo Application Services (EAS). The final error was  due to a missing  dependency and an invalid  modification caused by a custom plugin () the agent had created. The agent added the missing dependency and was in the process of removing the faulty plugin when the session ended.
+- Status: BLOCKED
 - Agent Testing Done: N
-- Which testing method agent to use? Frontend testing agent
+- Which testing method agent to use? Manual testing by the user (running An Expo user account is required to proceed.
+
+Log in to EAS with email or username (exit and run eas login --help to see other login options)
+Input is required, but stdin is not readable. Failed to display prompt: Email or username). The agent's task is to provide the correct file configuration.
 - User Testing Done: N
 
 **All Pending/In progress Issue list**:
--   Issue 1: Aircraft details cannot be edited after creation. (P0)
--   Issue 2: The Delete Aircraft button is not functional. (P0)
--   Issue 3: The user can only see their current subscription plan (BASIC) and cannot view or upgrade to other plans. (P1)
--   Issue 4: A recurring navigation error () was a significant problem. While a workaround is in place, the underlying routing logic is fragile and could cause future issues. (P2)
+- Issue 1: iOS build using EAS is failing. (P0)
+- Issue 2: Aircraft details cannot be edited after creation. (P1)
+- Issue 3: The Delete Aircraft button is not functional. (P1)
+- Issue 4: The full OCR workflow is not complete on the frontend. (P2)
+- Issue 5: Subscription plan does not update on selection. (P3)
 
 Issues Detail:
--   **Issue 1: Edit Aircraft Feature**
-    -   **Attempted fixes:** The agent created a new screen file  and added an Edit button to the detail screen . The backend does not yet have an endpoint to handle updates ( or  on ).
-    -   **Next debug checklist:**
-        1.  Implement the backend logic for updating an aircraft in . This should be a  or  endpoint.
-        2.  Flesh out the frontend screen  to be a form that is pre-populated with the aircraft's current data.
-        3.  Implement the form submission logic to call the new backend update endpoint.
-        4.  Ensure the aircraft list and detail screens update after a successful edit.
-    -   **Why fix this issue and what will be achieved with the fix?** This is a core CRUD functionality requirement. Users must be able to correct or update their aircraft's information.
-    -   **Status:** IN PROGRESS
-    -   **Is recurring issue?** N
-    -   **Should Test frontend/backend/both after fix?** both
-    -   **Blocked on other issue:** None
+- **Issue 1: iOS build using EAS is failing**
+    - **Attempted fixes:** A long series of fixes were attempted, including: changing Node.js versions in  (22.x, 20.x), downgrading/upgrading  and other dependencies between different Expo SDK 54 patch versions, adding/removing  in , creating a custom Expo plugin () to patch the , and multiple attempts to resolve  vs.  conflicts.
+    - **Next debug checklist:**
+        1.  The agent has already added the missing  dev dependency.
+        2.  The next immediate step is to **delete the faulty custom plugin** located at  and remove its reference from . The agent was interrupted before completing this.
+        3.  To resolve the persistent lockfile issues, the agent should ensure no  or  is committed to the repository. The  should be updated to ignore them.
+        4.  Advise the user to delete  and any local lockfiles before running 
+changed 9 packages, and audited 969 packages in 2s
 
--   **Issue 2: Delete Aircraft Function**
-    -   **Attempted fixes:** The agent modified the  function in , suspecting that  was not working correctly on the web. The fix has not been tested.
-    -   **Next debug checklist:**
-        1.  Test the Delete Aircraft button on the web preview.
-        2.  Check the browser's Network tab to see if the  request to  is being sent.
-        3.  If the request is sent, check the backend logs for errors.
-        4.  If the request is not sent, debug the  handler in . The  should work on web.
-    -   **Why fix this issue and what will be achieved with the fix?** This is a core CRUD functionality requirement for managing aircraft.
-    -   **Status:** IN PROGRESS
-    -   **Is recurring issue?** N
-    -   **Should Test frontend/backend/both after fix?** both
-    -   **Blocked on other issue:** None
+106 packages are looking for funding
+  run `npm fund` for details
 
--   **Issue 3: Subscription Management Screen**
-    -   **Attempted fixes:** The agent created a new file  and added a link to it from the profile screen. The screen itself is a placeholder.
-    -   **Next debug checklist:**
-        1.  Develop the UI for  to display all four subscription plans in cards, fetching the data from the  endpoint.
-        2.  Highlight the user's current plan.
-        3.  Add Upgrade or Select buttons to each plan. For now, these can trigger an alert, as Stripe integration is not complete.
-    -   **Why fix this issue and what will be achieved with the fix?** It addresses the user's explicit feedback and is a necessary step towards monetization.
-    -   **Status:** NOT STARTED (file created, but logic is pending)
-    -   **Is recurring issue?** N
-    -   **Should Test frontend/backend/both after fix?** frontend
-    -   **Blocked on other issue:** None
+found 0 vulnerabilities and then the build command.
+        5.  If errors persist, the most stable path forward would be to downgrade the project to a known stable Expo SDK version like 52 or 53, as SDK 54 has proven to be highly unstable for this project's configuration.
+    - **Why fix this issue and what will be achieved with the fix?** This is the user's top priority. A successful build is required to deploy the app to TestFlight for testing.
+    - **Status:** IN PROGRESS
+    - **Is recurring issue?** Y
+    - **Should Test frontend/backend/both after fix?** N/A (User will test by running An Expo user account is required to proceed.
 
--   **Issue 4: Fragile Routing Logic**
-    -   **Attempted fixes:** Multiple approaches to fix an Expo Router race condition failed. The current working solution involves a minimal  that renders a login link, with the root  handling auth checks.
-    -   **Next debug checklist:**
-        1.  Review the logic in  and .
-        2.  Consider re-implementing the auth guard logic directly in the root layout () as initially planned, but ensuring it's robust and doesn't trigger before the navigation is ready. A splash screen component ( from ) might be necessary to control this.
-    -   **Why fix this issue and what will be achieved with the fix?** The current workaround is functional but not robust. A proper solution will make the app's entry point more stable and maintainable.
-    -   **Status:** RESOLVED (but needs review/refactor)
-    -   **Is recurring issue?** Y
-    -   **Should Test frontend/backend/both after fix?** frontend
-    -   **Blocked on other issue:** None
+Log in to EAS with email or username (exit and run eas login --help to see other login options)
+Input is required, but stdin is not readable. Failed to display prompt: Email or username)
+    - **Blocked on other issue:** None. This issue is blocking other work.
+
+- **Issue 2: Edit Aircraft Feature**
+    - **Attempted fixes:** None in this session. A placeholder file was created previously.
+    - **Next debug checklist:** Implement the backend  endpoint and build the frontend form in .
+    - **Why fix this issue and what will be achieved with the fix?** Core CRUD functionality for managing aircraft.
+    - **Status:** NOT STARTED
+    - **Is recurring issue?** N
+    - **Should Test frontend/backend/both after fix?** both
+    - **Blocked on other issue:** Issue 1
+
+- **Issue 3: Delete Aircraft Function**
+    - **Attempted fixes:** None in this session.
+    - **Next debug checklist:** Test the button, check network requests, and debug the  handler in .
+    - **Why fix this issue and what will be achieved with the fix?** Core CRUD functionality for managing aircraft.
+    - **Status:** NOT STARTED
+    - **Is recurring issue?** N
+    - **Should Test frontend/backend/both after fix?** frontend
+    - **Blocked on other issue:** Issue 1
+
+- **Issue 4: Full OCR Frontend Workflow**
+    - **Attempted fixes:** A basic scan screen was created.
+    - **Next debug checklist:** Implement the OCR results screen (), the history screen (), and the logic to call the  endpoint to save extracted data.
+    - **Why fix this issue and what will be achieved with the fix?** To complete the powerful OCR feature requested by the user.
+    - **Status:** IN PROGRESS
+    - **Is recurring issue?** N
+    - **Should Test frontend/backend/both after fix?** both
+    - **Blocked on other issue:** Issue 1
+
+- **Issue 5: Subscription plan doesn't update**
+    - **Attempted fixes:** None. The agent correctly identified this is expected as Stripe is not integrated.
+    - **Why fix this issue and what will be achieved with the fix?** Allows users to change subscription tiers.
+    - **Status:** BLOCKED
+    - **Is recurring issue?** N
+    - **Should Test frontend/backend/both after fix?** both
+    - **Blocked on other issue:** Stripe integration (Future Task).
 
 **In progress Task List**:
--   **Task 1: Complete Aircraft Edit and Delete functionality**
-    -   **Where to resume:** Implement the backend  endpoint for aircraft updates and test the frontend Delete functionality.
-    -   **What will be achieved with this?** Fully functional CRUD operations for the Aircraft module.
-    -   **Status:** IN PROGRESS
-    -   **Should Test frontend/backend/both after fix?** both
-    -   **Blocked on something:** None
+There are no active feature development tasks in progress. All effort is focused on fixing the blocking iOS build issue.
 
 **Upcoming and Future Tasks**
 - **Upcoming Tasks (P0):**
-    - Complete the Subscription Management screen UI ().
+    - Complete the OCR Frontend UI (Results, History, Apply Logic).
 - **Upcoming Tasks (P1):**
-    - **Layer 4: OCR Implementation:**
-        - Create a camera screen using .
-        - Implement a backend route that takes an image (base64) and sends it to OpenAI Vision via the Emergent LLM key.
-        - Display the extracted text to the user.
+    - Implement UI for Maintenance and AD/SB modules to display data extracted by OCR.
 - **Future Tasks (P2):**
-    - **Layer 5: Logbook Module:** Implement CRUD for logbook entries.
-    - **Layer 6: Maintenance Tracking:** Implement CRUD for maintenance records.
-    - **Layer 7: ELT & Notifications:** Implement ELT tracking and set up .
-    - **Layer 8: Predictive AI Reports:** Implement backend routes to use OpenAI GPT for analysis.
-    - **Stripe Integration:** Fully integrate Stripe for actual payments and subscription management.
-    - **Push to GitHub:** The user wants the code pushed to their repository. The agent cannot do this directly due to auth limitations and must remind the user to use the Save to GitHub UI button.
+    - Implement Logbook module (CRUD and UI).
+    - Implement ELT tracking and notifications.
+    - Implement Predictive AI features.
+    - Full Stripe integration for payments.
 
 **Completed work in this session**
-- **Backend Setup (Layer 1 & 2):**
-  - Project structure refactored for scalability.
-  - User authentication (Signup/Login) with JWT.
-  - API endpoint to list subscription plans.
-  - Full CRUD API for aircraft management.
-- **Frontend Setup (Layer 1 & 2):**
-  - Basic app structure with  for navigation.
-  - Implemented a 3-tab layout (Aircraft, AI, Profile).
-  - Created Login, Signup, Aircraft List, Add Aircraft, and Aircraft Detail screens.
-  - A user can successfully register, log in, add an aircraft, and view it.
-- **Major Bug Fixes:**
-  - **Resolved:** Critical navigation crash () by refactoring the initial routing logic.
-  - **Resolved:** Login/Signup buttons not working on the web by implementing a cross-platform storage adapter for  (web) and  (native).
+- **Subscription Management Screen:**
+  - Implemented the full frontend UI in .
+  - Fixed API calls to use environment variables.
+  - Translated all UI elements to French.
+  - Verified functionality with screenshots.
+- **OCR Module (Backend):**
+  - Created all data models (, , , , ).
+  - Implemented the core OCR service using OpenAI Vision.
+  - Created all required API routers and endpoints (, , etc.).
+  - Successfully debugged and passed all tests using the backend testing agent.
+- **OCR Module (Frontend - Basic UI):**
+  - Created the initial scan screen ().
+  - Added a button to the aircraft detail page to navigate to the scan screen.
+- **Web Preview Restoration:**
+  - After numerous dependency changes for EAS build attempts broke the web preview, the agent successfully diagnosed the / version mismatch and restored  to a working state, making the preview functional again.
 
 **Earlier issues found/mentioned but not fixed**
-None. The agent has been actively working on all user-reported issues.
+None.
 
 **Known issue recurrence from previous fork**
--   **Issue recurrence in previous fork:** N/A (This is the first summary).
--   **Recurrence count:** 0
--   **Status:** N/A
+- **Issue recurrence in previous fork:** The fragile routing logic mentioned in the initial summary did not recur, but a new, more severe and recurring issue with EAS builds has emerged and dominated this session.
+- **Recurrence count:** The EAS build has failed over 10 times with different errors.
+- **Status:** IN PROGRESS
 
 **Code Architecture**
 
 
 **Key Technical Concepts**
--   **Frontend:** Expo (React Native), Expo Router (file-based routing), Zustand (state management), Axios (API calls), TypeScript.
--   **Backend:** FastAPI (Python), Motor (async MongoDB driver), Pydantic (data modeling), python-jose (JWT).
--   **Database:** MongoDB.
--   **Architecture:** Full-stack monorepo with separate  and  directories. The frontend is a mobile app, and the backend is a REST API.
+- **Frontend:** Expo (React Native), Expo Router, Zustand, Axios, TypeScript.
+- **Backend:** FastAPI (Python), Motor (async MongoDB), Pydantic, python-jose (JWT).
+- **Database:** MongoDB.
+- **Build/Deployment:** Expo Application Services (EAS).
+- **AI:** OpenAI Vision (via Emergent LLM Key).
+- **Build Configuration:** Expo Plugins, , .
 
 **key DB schema**
--   **users:** , , , ,  (plan, status, stripe_ids), .
--   **aircrafts:** , , , , , , , , , , , .
+- **maintenance_records:** , , , Sun Dec 14 00:13:36 UTC 2025, , , etc.
+- **adsb_records:** , , ,  (AD/SB), ,  (COMPLIED/PENDING), , .
+- **stc_records:** , , , , .
+- **part_records:** , , , , , , .
+- **ocr_scans:** , , , , , .
 
 **changes in tech stack**
-None. The stack remains Expo (React Native) + FastAPI + MongoDB as per the initial setup.
+None.
 
 **All files of reference**
--   : Root layout, manages auth state and redirects. Critical for routing.
--   : Workaround for a routing bug, acts as a splash screen linking to .
--   : Defines the 3-tab navigation for authenticated users.
--   : Aircraft detail screen. Contains the broken Delete button and new Edit button. **(IN PROGRESS)**
--   : New screen for editing an aircraft. **(IN PROGRESS)**
--   : Key abstraction for cross-platform token storage (web/mobile).
--   : Main FastAPI application file, mounts all the API routers.
--   : Handles user signup and login.
--   : Handles aircraft CRUD operations.
+- : Critical file. Its state determines if the preview works and if the iOS build succeeds. The last working version for the preview uses React 19.
+- : Critical for build configuration. Contains references to splash screen images, plugins, and the EAS .
+- : Critical for build configuration. Specifies Node.js version and environment variables for the EAS build server.
+- : A custom plugin created to patch a Podfile bug. It introduced another bug and was in the process of being deleted.
+- : New file created to solve a circular dependency issue with .
+- All new files under  and  related to the OCR feature.
 
 **Areas that need refactoring**:
-- The initial routing logic in  and  is a workaround. It should be refactored into a more robust solution, possibly using Expo Router's  utility to prevent the race condition permanently.
+- The dependency management is fragile. A stable set of dependencies for Expo SDK 54 that works for both web preview and EAS iOS build needs to be established. The conflict between  and  also needs a definitive solution (e.g., standardizing on npm <command>
+
+Usage:
+
+npm install        install all the dependencies in your project
+npm install <foo>  add the <foo> dependency to your project
+npm test           run this project's tests
+npm run <foo>      run the script named <foo>
+npm <command> -h   quick help on <command>
+npm -l             display usage info for all commands
+npm help <term>    search for help on <term>
+npm help npm       more involved overview
+
+All commands:
+
+    access, adduser, audit, bugs, cache, ci, completion,
+    config, dedupe, deprecate, diff, dist-tag, docs, doctor,
+    edit, exec, explain, explore, find-dupes, fund, get, help,
+    help-search, hook, init, install, install-ci-test,
+    install-test, link, ll, login, logout, ls, org, outdated,
+    owner, pack, ping, pkg, prefix, profile, prune, publish,
+    query, rebuild, repo, restart, root, run-script, sbom,
+    search, set, shrinkwrap, star, stars, start, stop, team,
+    test, token, uninstall, unpublish, unstar, update, version,
+    view, whoami
+
+Specify configs in the ini-formatted file:
+    /root/.npmrc
+or on the command line via: npm <command> --key=value
+
+More configuration info: npm help config
+Configuration fields: npm help 7 config
+
+npm@10.8.2 /usr/lib/node_modules/npm and committing ).
 
 **key api endpoints**
--   : Create a new user.
--   : Authenticate a user and get a JWT.
--   : Get current user details.
--   : Get list of all subscription plans.
--   : Create a new aircraft.
--   : Get list of user's aircraft.
--   : Get details of a specific aircraft.
--   : Delete an aircraft.
+- : Accepts an image and returns extracted text and structured data.
+- : Returns OCR scan history for an aircraft.
+- : Applies the results of a scan to the system (updates aircraft hours, creates records).
+- CRUD endpoints for , , , .
 
 **Critical Info for New Agent**
-- **User Interaction:** The user is technically savvy, understands the development process, and provides clear, structured feedback. They prefer to validate plans before execution. **You must respond in French.**
-- **Routing Bug:** The app suffered from a major, recurring Expo Router crash (). The current solution is a workaround. Be very careful when modifying the initial routing files (, ).
-- **Web vs. Native:** A key bug was caused by using  (native-only) on the web. The  service now abstracts this, but be mindful of platform differences in future implementations.
-- **GitHub:** The agent cannot  directly. The user must be instructed to use the Save to GitHub button in the Emergent UI to push code to their repository .
+- **Primary Goal:** Fix the iOS EAS build. This is a blocker for the user. Do not proceed with feature work until this is resolved.
+- **The EAS Build Hell:** The session was a long battle with EAS build errors. The root causes are a combination of an unstable Expo SDK 54 version, user's local environment being out of sync, and conflicts between different package managers (yarn install v1.22.22
+[1/4] Resolving packages...
+[2/4] Fetching packages...
+[3/4] Linking dependencies...
+[4/4] Building fresh packages...
+success Saved lockfile.
+Done in 20.44s. vs npm <command>
+
+Usage:
+
+npm install        install all the dependencies in your project
+npm install <foo>  add the <foo> dependency to your project
+npm test           run this project's tests
+npm run <foo>      run the script named <foo>
+npm <command> -h   quick help on <command>
+npm -l             display usage info for all commands
+npm help <term>    search for help on <term>
+npm help npm       more involved overview
+
+All commands:
+
+    access, adduser, audit, bugs, cache, ci, completion,
+    config, dedupe, deprecate, diff, dist-tag, docs, doctor,
+    edit, exec, explain, explore, find-dupes, fund, get, help,
+    help-search, hook, init, install, install-ci-test,
+    install-test, link, ll, login, logout, ls, org, outdated,
+    owner, pack, ping, pkg, prefix, profile, prune, publish,
+    query, rebuild, repo, restart, root, run-script, sbom,
+    search, set, shrinkwrap, star, stars, start, stop, team,
+    test, token, uninstall, unpublish, unstar, update, version,
+    view, whoami
+
+Specify configs in the ini-formatted file:
+    /root/.npmrc
+or on the command line via: npm <command> --key=value
+
+More configuration info: npm help config
+Configuration fields: npm help 7 config
+
+npm@10.8.2 /usr/lib/node_modules/npm).
+- **Last Action:** The agent was about to delete the faulty plugin at . **This action must be completed first.**
+- **Web Preview vs. EAS Build:** Be aware that fixing the EAS build can break the web preview, and vice-versa. The last working  for the preview involved React 19, while many user-suggested fixes for the build involved React 18. This is a key conflict to manage.
+- **User Interaction:** The user is highly involved, provides detailed terminal logs, and sometimes suggests specific (but not always correct) technical solutions. The agent must analyze the user's input critically and explain its own reasoning clearly. Always respond in French.
 
 **documents created in this job**
-- : A guide for testing OCR.
-- : Project README file.
+None.
 
 **Last 10 User Messages and any pending user messages**
-1.  **User:** Validates Option 1 to fix the routing bug: delete  and adjust .
-2.  **User:** Reports the same routing error persists.
-3.  **User:** Reports the login page now appears, but the login/signup buttons do nothing on the web, and the iPhone app gives an error. (Image provided).
-4.  **User:** Provides console logs showing no critical errors, but some deprecation warnings. Asks for an explanation.
-5.  **User:** Provides console logs showing the browser's security warning against pasting code.
-6.  **User:** Provides console logs showing a  for .
-7.  **User:** Provides console logs showing a successful fetch for .
-8.  **User:** Provides console logs showing a successful manual signup via  in the console.
-9.  **User:** Provides full console logs showing  on signup and  on login.
-10. **User:** Provides the detailed  error response, revealing the user was entering an invalid email ().
-**Pending User Message:**
-- After the agent confirmed the signup works, the user reported: I added the plane as well as the airframe, engine and propeller hours, however I cannot modify them once entered and the button to delete the plane does not work, is this normal? (jai ajouter l avion ainsi que les heure de cellule moteur et helice cependant je ne peut pas les modifier une fois entrer et le bouton pour suprimer l avion ne fonctionne pas est ce normal ?) This is the current active task.
+- **User:** Asks for an explanation of the final build error ().
+- **User:** Acknowledges the agent's expertise and asks for a clear plan to fix both the build and preview issues.
+- **User:** Approves the agent's plan to restore the preview first, then fix the build.
+- **User:** Asks if React 19 was the source of the problem.
+- **User:** Asks for a clear explanation of what happened with the versions.
+- **User:** After the preview is fixed, provides a new build log showing a Node version error.
+- **User:** Provides a new build log showing a missing  file.
+- **User:** Provides the same build log again after the agent claims to have fixed it, indicating a sync issue.
+- **User:** Reports a  error after re-cloning the project.
+- **User:** Provides yet another  error log.
+**Pending User Message:** The user is waiting for a solution to the final yarn install v1.22.22
+[1/4] Resolving packages...
+success Already up-to-date.
+Done in 0.33s. error on the EAS build server.
 
 **Project Health Check:**
 - **Broken:**
-    - Aircraft deletion functionality.
-    - Aircraft editing functionality (not yet implemented).
+    - The entire iOS build pipeline via EAS.
 - **Mocked:**
-    - Stripe payments (placeholders in ).
-    - AI/OCR features (not yet implemented).
-    - Notification features (not yet implemented).
+    - Stripe payments.
+    - Applying OCR results to the system (backend endpoint exists, but frontend UI to trigger it does not).
 
 **3rd Party Integrations**
-- **OpenAI GPT-5.1 Vision (OCR & AI):** Uses Emergent LLM Key. The usage: openai [-h] [-v] [-b API_BASE] [-k API_KEY] [-p PROXY [PROXY ...]]
-              [-o ORGANIZATION] [-t {openai,azure}]
-              [--api-version API_VERSION] [--azure-endpoint AZURE_ENDPOINT]
-              [--azure-ad-token AZURE_AD_TOKEN] [-V]
-              {api,tools,migrate,grit} ...
-
-positional arguments:
-  {api,tools,migrate,grit}
-    api                 Direct API calls
-    tools               Client side tools for convenience
-
-options:
-  -h, --help            show this help message and exit
-  -v, --verbose         Set verbosity.
-  -b API_BASE, --api-base API_BASE
-                        What API base url to use.
-  -k API_KEY, --api-key API_KEY
-                        What API key to use.
-  -p PROXY [PROXY ...], --proxy PROXY [PROXY ...]
-                        What proxy to use.
-  -o ORGANIZATION, --organization ORGANIZATION
-                        Which organization to run as (will use your default
-                        organization if not specified)
-  -t {openai,azure}, --api-type {openai,azure}
-                        The backend API to call, must be `openai` or `azure`
-  --api-version API_VERSION
-                        The Azure API version, e.g.
-                        'https://learn.microsoft.com/en-us/azure/ai-
-                        services/openai/reference#rest-api-versioning'
-  --azure-endpoint AZURE_ENDPOINT
-                        The Azure endpoint, e.g.
-                        'https://endpoint.openai.azure.com'
-  --azure-ad-token AZURE_AD_TOKEN
-                        A token from Azure Active Directory,
-                        https://www.microsoft.com/en-
-                        us/security/business/identity-access/microsoft-entra-
-                        id
-  -V, --version         show program's version number and exit package is installed, and the key is available, but no API calls are implemented yet.
-- **Stripe (Payments):** Requires User API Key. The  package is installed, and placeholder keys (, ) have been added to  files, but no integration logic is implemented.
+- **OpenAI GPT-4o (Vision):** Uses Emergent LLM Key. Integrated and functional in the backend OCR service.
+- **Stripe (Payments):** Requires User API Key. Package is installed, but no logic is implemented.
 
 **Testing status**
-- **Testing agent used after significant changes:** NO
-- **Troubleshoot agent used after agent stuck in loop:** NO (The agent resolved the routing loop by itself after several attempts).
+- **Testing agent used after significant changes:** YES (Backend testing agent was used successfully for the OCR module).
+- **Troubleshoot agent used after agent stuck in loop:** NO
 - **Test files created:** None.
-- **Known regressions:** None.
+- **Known regressions:** The web preview was broken during the session but has since been fixed.
 
 **Credentials to test flow:**
-A test user was created during the session. The next agent can create a new user for testing via the signup screen. A known working set is:
--   **Email:** 
--   **Password:** 
+- **Email:** 
+- **Password:** 
 
 **What agent forgot to execute**
-The agent did not implement the backend / endpoint for updating aircraft information, which is a necessary part of the Edit Aircraft feature request. It focused only on the frontend file creation.
+The agent was in the middle of a two-step fix when the session ended. It had added  to  but had not yet deleted the faulty plugin file at  and removed its entry from . This is the immediate next step.
 
 </analysis>
