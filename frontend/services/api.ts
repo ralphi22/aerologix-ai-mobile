@@ -3,7 +3,12 @@ import Constants from 'expo-constants';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 
-const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL || 'http://localhost:8001';
+// API URL centralisée - lit depuis app.json > extra.apiUrl
+// Compatible avec tous les environnements : dev, preview, TestFlight, App Store
+const API_URL = 
+  Constants.expoConfig?.extra?.apiUrl ?? 
+  Constants.manifest?.extra?.apiUrl ?? 
+  'https://aerotrack-2.preview.emergentagent.com/api';
 
 const api = axios.create({
   baseURL: API_URL,
