@@ -38,7 +38,7 @@ export default function SubscriptionScreen() {
 
   const fetchPlans = async () => {
     try {
-      const response = await api.get('/api/plans');
+      const response = await api.get('/plans');
       setPlans(response.data);
     } catch (error) {
       console.error('Error fetching plans:', error);
