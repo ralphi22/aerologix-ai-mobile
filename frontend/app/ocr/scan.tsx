@@ -108,7 +108,7 @@ export default function OCRScanScreen() {
     setIsAnalyzing(true);
 
     try {
-      const response = await api.post('/api/ocr/scan', {
+      const response = await api.post('/ocr/scan', {
         aircraft_id: aircraftId,
         document_type: selectedType,
         image_base64: imageBase64,
