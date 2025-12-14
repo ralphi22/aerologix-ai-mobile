@@ -18,9 +18,7 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#1E3A8A"
       },
-      "package": "com.tonnom.aerologix",
-      "versionCode": 1,
-      "edgeToEdgeEnabled": true
+      "package": "com.tonnom.aerologix"
     },
     "web": {
       "bundler": "metro",
