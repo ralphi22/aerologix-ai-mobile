@@ -11,17 +11,16 @@
         "simulator": true
       },
       "env": {
-        "NODE_OPTIONS": "--max-old-space-size=4096",
-        "RCT_NEW_ARCH_ENABLED": "0"
+        "NODE_OPTIONS": "--max-old-space-size=4096"
       },
-      "node": "20.19.4"
+      "node": "18.18.0"
     },
     "preview": {
       "distribution": "internal",
-      "env": {
-        "RCT_NEW_ARCH_ENABLED": "0"
+      "ios": {
+        "simulator": false
       },
-      "node": "20.19.4"
+      "node": "18.18.0"
     },
     "production": {
       "ios": {
@@ -30,10 +29,7 @@
       "android": {
         "buildType": "apk"
       },
-      "env": {
-        "RCT_NEW_ARCH_ENABLED": "0"
-      },
-      "node": "20.19.4"
+      "node": "18.18.0"
     }
   },
   "submit": {
