@@ -42,9 +42,15 @@ const storage = {
 // Request interceptor to add token
 api.interceptors.request.use(
   async (config) => {
-    const token = await storage.getItem('auth_token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+    // Ne pas ajouter de token pour les routes d'authentification
+    const isAuthRoute = config.url?.includes('/auth/login') || 
+                        config.url?.includes('/auth/signup');
+    
+    if (!isAuthRoute) {
+      const token = await storage.getItem('auth_token');
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
     }
     return config;
   },
