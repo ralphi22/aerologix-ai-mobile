@@ -23,21 +23,35 @@ export default function LoginScreen() {
   const [name, setName] = useState('');
 
   const handleSubmit = async () => {
+    console.log('handleSubmit called', { email, password, name, isSignup });
+    
     if (!email || !password || (isSignup && !name)) {
-      Alert.alert('Error', 'Please fill all fields');
+      console.log('Validation failed - fields empty');
+      if (Platform.OS === 'web') {
+        window.alert('Please fill all fields');
+      } else {
+        Alert.alert('Error', 'Please fill all fields');
+      }
       return;
     }
 
     try {
+      console.log('Attempting authentication...');
       if (isSignup) {
         await signup(email, name, password);
       } else {
         await login(email, password);
       }
-      // Utiliser push au lieu de replace pour éviter les problèmes de navigation
+      console.log('Authentication successful, navigating...');
       router.push('/(tabs)');
     } catch (error: any) {
-      Alert.alert('Error', error.response?.data?.detail || 'Authentication failed');
+      console.error('Authentication error:', error);
+      const errorMessage = error.response?.data?.detail || 'Authentication failed';
+      if (Platform.OS === 'web') {
+        window.alert(errorMessage);
+      } else {
+        Alert.alert('Error', errorMessage);
+      }
     }
   };
 
