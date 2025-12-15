@@ -1,760 +1,765 @@
-diff --git a/backend/routes/adsb.py b/backend/routes/adsb.py
-index 90feb81..abffd0c 100644
---- a/backend/routes/adsb.py
-+++ b/backend/routes/adsb.py
-@@ -30,7 +30,7 @@ async def create_adsb_record(
-     
-     # Verify aircraft belongs to user
-     aircraft = await db.aircrafts.find_one({
--        "_id": ObjectId(record.aircraft_id),
-+        "_id": record.aircraft_id,
-         "user_id": current_user.id
-     })
-     
-@@ -68,7 +68,7 @@ async def get_adsb_records(
-     
-     # Verify aircraft belongs to user
-     aircraft = await db.aircrafts.find_one({
--        "_id": ObjectId(aircraft_id),
-+        "_id": aircraft_id,
-         "user_id": current_user.id
-     })
-     
-@@ -108,7 +108,7 @@ async def get_adsb_record(
-     """Get a specific AD/SB record"""
-     
-     record = await db.adsb_records.find_one({
--        "_id": ObjectId(record_id),
-+        "_id": record_id,
-         "user_id": current_user.id
-     })
-     
-@@ -132,7 +132,7 @@ async def update_adsb_record(
-     """Update an AD/SB record"""
-     
-     record = await db.adsb_records.find_one({
--        "_id": ObjectId(record_id),
-+        "_id": record_id,
-         "user_id": current_user.id
-     })
-     
-@@ -150,7 +150,7 @@ async def update_adsb_record(
-     update_dict["updated_at"] = datetime.utcnow()
-     
-     await db.adsb_records.update_one(
--        {"_id": ObjectId(record_id)},
-+        {"_id": record_id},
-         {"$set": update_dict}
-     )
-     
-@@ -166,7 +166,7 @@ async def delete_adsb_record(
-     """Delete an AD/SB record"""
-     
-     result = await db.adsb_records.delete_one({
--        "_id": ObjectId(record_id),
-+        "_id": record_id,
-         "user_id": current_user.id
-     })
-     
-@@ -189,7 +189,7 @@ async def get_adsb_summary(
-     
-     # Verify aircraft belongs to user
-     aircraft = await db.aircrafts.find_one({
--        "_id": ObjectId(aircraft_id),
-+        "_id": aircraft_id,
-         "user_id": current_user.id
-     })
-     
-diff --git a/backend/routes/aircraft.py b/backend/routes/aircraft.py
-index cd7b5c5..5f6924f 100644
---- a/backend/routes/aircraft.py
-+++ b/backend/routes/aircraft.py
-@@ -24,7 +24,7 @@ async def create_aircraft(
-     """Create a new aircraft for the current user"""
-     # Check user aircraft limit based on plan
-     if current_user.limits.max_aircrafts != -1:  # -1 = unlimited
--        user_aircraft_count = await db.aircraft.count_documents({"user_id": current_user.id})
-+        user_aircraft_count = await db.aircrafts.count_documents({"user_id": current_user.id})
-         if user_aircraft_count >= current_user.limits.max_aircrafts:
-             raise HTTPException(
-                 status_code=status.HTTP_403_FORBIDDEN,
-@@ -35,7 +35,7 @@ async def create_aircraft(
-     registration = format_registration(aircraft.registration)
-     
-     # Check if registration already exists for this user
--    existing = await db.aircraft.find_one({
-+    existing = await db.aircrafts.find_one({
-         "user_id": current_user.id,
-         "registration": registration
-     })
-@@ -65,7 +65,7 @@ async def create_aircraft(
-         "updated_at": datetime.utcnow()
-     }
-     
--    await db.aircraft.insert_one(aircraft_dict)
-+    await db.aircrafts.insert_one(aircraft_dict)
-     logger.info(f"Aircraft {registration} created for user {current_user.email}")
-     
-     return Aircraft(**aircraft_dict)
-@@ -76,7 +76,7 @@ async def get_user_aircraft(
-     db: AsyncIOMotorDatabase = Depends(get_database)
- ):
-     """Get all aircraft for the current user"""
--    cursor = db.aircraft.find({"user_id": current_user.id}).sort("created_at", -1)
-+    cursor = db.aircrafts.find({"user_id": current_user.id}).sort("created_at", -1)
-     aircraft_list = await cursor.to_list(length=100)
-     return [Aircraft(**aircraft) for aircraft in aircraft_list]
- 
-@@ -87,7 +87,7 @@ async def get_aircraft(
-     db: AsyncIOMotorDatabase = Depends(get_database)
- ):
-     """Get a specific aircraft by ID"""
--    aircraft_doc = await db.aircraft.find_one({
-+    aircraft_doc = await db.aircrafts.find_one({
-         "_id": aircraft_id,
-         "user_id": current_user.id
-     })
-@@ -109,7 +109,7 @@ async def update_aircraft(
- ):
-     """Update an aircraft"""
-     # Check if aircraft exists and belongs to user
--    existing = await db.aircraft.find_one({
-+    existing = await db.aircrafts.find_one({
-         "_id": aircraft_id,
-         "user_id": current_user.id
-     })
-@@ -129,13 +129,13 @@ async def update_aircraft(
-     
-     if update_data:
-         update_data["updated_at"] = datetime.utcnow()
--        await db.aircraft.update_one(
-+        await db.aircrafts.update_one(
-             {"_id": aircraft_id},
-             {"$set": update_data}
-         )
-     
-     # Fetch updated aircraft
--    updated_aircraft = await db.aircraft.find_one({"_id": aircraft_id})
-+    updated_aircraft = await db.aircrafts.find_one({"_id": aircraft_id})
-     logger.info(f"Aircraft {aircraft_id} updated for user {current_user.email}")
-     
-     return Aircraft(**updated_aircraft)
-@@ -147,7 +147,7 @@ async def delete_aircraft(
-     db: AsyncIOMotorDatabase = Depends(get_database)
- ):
-     """Delete an aircraft"""
--    result = await db.aircraft.delete_one({
-+    result = await db.aircrafts.delete_one({
-         "_id": aircraft_id,
-         "user_id": current_user.id
-     })
-diff --git a/backend/routes/maintenance.py b/backend/routes/maintenance.py
-index 5131f7e..f17c363 100644
---- a/backend/routes/maintenance.py
-+++ b/backend/routes/maintenance.py
-@@ -30,7 +30,7 @@ async def create_maintenance_record(
-     
-     # Verify aircraft belongs to user
-     aircraft = await db.aircrafts.find_one({
--        "_id": ObjectId(record.aircraft_id),
-+        "_id": record.aircraft_id,
-         "user_id": current_user.id
-     })
-     
-@@ -66,7 +66,7 @@ async def get_maintenance_records(
-     
-     # Verify aircraft belongs to user
-     aircraft = await db.aircrafts.find_one({
--        "_id": ObjectId(aircraft_id),
-+        "_id": aircraft_id,
-         "user_id": current_user.id
-     })
-     
-@@ -98,7 +98,7 @@ async def get_maintenance_record(
-     """Get a specific maintenance record"""
-     
-     record = await db.maintenance_records.find_one({
--        "_id": ObjectId(record_id),
-+        "_id": record_id,
-         "user_id": current_user.id
-     })
-     
-@@ -122,7 +122,7 @@ async def update_maintenance_record(
-     """Update a maintenance record"""
-     
-     record = await db.maintenance_records.find_one({
--        "_id": ObjectId(record_id),
-+        "_id": record_id,
-         "user_id": current_user.id
-     })
-     
-@@ -140,7 +140,7 @@ async def update_maintenance_record(
-     update_dict["updated_at"] = datetime.utcnow()
-     
-     await db.maintenance_records.update_one(
--        {"_id": ObjectId(record_id)},
-+        {"_id": record_id},
-         {"$set": update_dict}
-     )
-     
-@@ -156,7 +156,7 @@ async def delete_maintenance_record(
-     """Delete a maintenance record"""
-     
-     result = await db.maintenance_records.delete_one({
--        "_id": ObjectId(record_id),
-+        "_id": record_id,
-         "user_id": current_user.id
-     })
-     
-diff --git a/backend/routes/ocr.py b/backend/routes/ocr.py
-index eb0c011..69f059f 100644
---- a/backend/routes/ocr.py
-+++ b/backend/routes/ocr.py
-@@ -38,7 +38,7 @@ async def scan_document(
-     
-     # Verify aircraft belongs to user
-     aircraft = await db.aircrafts.find_one({
--        "_id": ObjectId(scan_request.aircraft_id),
-+        "_id": scan_request.aircraft_id,
-         "user_id": current_user.id
-     })
-     
-@@ -49,7 +49,7 @@ async def scan_document(
-         )
-     
-     # Check OCR quota
--    user_doc = await db.users.find_one({"_id": ObjectId(current_user.id)})
-+    user_doc = await db.users.find_one({"_id": current_user.id})
-     ocr_limit = user_doc.get("limits", {}).get("ocr_per_month", 3)
-     
-     if ocr_limit != -1:  # -1 = unlimited
-@@ -99,7 +99,7 @@ async def scan_document(
-         if ocr_result["success"]:
-             # Update scan with results
-             await db.ocr_scans.update_one(
--                {"_id": ObjectId(scan_id)},
-+                {"_id": scan_id},
-                 {
-                     "$set": {
-                         "status": OCRStatus.COMPLETED.value,
-@@ -124,7 +124,7 @@ async def scan_document(
-         else:
-             # Update scan with error
-             await db.ocr_scans.update_one(
--                {"_id": ObjectId(scan_id)},
-+                {"_id": scan_id},
-                 {
-                     "$set": {
-                         "status": OCRStatus.FAILED.value,
-@@ -145,7 +145,7 @@ async def scan_document(
-         logger.error(f"OCR scan {scan_id} failed: {str(e)}")
-         
-         await db.ocr_scans.update_one(
--            {"_id": ObjectId(scan_id)},
-+            {"_id": scan_id},
-             {
-                 "$set": {
-                     "status": OCRStatus.FAILED.value,
-@@ -174,7 +174,7 @@ async def get_ocr_history(
-     
-     # Verify aircraft belongs to user
-     aircraft = await db.aircrafts.find_one({
--        "_id": ObjectId(aircraft_id),
-+        "_id": aircraft_id,
-         "user_id": current_user.id
-     })
-     
-@@ -223,7 +223,7 @@ async def get_ocr_scan(
-     """
-     
-     scan = await db.ocr_scans.find_one({
--        "_id": ObjectId(scan_id),
-+        "_id": scan_id,
-         "user_id": current_user.id
-     })
-     
-@@ -269,7 +269,7 @@ async def apply_ocr_results(
-     
-     # Get OCR scan
-     scan = await db.ocr_scans.find_one({
--        "_id": ObjectId(scan_id),
-+        "_id": scan_id,
-         "user_id": current_user.id
-     })
-     
-@@ -316,7 +316,7 @@ async def apply_ocr_results(
-             if hours_update:
-                 hours_update["updated_at"] = now
-                 await db.aircrafts.update_one(
--                    {"_id": ObjectId(aircraft_id)},
-+                    {"_id": aircraft_id},
-                     {"$set": hours_update}
-                 )
-                 logger.info(f"Updated aircraft {aircraft_id} hours: {hours_update}")
-@@ -458,7 +458,7 @@ async def apply_ocr_results(
-         
-         # Update OCR scan status to APPLIED
-         await db.ocr_scans.update_one(
--            {"_id": ObjectId(scan_id)},
-+            {"_id": scan_id},
-             {
-                 "$set": {
-                     "status": OCRStatus.APPLIED.value,
-@@ -498,7 +498,7 @@ async def get_ocr_quota_status(
-     Get current OCR quota status for the user
-     """
-     
--    user_doc = await db.users.find_one({"_id": ObjectId(current_user.id)})
-+    user_doc = await db.users.find_one({"_id": current_user.id})
-     ocr_limit = user_doc.get("limits", {}).get("ocr_per_month", 3)
-     
-     # Count OCR scans this month
-diff --git a/backend/routes/parts.py b/backend/routes/parts.py
-index d188ac0..2b76a78 100644
---- a/backend/routes/parts.py
-+++ b/backend/routes/parts.py
-@@ -28,7 +28,7 @@ async def create_part_record(
-     # If aircraft_id provided, verify it belongs to user
-     if record.aircraft_id:
-         aircraft = await db.aircrafts.find_one({
--            "_id": ObjectId(record.aircraft_id),
-+            "_id": record.aircraft_id,
-             "user_id": current_user.id
-         })
-         
-@@ -63,7 +63,7 @@ async def get_aircraft_parts(
-     
-     # Verify aircraft belongs to user
-     aircraft = await db.aircrafts.find_one({
--        "_id": ObjectId(aircraft_id),
-+        "_id": aircraft_id,
-         "user_id": current_user.id
-     })
-     
-@@ -123,7 +123,7 @@ async def get_part_record(
-     """Get a specific part record"""
-     
-     record = await db.part_records.find_one({
--        "_id": ObjectId(record_id),
-+        "_id": record_id,
-         "user_id": current_user.id
-     })
-     
-@@ -147,7 +147,7 @@ async def update_part_record(
-     """Update a part record"""
-     
-     record = await db.part_records.find_one({
--        "_id": ObjectId(record_id),
-+        "_id": record_id,
-         "user_id": current_user.id
-     })
-     
-@@ -161,7 +161,7 @@ async def update_part_record(
-     update_dict["updated_at"] = datetime.utcnow()
-     
-     await db.part_records.update_one(
--        {"_id": ObjectId(record_id)},
-+        {"_id": record_id},
-         {"$set": update_dict}
-     )
-     
-@@ -177,7 +177,7 @@ async def delete_part_record(
-     """Delete a part record"""
-     
-     result = await db.part_records.delete_one({
--        "_id": ObjectId(record_id),
-+        "_id": record_id,
-         "user_id": current_user.id
-     })
-     
-diff --git a/backend/routes/stc.py b/backend/routes/stc.py
-index 00fe18c..ebe9fdf 100644
---- a/backend/routes/stc.py
-+++ b/backend/routes/stc.py
-@@ -27,7 +27,7 @@ async def create_stc_record(
-     
-     # Verify aircraft belongs to user
-     aircraft = await db.aircrafts.find_one({
--        "_id": ObjectId(record.aircraft_id),
-+        "_id": record.aircraft_id,
-         "user_id": current_user.id
-     })
-     
-@@ -61,7 +61,7 @@ async def get_stc_records(
-     
-     # Verify aircraft belongs to user
-     aircraft = await db.aircrafts.find_one({
--        "_id": ObjectId(aircraft_id),
-+        "_id": aircraft_id,
-         "user_id": current_user.id
-     })
-     
-@@ -93,7 +93,7 @@ async def get_stc_record(
-     """Get a specific STC record"""
-     
-     record = await db.stc_records.find_one({
--        "_id": ObjectId(record_id),
-+        "_id": record_id,
-         "user_id": current_user.id
-     })
-     
-@@ -117,7 +117,7 @@ async def update_stc_record(
-     """Update an STC record"""
-     
-     record = await db.stc_records.find_one({
--        "_id": ObjectId(record_id),
-+        "_id": record_id,
-         "user_id": current_user.id
-     })
-     
-@@ -131,7 +131,7 @@ async def update_stc_record(
-     update_dict["updated_at"] = datetime.utcnow()
-     
-     await db.stc_records.update_one(
--        {"_id": ObjectId(record_id)},
-+        {"_id": record_id},
-         {"$set": update_dict}
-     )
-     
-@@ -147,7 +147,7 @@ async def delete_stc_record(
-     """Delete an STC record"""
-     
-     result = await db.stc_records.delete_one({
--        "_id": ObjectId(record_id),
-+        "_id": record_id,
-         "user_id": current_user.id
-     })
-     
-diff --git a/fix_objectid_issues.py b/fix_objectid_issues.py
-new file mode 100644
-index 0000000..f71f6f3
---- /dev/null
-+++ b/fix_objectid_issues.py
-@@ -0,0 +1,54 @@
-+#!/usr/bin/env python3
-+"""
-+Fix ObjectId issues in AeroLogix AI backend routes
-+Replace ObjectId() calls with direct string usage since aircraft IDs are strings
-+"""
-+
-+import os
-+import re
-+
-+def fix_file(filepath):
-+    """Fix ObjectId issues in a single file"""
-+    if not os.path.exists(filepath):
-+        print(f"File not found: {filepath}")
-+        return
-+    
-+    with open(filepath, 'r') as f:
-+        content = f.read()
-+    
-+    original_content = content
-+    
-+    # Fix ObjectId(aircraft_id) patterns
-+    content = re.sub(r'ObjectId\(([^)]+\.aircraft_id)\)', r'\1', content)
-+    content = re.sub(r'ObjectId\(aircraft_id\)', 'aircraft_id', content)
-+    content = re.sub(r'ObjectId\(record\.aircraft_id\)', 'record.aircraft_id', content)
-+    
-+    # Fix ObjectId(current_user.id) patterns
-+    content = re.sub(r'ObjectId\(current_user\.id\)', 'current_user.id', content)
-+    
-+    # Fix ObjectId(record_id) patterns for string IDs
-+    content = re.sub(r'ObjectId\(record_id\)', 'record_id', content)
-+    content = re.sub(r'ObjectId\(scan_id\)', 'scan_id', content)
-+    
-+    if content != original_content:
-+        with open(filepath, 'w') as f:
-+            f.write(content)
-+        print(f"Fixed ObjectId issues in {filepath}")
-+    else:
-+        print(f"No ObjectId issues found in {filepath}")
-+
-+def main():
-+    """Fix ObjectId issues in all route files"""
-+    route_files = [
-+        '/app/backend/routes/ocr.py',
-+        '/app/backend/routes/maintenance.py',
-+        '/app/backend/routes/adsb.py',
-+        '/app/backend/routes/stc.py',
-+        '/app/backend/routes/parts.py'
-+    ]
-+    
-+    for filepath in route_files:
-+        fix_file(filepath)
-+
-+if __name__ == '__main__':
-+    main()
 diff --git a/model.patch b/model.patch
-index a78c108..26b7627 100644
+index a6b446c..e69de29 100644
 --- a/model.patch
 +++ b/model.patch
-@@ -1,19 +0,0 @@
--diff --git a/backend/.env b/backend/.env
--index 0f4322c..3494ad6 100644
----- a/backend/.env
--+++ b/backend/.env
--@@ -1,2 +1,10 @@
---MONGO_URL="mongodb://localhost:27017"
---DB_NAME="test_database"
--\ No newline at end of file
--+MONGO_URL=mongodb://mongodb:27017/
--+DB_NAME=aerologix_ai
+@@ -1,760 +0,0 @@
+-diff --git a/backend/routes/adsb.py b/backend/routes/adsb.py
+-index 90feb81..abffd0c 100644
+---- a/backend/routes/adsb.py
+-+++ b/backend/routes/adsb.py
+-@@ -30,7 +30,7 @@ async def create_adsb_record(
+-     
+-     # Verify aircraft belongs to user
+-     aircraft = await db.aircrafts.find_one({
+--        "_id": ObjectId(record.aircraft_id),
+-+        "_id": record.aircraft_id,
+-         "user_id": current_user.id
+-     })
+-     
+-@@ -68,7 +68,7 @@ async def get_adsb_records(
+-     
+-     # Verify aircraft belongs to user
+-     aircraft = await db.aircrafts.find_one({
+--        "_id": ObjectId(aircraft_id),
+-+        "_id": aircraft_id,
+-         "user_id": current_user.id
+-     })
+-     
+-@@ -108,7 +108,7 @@ async def get_adsb_record(
+-     """Get a specific AD/SB record"""
+-     
+-     record = await db.adsb_records.find_one({
+--        "_id": ObjectId(record_id),
+-+        "_id": record_id,
+-         "user_id": current_user.id
+-     })
+-     
+-@@ -132,7 +132,7 @@ async def update_adsb_record(
+-     """Update an AD/SB record"""
+-     
+-     record = await db.adsb_records.find_one({
+--        "_id": ObjectId(record_id),
+-+        "_id": record_id,
+-         "user_id": current_user.id
+-     })
+-     
+-@@ -150,7 +150,7 @@ async def update_adsb_record(
+-     update_dict["updated_at"] = datetime.utcnow()
+-     
+-     await db.adsb_records.update_one(
+--        {"_id": ObjectId(record_id)},
+-+        {"_id": record_id},
+-         {"$set": update_dict}
+-     )
+-     
+-@@ -166,7 +166,7 @@ async def delete_adsb_record(
+-     """Delete an AD/SB record"""
+-     
+-     result = await db.adsb_records.delete_one({
+--        "_id": ObjectId(record_id),
+-+        "_id": record_id,
+-         "user_id": current_user.id
+-     })
+-     
+-@@ -189,7 +189,7 @@ async def get_adsb_summary(
+-     
+-     # Verify aircraft belongs to user
+-     aircraft = await db.aircrafts.find_one({
+--        "_id": ObjectId(aircraft_id),
+-+        "_id": aircraft_id,
+-         "user_id": current_user.id
+-     })
+-     
+-diff --git a/backend/routes/aircraft.py b/backend/routes/aircraft.py
+-index cd7b5c5..5f6924f 100644
+---- a/backend/routes/aircraft.py
+-+++ b/backend/routes/aircraft.py
+-@@ -24,7 +24,7 @@ async def create_aircraft(
+-     """Create a new aircraft for the current user"""
+-     # Check user aircraft limit based on plan
+-     if current_user.limits.max_aircrafts != -1:  # -1 = unlimited
+--        user_aircraft_count = await db.aircraft.count_documents({"user_id": current_user.id})
+-+        user_aircraft_count = await db.aircrafts.count_documents({"user_id": current_user.id})
+-         if user_aircraft_count >= current_user.limits.max_aircrafts:
+-             raise HTTPException(
+-                 status_code=status.HTTP_403_FORBIDDEN,
+-@@ -35,7 +35,7 @@ async def create_aircraft(
+-     registration = format_registration(aircraft.registration)
+-     
+-     # Check if registration already exists for this user
+--    existing = await db.aircraft.find_one({
+-+    existing = await db.aircrafts.find_one({
+-         "user_id": current_user.id,
+-         "registration": registration
+-     })
+-@@ -65,7 +65,7 @@ async def create_aircraft(
+-         "updated_at": datetime.utcnow()
+-     }
+-     
+--    await db.aircraft.insert_one(aircraft_dict)
+-+    await db.aircrafts.insert_one(aircraft_dict)
+-     logger.info(f"Aircraft {registration} created for user {current_user.email}")
+-     
+-     return Aircraft(**aircraft_dict)
+-@@ -76,7 +76,7 @@ async def get_user_aircraft(
+-     db: AsyncIOMotorDatabase = Depends(get_database)
+- ):
+-     """Get all aircraft for the current user"""
+--    cursor = db.aircraft.find({"user_id": current_user.id}).sort("created_at", -1)
+-+    cursor = db.aircrafts.find({"user_id": current_user.id}).sort("created_at", -1)
+-     aircraft_list = await cursor.to_list(length=100)
+-     return [Aircraft(**aircraft) for aircraft in aircraft_list]
+- 
+-@@ -87,7 +87,7 @@ async def get_aircraft(
+-     db: AsyncIOMotorDatabase = Depends(get_database)
+- ):
+-     """Get a specific aircraft by ID"""
+--    aircraft_doc = await db.aircraft.find_one({
+-+    aircraft_doc = await db.aircrafts.find_one({
+-         "_id": aircraft_id,
+-         "user_id": current_user.id
+-     })
+-@@ -109,7 +109,7 @@ async def update_aircraft(
+- ):
+-     """Update an aircraft"""
+-     # Check if aircraft exists and belongs to user
+--    existing = await db.aircraft.find_one({
+-+    existing = await db.aircrafts.find_one({
+-         "_id": aircraft_id,
+-         "user_id": current_user.id
+-     })
+-@@ -129,13 +129,13 @@ async def update_aircraft(
+-     
+-     if update_data:
+-         update_data["updated_at"] = datetime.utcnow()
+--        await db.aircraft.update_one(
+-+        await db.aircrafts.update_one(
+-             {"_id": aircraft_id},
+-             {"$set": update_data}
+-         )
+-     
+-     # Fetch updated aircraft
+--    updated_aircraft = await db.aircraft.find_one({"_id": aircraft_id})
+-+    updated_aircraft = await db.aircrafts.find_one({"_id": aircraft_id})
+-     logger.info(f"Aircraft {aircraft_id} updated for user {current_user.email}")
+-     
+-     return Aircraft(**updated_aircraft)
+-@@ -147,7 +147,7 @@ async def delete_aircraft(
+-     db: AsyncIOMotorDatabase = Depends(get_database)
+- ):
+-     """Delete an aircraft"""
+--    result = await db.aircraft.delete_one({
+-+    result = await db.aircrafts.delete_one({
+-         "_id": aircraft_id,
+-         "user_id": current_user.id
+-     })
+-diff --git a/backend/routes/maintenance.py b/backend/routes/maintenance.py
+-index 5131f7e..f17c363 100644
+---- a/backend/routes/maintenance.py
+-+++ b/backend/routes/maintenance.py
+-@@ -30,7 +30,7 @@ async def create_maintenance_record(
+-     
+-     # Verify aircraft belongs to user
+-     aircraft = await db.aircrafts.find_one({
+--        "_id": ObjectId(record.aircraft_id),
+-+        "_id": record.aircraft_id,
+-         "user_id": current_user.id
+-     })
+-     
+-@@ -66,7 +66,7 @@ async def get_maintenance_records(
+-     
+-     # Verify aircraft belongs to user
+-     aircraft = await db.aircrafts.find_one({
+--        "_id": ObjectId(aircraft_id),
+-+        "_id": aircraft_id,
+-         "user_id": current_user.id
+-     })
+-     
+-@@ -98,7 +98,7 @@ async def get_maintenance_record(
+-     """Get a specific maintenance record"""
+-     
+-     record = await db.maintenance_records.find_one({
+--        "_id": ObjectId(record_id),
+-+        "_id": record_id,
+-         "user_id": current_user.id
+-     })
+-     
+-@@ -122,7 +122,7 @@ async def update_maintenance_record(
+-     """Update a maintenance record"""
+-     
+-     record = await db.maintenance_records.find_one({
+--        "_id": ObjectId(record_id),
+-+        "_id": record_id,
+-         "user_id": current_user.id
+-     })
+-     
+-@@ -140,7 +140,7 @@ async def update_maintenance_record(
+-     update_dict["updated_at"] = datetime.utcnow()
+-     
+-     await db.maintenance_records.update_one(
+--        {"_id": ObjectId(record_id)},
+-+        {"_id": record_id},
+-         {"$set": update_dict}
+-     )
+-     
+-@@ -156,7 +156,7 @@ async def delete_maintenance_record(
+-     """Delete a maintenance record"""
+-     
+-     result = await db.maintenance_records.delete_one({
+--        "_id": ObjectId(record_id),
+-+        "_id": record_id,
+-         "user_id": current_user.id
+-     })
+-     
+-diff --git a/backend/routes/ocr.py b/backend/routes/ocr.py
+-index eb0c011..69f059f 100644
+---- a/backend/routes/ocr.py
+-+++ b/backend/routes/ocr.py
+-@@ -38,7 +38,7 @@ async def scan_document(
+-     
+-     # Verify aircraft belongs to user
+-     aircraft = await db.aircrafts.find_one({
+--        "_id": ObjectId(scan_request.aircraft_id),
+-+        "_id": scan_request.aircraft_id,
+-         "user_id": current_user.id
+-     })
+-     
+-@@ -49,7 +49,7 @@ async def scan_document(
+-         )
+-     
+-     # Check OCR quota
+--    user_doc = await db.users.find_one({"_id": ObjectId(current_user.id)})
+-+    user_doc = await db.users.find_one({"_id": current_user.id})
+-     ocr_limit = user_doc.get("limits", {}).get("ocr_per_month", 3)
+-     
+-     if ocr_limit != -1:  # -1 = unlimited
+-@@ -99,7 +99,7 @@ async def scan_document(
+-         if ocr_result["success"]:
+-             # Update scan with results
+-             await db.ocr_scans.update_one(
+--                {"_id": ObjectId(scan_id)},
+-+                {"_id": scan_id},
+-                 {
+-                     "$set": {
+-                         "status": OCRStatus.COMPLETED.value,
+-@@ -124,7 +124,7 @@ async def scan_document(
+-         else:
+-             # Update scan with error
+-             await db.ocr_scans.update_one(
+--                {"_id": ObjectId(scan_id)},
+-+                {"_id": scan_id},
+-                 {
+-                     "$set": {
+-                         "status": OCRStatus.FAILED.value,
+-@@ -145,7 +145,7 @@ async def scan_document(
+-         logger.error(f"OCR scan {scan_id} failed: {str(e)}")
+-         
+-         await db.ocr_scans.update_one(
+--            {"_id": ObjectId(scan_id)},
+-+            {"_id": scan_id},
+-             {
+-                 "$set": {
+-                     "status": OCRStatus.FAILED.value,
+-@@ -174,7 +174,7 @@ async def get_ocr_history(
+-     
+-     # Verify aircraft belongs to user
+-     aircraft = await db.aircrafts.find_one({
+--        "_id": ObjectId(aircraft_id),
+-+        "_id": aircraft_id,
+-         "user_id": current_user.id
+-     })
+-     
+-@@ -223,7 +223,7 @@ async def get_ocr_scan(
+-     """
+-     
+-     scan = await db.ocr_scans.find_one({
+--        "_id": ObjectId(scan_id),
+-+        "_id": scan_id,
+-         "user_id": current_user.id
+-     })
+-     
+-@@ -269,7 +269,7 @@ async def apply_ocr_results(
+-     
+-     # Get OCR scan
+-     scan = await db.ocr_scans.find_one({
+--        "_id": ObjectId(scan_id),
+-+        "_id": scan_id,
+-         "user_id": current_user.id
+-     })
+-     
+-@@ -316,7 +316,7 @@ async def apply_ocr_results(
+-             if hours_update:
+-                 hours_update["updated_at"] = now
+-                 await db.aircrafts.update_one(
+--                    {"_id": ObjectId(aircraft_id)},
+-+                    {"_id": aircraft_id},
+-                     {"$set": hours_update}
+-                 )
+-                 logger.info(f"Updated aircraft {aircraft_id} hours: {hours_update}")
+-@@ -458,7 +458,7 @@ async def apply_ocr_results(
+-         
+-         # Update OCR scan status to APPLIED
+-         await db.ocr_scans.update_one(
+--            {"_id": ObjectId(scan_id)},
+-+            {"_id": scan_id},
+-             {
+-                 "$set": {
+-                     "status": OCRStatus.APPLIED.value,
+-@@ -498,7 +498,7 @@ async def get_ocr_quota_status(
+-     Get current OCR quota status for the user
+-     """
+-     
+--    user_doc = await db.users.find_one({"_id": ObjectId(current_user.id)})
+-+    user_doc = await db.users.find_one({"_id": current_user.id})
+-     ocr_limit = user_doc.get("limits", {}).get("ocr_per_month", 3)
+-     
+-     # Count OCR scans this month
+-diff --git a/backend/routes/parts.py b/backend/routes/parts.py
+-index d188ac0..2b76a78 100644
+---- a/backend/routes/parts.py
+-+++ b/backend/routes/parts.py
+-@@ -28,7 +28,7 @@ async def create_part_record(
+-     # If aircraft_id provided, verify it belongs to user
+-     if record.aircraft_id:
+-         aircraft = await db.aircrafts.find_one({
+--            "_id": ObjectId(record.aircraft_id),
+-+            "_id": record.aircraft_id,
+-             "user_id": current_user.id
+-         })
+-         
+-@@ -63,7 +63,7 @@ async def get_aircraft_parts(
+-     
+-     # Verify aircraft belongs to user
+-     aircraft = await db.aircrafts.find_one({
+--        "_id": ObjectId(aircraft_id),
+-+        "_id": aircraft_id,
+-         "user_id": current_user.id
+-     })
+-     
+-@@ -123,7 +123,7 @@ async def get_part_record(
+-     """Get a specific part record"""
+-     
+-     record = await db.part_records.find_one({
+--        "_id": ObjectId(record_id),
+-+        "_id": record_id,
+-         "user_id": current_user.id
+-     })
+-     
+-@@ -147,7 +147,7 @@ async def update_part_record(
+-     """Update a part record"""
+-     
+-     record = await db.part_records.find_one({
+--        "_id": ObjectId(record_id),
+-+        "_id": record_id,
+-         "user_id": current_user.id
+-     })
+-     
+-@@ -161,7 +161,7 @@ async def update_part_record(
+-     update_dict["updated_at"] = datetime.utcnow()
+-     
+-     await db.part_records.update_one(
+--        {"_id": ObjectId(record_id)},
+-+        {"_id": record_id},
+-         {"$set": update_dict}
+-     )
+-     
+-@@ -177,7 +177,7 @@ async def delete_part_record(
+-     """Delete a part record"""
+-     
+-     result = await db.part_records.delete_one({
+--        "_id": ObjectId(record_id),
+-+        "_id": record_id,
+-         "user_id": current_user.id
+-     })
+-     
+-diff --git a/backend/routes/stc.py b/backend/routes/stc.py
+-index 00fe18c..ebe9fdf 100644
+---- a/backend/routes/stc.py
+-+++ b/backend/routes/stc.py
+-@@ -27,7 +27,7 @@ async def create_stc_record(
+-     
+-     # Verify aircraft belongs to user
+-     aircraft = await db.aircrafts.find_one({
+--        "_id": ObjectId(record.aircraft_id),
+-+        "_id": record.aircraft_id,
+-         "user_id": current_user.id
+-     })
+-     
+-@@ -61,7 +61,7 @@ async def get_stc_records(
+-     
+-     # Verify aircraft belongs to user
+-     aircraft = await db.aircrafts.find_one({
+--        "_id": ObjectId(aircraft_id),
+-+        "_id": aircraft_id,
+-         "user_id": current_user.id
+-     })
+-     
+-@@ -93,7 +93,7 @@ async def get_stc_record(
+-     """Get a specific STC record"""
+-     
+-     record = await db.stc_records.find_one({
+--        "_id": ObjectId(record_id),
+-+        "_id": record_id,
+-         "user_id": current_user.id
+-     })
+-     
+-@@ -117,7 +117,7 @@ async def update_stc_record(
+-     """Update an STC record"""
+-     
+-     record = await db.stc_records.find_one({
+--        "_id": ObjectId(record_id),
+-+        "_id": record_id,
+-         "user_id": current_user.id
+-     })
+-     
+-@@ -131,7 +131,7 @@ async def update_stc_record(
+-     update_dict["updated_at"] = datetime.utcnow()
+-     
+-     await db.stc_records.update_one(
+--        {"_id": ObjectId(record_id)},
+-+        {"_id": record_id},
+-         {"$set": update_dict}
+-     )
+-     
+-@@ -147,7 +147,7 @@ async def delete_stc_record(
+-     """Delete an STC record"""
+-     
+-     result = await db.stc_records.delete_one({
+--        "_id": ObjectId(record_id),
+-+        "_id": record_id,
+-         "user_id": current_user.id
+-     })
+-     
+-diff --git a/fix_objectid_issues.py b/fix_objectid_issues.py
+-new file mode 100644
+-index 0000000..f71f6f3
+---- /dev/null
+-+++ b/fix_objectid_issues.py
+-@@ -0,0 +1,54 @@
+-+#!/usr/bin/env python3
+-+"""
+-+Fix ObjectId issues in AeroLogix AI backend routes
+-+Replace ObjectId() calls with direct string usage since aircraft IDs are strings
+-+"""
 -+
--+# Emergent LLM Key (OpenAI GPT-5.1 + Vision)
--+EMERGENT_LLM_KEY=sk-emergent-eAf207608993771Ad9
+-+import os
+-+import re
 -+
--+# Stripe API Keys (infrastructure only - add real keys later)
--+STRIPE_SECRET_KEY=sk_test_placeholder
--+STRIPE_PUBLISHABLE_KEY=pk_test_placeholder
--+STRIPE_WEBHOOK_SECRET=whsec_placeholder
+-+def fix_file(filepath):
+-+    """Fix ObjectId issues in a single file"""
+-+    if not os.path.exists(filepath):
+-+        print(f"File not found: {filepath}")
+-+        return
+-+    
+-+    with open(filepath, 'r') as f:
+-+        content = f.read()
+-+    
+-+    original_content = content
+-+    
+-+    # Fix ObjectId(aircraft_id) patterns
+-+    content = re.sub(r'ObjectId\(([^)]+\.aircraft_id)\)', r'\1', content)
+-+    content = re.sub(r'ObjectId\(aircraft_id\)', 'aircraft_id', content)
+-+    content = re.sub(r'ObjectId\(record\.aircraft_id\)', 'record.aircraft_id', content)
+-+    
+-+    # Fix ObjectId(current_user.id) patterns
+-+    content = re.sub(r'ObjectId\(current_user\.id\)', 'current_user.id', content)
+-+    
+-+    # Fix ObjectId(record_id) patterns for string IDs
+-+    content = re.sub(r'ObjectId\(record_id\)', 'record_id', content)
+-+    content = re.sub(r'ObjectId\(scan_id\)', 'scan_id', content)
+-+    
+-+    if content != original_content:
+-+        with open(filepath, 'w') as f:
+-+            f.write(content)
+-+        print(f"Fixed ObjectId issues in {filepath}")
+-+    else:
+-+        print(f"No ObjectId issues found in {filepath}")
+-+
+-+def main():
+-+    """Fix ObjectId issues in all route files"""
+-+    route_files = [
+-+        '/app/backend/routes/ocr.py',
+-+        '/app/backend/routes/maintenance.py',
+-+        '/app/backend/routes/adsb.py',
+-+        '/app/backend/routes/stc.py',
+-+        '/app/backend/routes/parts.py'
+-+    ]
+-+    
+-+    for filepath in route_files:
+-+        fix_file(filepath)
+-+
+-+if __name__ == '__main__':
+-+    main()
+-diff --git a/model.patch b/model.patch
+-index a78c108..26b7627 100644
+---- a/model.patch
+-+++ b/model.patch
+-@@ -1,19 +0,0 @@
+--diff --git a/backend/.env b/backend/.env
+--index 0f4322c..3494ad6 100644
+----- a/backend/.env
+--+++ b/backend/.env
+--@@ -1,2 +1,10 @@
+---MONGO_URL="mongodb://localhost:27017"
+---DB_NAME="test_database"
+--\ No newline at end of file
+--+MONGO_URL=mongodb://mongodb:27017/
+--+DB_NAME=aerologix_ai
+--+
+--+# Emergent LLM Key (OpenAI GPT-5.1 + Vision)
+--+EMERGENT_LLM_KEY=sk-emergent-eAf207608993771Ad9
+--+
+--+# Stripe API Keys (infrastructure only - add real keys later)
+--+STRIPE_SECRET_KEY=sk_test_placeholder
+--+STRIPE_PUBLISHABLE_KEY=pk_test_placeholder
+--+STRIPE_WEBHOOK_SECRET=whsec_placeholder
+--\ No newline at end of file
+-diff --git a/test_result.md b/test_result.md
+-index 187cba4..546d79f 100644
+---- a/test_result.md
+-+++ b/test_result.md
+-@@ -1,103 +1,146 @@
+--#====================================================================================================
+--# START - Testing Protocol - DO NOT EDIT OR REMOVE THIS SECTION
+--#====================================================================================================
+-+user_problem_statement: Test the new OCR and related API endpoints for AeroLogix AI
+- 
+--# THIS SECTION CONTAINS CRITICAL TESTING INSTRUCTIONS FOR BOTH AGENTS
+--# BOTH MAIN_AGENT AND TESTING_AGENT MUST PRESERVE THIS ENTIRE BLOCK
+-+backend:
+-+  - task: "User Authentication"
+-+    implemented: true
+-+    working: true
+-+    file: "/app/backend/routes/auth.py"
+-+    stuck_count: 0
+-+    priority: "high"
+-+    needs_retesting: false
+-+    status_history:
+-+      - working: true
+-+        agent: "testing"
+-+        comment: "Login and user info endpoints working correctly. JWT token authentication successful."
+- 
+--# Communication Protocol:
+--# If the `testing_agent` is available, main agent should delegate all testing tasks to it.
+--#
+--# You have access to a file called `test_result.md`. This file contains the complete testing state
+--# and history, and is the primary means of communication between main and the testing agent.
+--#
+--# Main and testing agents must follow this exact format to maintain testing data. 
+--# The testing data must be entered in yaml format Below is the data structure:
+--# 
+--## user_problem_statement: {problem_statement}
+--## backend:
+--##   - task: "Task name"
+--##     implemented: true
+--##     working: true  # or false or "NA"
+--##     file: "file_path.py"
+--##     stuck_count: 0
+--##     priority: "high"  # or "medium" or "low"
+--##     needs_retesting: false
+--##     status_history:
+--##         -working: true  # or false or "NA"
+--##         -agent: "main"  # or "testing" or "user"
+--##         -comment: "Detailed comment about status"
+--##
+--## frontend:
+--##   - task: "Task name"
+--##     implemented: true
+--##     working: true  # or false or "NA"
+--##     file: "file_path.js"
+--##     stuck_count: 0
+--##     priority: "high"  # or "medium" or "low"
+--##     needs_retesting: false
+--##     status_history:
+--##         -working: true  # or false or "NA"
+--##         -agent: "main"  # or "testing" or "user"
+--##         -comment: "Detailed comment about status"
+--##
+--## metadata:
+--##   created_by: "main_agent"
+--##   version: "1.0"
+--##   test_sequence: 0
+--##   run_ui: false
+--##
+--## test_plan:
+--##   current_focus:
+--##     - "Task name 1"
+--##     - "Task name 2"
+--##   stuck_tasks:
+--##     - "Task name with persistent issues"
+--##   test_all: false
+--##   test_priority: "high_first"  # or "sequential" or "stuck_first"
+--##
+--## agent_communication:
+--##     -agent: "main"  # or "testing" or "user"
+--##     -message: "Communication message between agents"
+-+  - task: "Aircraft Management"
+-+    implemented: true
+-+    working: true
+-+    file: "/app/backend/routes/aircraft.py"
+-+    stuck_count: 0
+-+    priority: "high"
+-+    needs_retesting: false
+-+    status_history:
+-+      - working: true
+-+        agent: "testing"
+-+        comment: "Aircraft creation and retrieval working. Fixed collection name inconsistency (aircraft vs aircrafts)."
+- 
+--# Protocol Guidelines for Main agent
+--#
+--# 1. Update Test Result File Before Testing:
+--#    - Main agent must always update the `test_result.md` file before calling the testing agent
+--#    - Add implementation details to the status_history
+--#    - Set `needs_retesting` to true for tasks that need testing
+--#    - Update the `test_plan` section to guide testing priorities
+--#    - Add a message to `agent_communication` explaining what you've done
+--#
+--# 2. Incorporate User Feedback:
+--#    - When a user provides feedback that something is or isn't working, add this information to the relevant task's status_history
+--#    - Update the working status based on user feedback
+--#    - If a user reports an issue with a task that was marked as working, increment the stuck_count
+--#    - Whenever user reports issue in the app, if we have testing agent and task_result.md file so find the appropriate task for that and append in status_history of that task to contain the user concern and problem as well 
+--#
+--# 3. Track Stuck Tasks:
+--#    - Monitor which tasks have high stuck_count values or where you are fixing same issue again and again, analyze that when you read task_result.md
+--#    - For persistent issues, use websearch tool to find solutions
+--#    - Pay special attention to tasks in the stuck_tasks list
+--#    - When you fix an issue with a stuck task, don't reset the stuck_count until the testing agent confirms it's working
+--#
+--# 4. Provide Context to Testing Agent:
+--#    - When calling the testing agent, provide clear instructions about:
+--#      - Which tasks need testing (reference the test_plan)
+--#      - Any authentication details or configuration needed
+--#      - Specific test scenarios to focus on
+--#      - Any known issues or edge cases to verify
+--#
+--# 5. Call the testing agent with specific instructions referring to test_result.md
+--#
+--# IMPORTANT: Main agent must ALWAYS update test_result.md BEFORE calling the testing agent, as it relies on this file to understand what to test next.
+-+  - task: "OCR Quota Status Endpoint"
+-+    implemented: true
+-+    working: true
+-+    file: "/app/backend/routes/ocr.py"
+-+    stuck_count: 0
+-+    priority: "high"
+-+    needs_retesting: false
+-+    status_history:
+-+      - working: false
+-+        agent: "testing"
+-+        comment: "Initial test failed due to ObjectId conversion issues with string IDs"
+-+      - working: true
+-+        agent: "testing"
+-+        comment: "Fixed ObjectId issues. GET /api/ocr/quota/status now returns correct quota information (Used: 0, Limit: 3, Remaining: 3)"
+- 
+--#====================================================================================================
+--# END - Testing Protocol - DO NOT EDIT OR REMOVE THIS SECTION
+--#====================================================================================================
+-+  - task: "OCR History Endpoint"
+-+    implemented: true
+-+    working: true
+-+    file: "/app/backend/routes/ocr.py"
+-+    stuck_count: 0
+-+    priority: "high"
+-+    needs_retesting: false
+-+    status_history:
+-+      - working: false
+-+        agent: "testing"
+-+        comment: "Initial test failed due to ObjectId conversion issues"
+-+      - working: true
+-+        agent: "testing"
+-+        comment: "Fixed ObjectId issues. GET /api/ocr/history/{aircraft_id} now works correctly, returns empty list for new aircraft"
+- 
+-+  - task: "Maintenance Records API"
+-+    implemented: true
+-+    working: true
+-+    file: "/app/backend/routes/maintenance.py"
+-+    stuck_count: 0
+-+    priority: "high"
+-+    needs_retesting: false
+-+    status_history:
+-+      - working: false
+-+        agent: "testing"
+-+        comment: "Initial test failed due to ObjectId conversion issues"
+-+      - working: true
+-+        agent: "testing"
+-+        comment: "Fixed ObjectId issues. POST /api/maintenance and GET /api/maintenance/{aircraft_id} working correctly. Successfully created and retrieved maintenance records."
+- 
+-+  - task: "AD/SB Records API"
+-+    implemented: true
+-+    working: true
+-+    file: "/app/backend/routes/adsb.py"
+-+    stuck_count: 0
+-+    priority: "high"
+-+    needs_retesting: false
+-+    status_history:
+-+      - working: false
+-+        agent: "testing"
+-+        comment: "Initial test failed due to ObjectId conversion issues"
+-+      - working: true
+-+        agent: "testing"
+-+        comment: "Fixed ObjectId issues. POST /api/adsb, GET /api/adsb/{aircraft_id}, and GET /api/adsb/{aircraft_id}/summary all working correctly. Summary shows proper AD/SB compliance tracking."
+- 
+--#====================================================================================================
+--# Testing Data - Main Agent and testing sub agent both should log testing data below this section
+--#====================================================================================================
 -\ No newline at end of file
-diff --git a/test_result.md b/test_result.md
-index 187cba4..546d79f 100644
---- a/test_result.md
-+++ b/test_result.md
-@@ -1,103 +1,146 @@
--#====================================================================================================
--# START - Testing Protocol - DO NOT EDIT OR REMOVE THIS SECTION
--#====================================================================================================
-+user_problem_statement: Test the new OCR and related API endpoints for AeroLogix AI
- 
--# THIS SECTION CONTAINS CRITICAL TESTING INSTRUCTIONS FOR BOTH AGENTS
--# BOTH MAIN_AGENT AND TESTING_AGENT MUST PRESERVE THIS ENTIRE BLOCK
-+backend:
-+  - task: "User Authentication"
-+    implemented: true
-+    working: true
-+    file: "/app/backend/routes/auth.py"
-+    stuck_count: 0
-+    priority: "high"
-+    needs_retesting: false
-+    status_history:
-+      - working: true
-+        agent: "testing"
-+        comment: "Login and user info endpoints working correctly. JWT token authentication successful."
- 
--# Communication Protocol:
--# If the `testing_agent` is available, main agent should delegate all testing tasks to it.
--#
--# You have access to a file called `test_result.md`. This file contains the complete testing state
--# and history, and is the primary means of communication between main and the testing agent.
--#
--# Main and testing agents must follow this exact format to maintain testing data. 
--# The testing data must be entered in yaml format Below is the data structure:
--# 
--## user_problem_statement: {problem_statement}
--## backend:
--##   - task: "Task name"
--##     implemented: true
--##     working: true  # or false or "NA"
--##     file: "file_path.py"
--##     stuck_count: 0
--##     priority: "high"  # or "medium" or "low"
--##     needs_retesting: false
--##     status_history:
--##         -working: true  # or false or "NA"
--##         -agent: "main"  # or "testing" or "user"
--##         -comment: "Detailed comment about status"
--##
--## frontend:
--##   - task: "Task name"
--##     implemented: true
--##     working: true  # or false or "NA"
--##     file: "file_path.js"
--##     stuck_count: 0
--##     priority: "high"  # or "medium" or "low"
--##     needs_retesting: false
--##     status_history:
--##         -working: true  # or false or "NA"
--##         -agent: "main"  # or "testing" or "user"
--##         -comment: "Detailed comment about status"
--##
--## metadata:
--##   created_by: "main_agent"
--##   version: "1.0"
--##   test_sequence: 0
--##   run_ui: false
--##
--## test_plan:
--##   current_focus:
--##     - "Task name 1"
--##     - "Task name 2"
--##   stuck_tasks:
--##     - "Task name with persistent issues"
--##   test_all: false
--##   test_priority: "high_first"  # or "sequential" or "stuck_first"
--##
--## agent_communication:
--##     -agent: "main"  # or "testing" or "user"
--##     -message: "Communication message between agents"
-+  - task: "Aircraft Management"
-+    implemented: true
-+    working: true
-+    file: "/app/backend/routes/aircraft.py"
-+    stuck_count: 0
-+    priority: "high"
-+    needs_retesting: false
-+    status_history:
-+      - working: true
-+        agent: "testing"
-+        comment: "Aircraft creation and retrieval working. Fixed collection name inconsistency (aircraft vs aircrafts)."
- 
--# Protocol Guidelines for Main agent
--#
--# 1. Update Test Result File Before Testing:
--#    - Main agent must always update the `test_result.md` file before calling the testing agent
--#    - Add implementation details to the status_history
--#    - Set `needs_retesting` to true for tasks that need testing
--#    - Update the `test_plan` section to guide testing priorities
--#    - Add a message to `agent_communication` explaining what you've done
--#
--# 2. Incorporate User Feedback:
--#    - When a user provides feedback that something is or isn't working, add this information to the relevant task's status_history
--#    - Update the working status based on user feedback
--#    - If a user reports an issue with a task that was marked as working, increment the stuck_count
--#    - Whenever user reports issue in the app, if we have testing agent and task_result.md file so find the appropriate task for that and append in status_history of that task to contain the user concern and problem as well 
--#
--# 3. Track Stuck Tasks:
--#    - Monitor which tasks have high stuck_count values or where you are fixing same issue again and again, analyze that when you read task_result.md
--#    - For persistent issues, use websearch tool to find solutions
--#    - Pay special attention to tasks in the stuck_tasks list
--#    - When you fix an issue with a stuck task, don't reset the stuck_count until the testing agent confirms it's working
--#
--# 4. Provide Context to Testing Agent:
--#    - When calling the testing agent, provide clear instructions about:
--#      - Which tasks need testing (reference the test_plan)
--#      - Any authentication details or configuration needed
--#      - Specific test scenarios to focus on
--#      - Any known issues or edge cases to verify
--#
--# 5. Call the testing agent with specific instructions referring to test_result.md
--#
--# IMPORTANT: Main agent must ALWAYS update test_result.md BEFORE calling the testing agent, as it relies on this file to understand what to test next.
-+  - task: "OCR Quota Status Endpoint"
-+    implemented: true
-+    working: true
-+    file: "/app/backend/routes/ocr.py"
-+    stuck_count: 0
-+    priority: "high"
-+    needs_retesting: false
-+    status_history:
-+      - working: false
-+        agent: "testing"
-+        comment: "Initial test failed due to ObjectId conversion issues with string IDs"
-+      - working: true
-+        agent: "testing"
-+        comment: "Fixed ObjectId issues. GET /api/ocr/quota/status now returns correct quota information (Used: 0, Limit: 3, Remaining: 3)"
- 
--#====================================================================================================
--# END - Testing Protocol - DO NOT EDIT OR REMOVE THIS SECTION
--#====================================================================================================
-+  - task: "OCR History Endpoint"
-+    implemented: true
-+    working: true
-+    file: "/app/backend/routes/ocr.py"
-+    stuck_count: 0
-+    priority: "high"
-+    needs_retesting: false
-+    status_history:
-+      - working: false
-+        agent: "testing"
-+        comment: "Initial test failed due to ObjectId conversion issues"
-+      - working: true
-+        agent: "testing"
-+        comment: "Fixed ObjectId issues. GET /api/ocr/history/{aircraft_id} now works correctly, returns empty list for new aircraft"
- 
-+  - task: "Maintenance Records API"
-+    implemented: true
-+    working: true
-+    file: "/app/backend/routes/maintenance.py"
-+    stuck_count: 0
-+    priority: "high"
-+    needs_retesting: false
-+    status_history:
-+      - working: false
-+        agent: "testing"
-+        comment: "Initial test failed due to ObjectId conversion issues"
-+      - working: true
-+        agent: "testing"
-+        comment: "Fixed ObjectId issues. POST /api/maintenance and GET /api/maintenance/{aircraft_id} working correctly. Successfully created and retrieved maintenance records."
- 
-+  - task: "AD/SB Records API"
-+    implemented: true
-+    working: true
-+    file: "/app/backend/routes/adsb.py"
-+    stuck_count: 0
-+    priority: "high"
-+    needs_retesting: false
-+    status_history:
-+      - working: false
-+        agent: "testing"
-+        comment: "Initial test failed due to ObjectId conversion issues"
-+      - working: true
-+        agent: "testing"
-+        comment: "Fixed ObjectId issues. POST /api/adsb, GET /api/adsb/{aircraft_id}, and GET /api/adsb/{aircraft_id}/summary all working correctly. Summary shows proper AD/SB compliance tracking."
- 
--#====================================================================================================
--# Testing Data - Main Agent and testing sub agent both should log testing data below this section
--#====================================================================================================
-\ No newline at end of file
-+  - task: "STC Records API"
-+    implemented: true
-+    working: true
-+    file: "/app/backend/routes/stc.py"
-+    stuck_count: 0
-+    priority: "high"
-+    needs_retesting: false
-+    status_history:
-+      - working: false
-+        agent: "testing"
-+        comment: "Initial test failed due to ObjectId conversion issues"
-+      - working: true
-+        agent: "testing"
-+        comment: "Fixed ObjectId issues. POST /api/stc and GET /api/stc/{aircraft_id} working correctly. Successfully created and retrieved STC records."
-+
-+  - task: "Parts Records API"
-+    implemented: true
-+    working: true
-+    file: "/app/backend/routes/parts.py"
-+    stuck_count: 0
-+    priority: "high"
-+    needs_retesting: false
-+    status_history:
-+      - working: false
-+        agent: "testing"
-+        comment: "Initial test failed due to ObjectId conversion issues"
-+      - working: true
-+        agent: "testing"
-+        comment: "Fixed ObjectId issues. POST /api/parts, GET /api/parts/aircraft/{aircraft_id}, and GET /api/parts/inventory all working correctly. Successfully created and retrieved parts records."
-+
-+frontend:
-+  - task: "Frontend Integration"
-+    implemented: false
-+    working: "NA"
-+    file: "N/A"
-+    stuck_count: 0
-+    priority: "low"
-+    needs_retesting: false
-+    status_history:
-+      - working: "NA"
-+        agent: "testing"
-+        comment: "Frontend testing not performed as per testing agent guidelines - only backend API testing conducted."
-+
-+metadata:
-+  created_by: "testing_agent"
-+  version: "1.0"
-+  test_sequence: 1
-+  run_ui: false
-+
-+test_plan:
-+  current_focus:
-+    - "All OCR and related API endpoints tested successfully"
-+  stuck_tasks: []
-+  test_all: true
-+  test_priority: "high_first"
-+
-+agent_communication:
-+  - agent: "testing"
-+    message: "Comprehensive backend API testing completed successfully. Fixed critical ObjectId conversion issues that were preventing proper database operations. All 15 test cases passed with 100% success rate. Key fixes included: 1) Collection name consistency (aircraft vs aircrafts), 2) ObjectId conversion removal for string-based IDs, 3) Proper authentication flow validation. All new OCR and related endpoints are fully functional."
-\ No newline at end of file
+-+  - task: "STC Records API"
+-+    implemented: true
+-+    working: true
+-+    file: "/app/backend/routes/stc.py"
+-+    stuck_count: 0
+-+    priority: "high"
+-+    needs_retesting: false
+-+    status_history:
+-+      - working: false
+-+        agent: "testing"
+-+        comment: "Initial test failed due to ObjectId conversion issues"
+-+      - working: true
+-+        agent: "testing"
+-+        comment: "Fixed ObjectId issues. POST /api/stc and GET /api/stc/{aircraft_id} working correctly. Successfully created and retrieved STC records."
+-+
+-+  - task: "Parts Records API"
+-+    implemented: true
+-+    working: true
+-+    file: "/app/backend/routes/parts.py"
+-+    stuck_count: 0
+-+    priority: "high"
+-+    needs_retesting: false
+-+    status_history:
+-+      - working: false
+-+        agent: "testing"
+-+        comment: "Initial test failed due to ObjectId conversion issues"
+-+      - working: true
+-+        agent: "testing"
+-+        comment: "Fixed ObjectId issues. POST /api/parts, GET /api/parts/aircraft/{aircraft_id}, and GET /api/parts/inventory all working correctly. Successfully created and retrieved parts records."
+-+
+-+frontend:
+-+  - task: "Frontend Integration"
+-+    implemented: false
+-+    working: "NA"
+-+    file: "N/A"
+-+    stuck_count: 0
+-+    priority: "low"
+-+    needs_retesting: false
+-+    status_history:
+-+      - working: "NA"
+-+        agent: "testing"
+-+        comment: "Frontend testing not performed as per testing agent guidelines - only backend API testing conducted."
+-+
+-+metadata:
+-+  created_by: "testing_agent"
+-+  version: "1.0"
+-+  test_sequence: 1
+-+  run_ui: false
+-+
+-+test_plan:
+-+  current_focus:
+-+    - "All OCR and related API endpoints tested successfully"
+-+  stuck_tasks: []
+-+  test_all: true
+-+  test_priority: "high_first"
+-+
+-+agent_communication:
+-+  - agent: "testing"
+-+    message: "Comprehensive backend API testing completed successfully. Fixed critical ObjectId conversion issues that were preventing proper database operations. All 15 test cases passed with 100% success rate. Key fixes included: 1) Collection name consistency (aircraft vs aircrafts), 2) ObjectId conversion removal for string-based IDs, 3) Proper authentication flow validation. All new OCR and related endpoints are fully functional."
+-\ No newline at end of file
