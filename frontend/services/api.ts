@@ -3,7 +3,10 @@ import Constants from 'expo-constants';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 
-const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL || 'http://localhost:8001';
+// Utilise extra.apiUrl de app.json (inclus dans le build EAS) en priorité
+const API_URL = Constants.expoConfig?.extra?.apiUrl?.replace(/\/api$/, '') || 
+                process.env.EXPO_PUBLIC_BACKEND_URL || 
+                'https://appstore-build-audit.preview.emergentagent.com';
 
 const api = axios.create({
   baseURL: API_URL,
