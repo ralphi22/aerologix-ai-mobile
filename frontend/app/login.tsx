@@ -104,21 +104,26 @@ export default function LoginScreen() {
             />
           </View>
 
-          <TouchableOpacity
-            style={styles.button}
+          <Pressable
+            style={({ pressed }) => [
+              styles.button,
+              pressed && { opacity: 0.8 }
+            ]}
             onPress={handleSubmit}
             disabled={isLoading}
+            accessibilityRole="button"
           >
             {isLoading ? (
               <ActivityIndicator color="#FFFFFF" />
             ) : (
               <Text style={styles.buttonText}>{isSignup ? 'Sign Up' : 'Login'}</Text>
             )}
-          </TouchableOpacity>
+          </Pressable>
 
-          <TouchableOpacity
+          <Pressable
             style={styles.switchButton}
             onPress={() => setIsSignup(!isSignup)}
+            accessibilityRole="button"
           >
             <Text style={styles.switchText}>
               {isSignup ? 'Already have an account? Login' : "Don't have an account? Sign Up"}
