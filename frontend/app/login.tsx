@@ -128,7 +128,7 @@ export default function LoginScreen() {
             <Text style={styles.switchText}>
               {isSignup ? 'Already have an account? Login' : "Don't have an account? Sign Up"}
             </Text>
-          </TouchableOpacity>
+          </Pressable>
         </View>
       </View>
     </KeyboardAvoidingView>
