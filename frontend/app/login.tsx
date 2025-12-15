@@ -110,6 +110,8 @@ export default function LoginScreen() {
               pressed && { opacity: 0.8 }
             ]}
             onPress={handleSubmit}
+            // @ts-ignore - onClick for web compatibility
+            onClick={handleSubmit}
             disabled={isLoading}
             accessibilityRole="button"
           >
