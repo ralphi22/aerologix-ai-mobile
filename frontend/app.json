@@ -13,7 +13,9 @@
       "bundleIdentifier": "com.tonnom.aerologix",
       "buildNumber": "1",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSCameraUsageDescription": "AeroLogix AI utilise la caméra pour scanner vos documents de maintenance aéronautique et extraire les informations via OCR.",
+        "NSPhotoLibraryUsageDescription": "AeroLogix AI accède à votre galerie photo pour sélectionner des documents de maintenance à analyser."
       }
     },
     "android": {
