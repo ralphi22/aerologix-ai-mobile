@@ -222,6 +222,7 @@ export default function AircraftDetailScreen() {
         </TouchableOpacity>
       </View>
     </ScrollView>
+    </View>
   );
 }
 
