@@ -11,7 +11,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.tonnom.aerologix",
-      "buildNumber": "6",
+      "buildNumber": "7",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSCameraUsageDescription": "AeroLogix AI utilise la caméra pour scanner vos documents de maintenance aéronautique et extraire les informations via OCR.",
@@ -46,7 +46,7 @@
       "typedRoutes": true
     },
     "extra": {
-      "apiUrl": "https://plane-assist.preview.emergentagent.com/api",
+      "apiUrl": "https://appstore-build-audit.preview.emergentagent.com/api",
       "eas": {
         "projectId": "4b010684-347e-4c92-b8d4-cc6dcb721019"
       }
