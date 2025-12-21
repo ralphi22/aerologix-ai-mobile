@@ -10,6 +10,7 @@ import {
   Platform,
   ActivityIndicator,
   Image,
+  Alert,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useAircraftStore } from '../../../stores/aircraftStore';
@@ -19,8 +20,9 @@ import { Ionicons } from '@expo/vector-icons';
 export default function EditAircraftScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
-  const { selectedAircraft, updateAircraft } = useAircraftStore();
+  const { selectedAircraft, updateAircraft, deleteAircraft } = useAircraftStore();
   const [loading, setLoading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const [formData, setFormData] = useState({
     registration: '',
@@ -51,6 +53,46 @@ export default function EditAircraftScreen() {
       });
     }
   }, [selectedAircraft]);
+
+  const handleDelete = async () => {
+    const confirmDelete = async () => {
+      setDeleting(true);
+      try {
+        await deleteAircraft(selectedAircraft!._id);
+        if (Platform.OS === 'web') {
+          window.alert('Aircraft deleted successfully');
+        } else {
+          Alert.alert('Success', 'Aircraft deleted successfully');
+        }
+        router.replace('/(tabs)');
+      } catch (error: any) {
+        console.error('Delete error:', error);
+        const msg = 'Failed to delete: ' + (error.response?.data?.detail || error.message);
+        if (Platform.OS === 'web') {
+          window.alert(msg);
+        } else {
+          Alert.alert('Error', msg);
+        }
+      } finally {
+        setDeleting(false);
+      }
+    };
+
+    if (Platform.OS === 'web') {
+      if (window.confirm(`Are you sure you want to delete ${selectedAircraft?.registration}?`)) {
+        confirmDelete();
+      }
+    } else {
+      Alert.alert(
+        'Confirm Delete',
+        `Are you sure you want to delete ${selectedAircraft?.registration}?`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Delete', style: 'destructive', onPress: confirmDelete }
+        ]
+      );
+    }
+  };
 
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -250,6 +292,21 @@ export default function EditAircraftScreen() {
             <Text style={styles.submitButtonText}>Update Aircraft</Text>
           )}
         </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.deleteButton, deleting && styles.submitButtonDisabled]}
+          onPress={handleDelete}
+          disabled={deleting}
+        >
+          {deleting ? (
+            <ActivityIndicator color="#EF4444" />
+          ) : (
+            <>
+              <Ionicons name="trash-outline" size={20} color="#EF4444" />
+              <Text style={styles.deleteButtonText}>Delete Aircraft</Text>
+            </>
+          )}
+        </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -343,6 +400,23 @@ const styles = StyleSheet.create({
   },
   submitButtonText: {
     color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  deleteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    paddingVertical: 16,
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: '#FEE2E2',
+    gap: 8,
+  },
+  deleteButtonText: {
+    color: '#EF4444',
     fontSize: 16,
     fontWeight: '600',
   },

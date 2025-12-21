@@ -21,7 +21,7 @@ EMERGENT_LLM_KEY = os.getenv("EMERGENT_LLM_KEY", "sk-emergent-eAf207608993771Ad9
 
 client = OpenAI(
     api_key=EMERGENT_LLM_KEY,
-    base_url="https://api.openai.com/v1"
+    base_url="https://emergentintegrations.ai/api/llms/openai"
 )
 
 # Prompts spécialisés par type de document
