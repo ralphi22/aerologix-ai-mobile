@@ -11,7 +11,7 @@ from datetime import datetime
 from typing import Dict, Any, Optional
 
 # Configuration
-BASE_URL = "https://appstore-build-audit.preview.emergentagent.com"
+BASE_URL = "https://plane-assist.preview.emergentagent.com"
 TEST_EMAIL = "test@aerologix.com"
 TEST_PASSWORD = "password123"
 
