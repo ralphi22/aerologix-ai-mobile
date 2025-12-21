@@ -20,8 +20,9 @@ import { Ionicons } from '@expo/vector-icons';
 export default function EditAircraftScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
-  const { selectedAircraft, updateAircraft } = useAircraftStore();
+  const { selectedAircraft, updateAircraft, deleteAircraft } = useAircraftStore();
   const [loading, setLoading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const [formData, setFormData] = useState({
     registration: '',
