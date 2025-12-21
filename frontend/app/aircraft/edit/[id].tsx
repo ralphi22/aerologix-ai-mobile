@@ -292,6 +292,21 @@ export default function EditAircraftScreen() {
             <Text style={styles.submitButtonText}>Update Aircraft</Text>
           )}
         </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.deleteButton, deleting && styles.submitButtonDisabled]}
+          onPress={handleDelete}
+          disabled={deleting}
+        >
+          {deleting ? (
+            <ActivityIndicator color="#EF4444" />
+          ) : (
+            <>
+              <Ionicons name="trash-outline" size={20} color="#EF4444" />
+              <Text style={styles.deleteButtonText}>Delete Aircraft</Text>
+            </>
+          )}
+        </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>
   );
