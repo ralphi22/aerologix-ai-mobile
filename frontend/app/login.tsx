@@ -33,14 +33,17 @@ export default function LoginScreen() {
     }
 
     try {
+      console.log('Attempting auth...', isSignup ? 'signup' : 'login');
       if (isSignup) {
         await signup(email, name, password);
       } else {
         await login(email, password);
       }
-      router.push('/(tabs)');
+      console.log('Auth successful, navigating...');
+      router.replace('/(tabs)');
     } catch (error: any) {
-      const errorMessage = error.response?.data?.detail || 'Authentication failed';
+      console.error('Auth error:', error);
+      const errorMessage = error.response?.data?.detail || error.message || 'Authentication failed';
       if (Platform.OS === 'web') {
         window.alert(errorMessage);
       } else {
