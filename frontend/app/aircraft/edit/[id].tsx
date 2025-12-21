@@ -54,6 +54,46 @@ export default function EditAircraftScreen() {
     }
   }, [selectedAircraft]);
 
+  const handleDelete = async () => {
+    const confirmDelete = async () => {
+      setDeleting(true);
+      try {
+        await deleteAircraft(selectedAircraft!._id);
+        if (Platform.OS === 'web') {
+          window.alert('Aircraft deleted successfully');
+        } else {
+          Alert.alert('Success', 'Aircraft deleted successfully');
+        }
+        router.replace('/(tabs)');
+      } catch (error: any) {
+        console.error('Delete error:', error);
+        const msg = 'Failed to delete: ' + (error.response?.data?.detail || error.message);
+        if (Platform.OS === 'web') {
+          window.alert(msg);
+        } else {
+          Alert.alert('Error', msg);
+        }
+      } finally {
+        setDeleting(false);
+      }
+    };
+
+    if (Platform.OS === 'web') {
+      if (window.confirm(`Are you sure you want to delete ${selectedAircraft?.registration}?`)) {
+        confirmDelete();
+      }
+    } else {
+      Alert.alert(
+        'Confirm Delete',
+        `Are you sure you want to delete ${selectedAircraft?.registration}?`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Delete', style: 'destructive', onPress: confirmDelete }
+        ]
+      );
+    }
+  };
+
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
