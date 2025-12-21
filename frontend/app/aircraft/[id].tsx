@@ -8,16 +8,19 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useAircraftStore } from '../../stores/aircraftStore';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function AircraftDetailScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
   const { selectedAircraft, deleteAircraft } = useAircraftStore();
+  const insets = useSafeAreaInsets();
 
   if (!selectedAircraft) {
     return (
@@ -28,16 +31,40 @@ export default function AircraftDetailScreen() {
   }
 
   const handleDelete = async () => {
-    const confirmed = window.confirm(`Are you sure you want to delete ${selectedAircraft.registration}?`);
-    if (confirmed) {
-      try {
-        await deleteAircraft(selectedAircraft._id);
-        alert('Aircraft deleted successfully');
-        router.back();
-      } catch (error: any) {
-        console.error('Delete error:', error);
-        alert('Failed to delete aircraft: ' + (error.response?.data?.detail || error.message));
+    const confirmDelete = () => {
+      deleteAircraft(selectedAircraft._id)
+        .then(() => {
+          if (Platform.OS === 'web') {
+            window.alert('Aircraft deleted successfully');
+          } else {
+            Alert.alert('Success', 'Aircraft deleted successfully');
+          }
+          router.replace('/(tabs)');
+        })
+        .catch((error: any) => {
+          console.error('Delete error:', error);
+          const msg = 'Failed to delete aircraft: ' + (error.response?.data?.detail || error.message);
+          if (Platform.OS === 'web') {
+            window.alert(msg);
+          } else {
+            Alert.alert('Error', msg);
+          }
+        });
+    };
+
+    if (Platform.OS === 'web') {
+      if (window.confirm(`Are you sure you want to delete ${selectedAircraft.registration}?`)) {
+        confirmDelete();
       }
+    } else {
+      Alert.alert(
+        'Confirm Delete',
+        `Are you sure you want to delete ${selectedAircraft.registration}?`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Delete', style: 'destructive', onPress: confirmDelete }
+        ]
+      );
     }
   };
 
@@ -45,8 +72,22 @@ export default function AircraftDetailScreen() {
     router.push(`/aircraft/edit/${selectedAircraft._id}`);
   };
 
+  const handleGoBack = () => {
+    router.replace('/(tabs)');
+  };
+
   return (
-    <ScrollView style={styles.container}>
+    <View style={styles.container}>
+      {/* Header with back button */}
+      <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
+        <TouchableOpacity style={styles.backButton} onPress={handleGoBack}>
+          <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>{selectedAircraft.registration}</Text>
+        <View style={styles.headerSpacer} />
+      </View>
+
+      <ScrollView style={styles.scrollView}>
       <ImageBackground
         source={
           selectedAircraft.photo_url
