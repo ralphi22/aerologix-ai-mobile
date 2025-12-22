@@ -46,7 +46,7 @@
       "typedRoutes": true
     },
     "extra": {
-      "apiUrl": "https://plane-assist.preview.emergentagent.com/api",
+      "apiUrl": "https://aerologix-mobile.preview.emergentagent.com/api",
       "eas": {
         "projectId": "4b010684-347e-4c92-b8d4-cc6dcb721019"
       }
