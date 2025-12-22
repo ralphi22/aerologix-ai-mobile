@@ -421,47 +421,31 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     gap: 4,
   },
-  sourceTagConfirmed: {
-    backgroundColor: '#D1FAE5',
+  sourceTagOCR: {
+    backgroundColor: '#EFF6FF',
   },
-  sourceTagPending: {
-    backgroundColor: '#FEF3C7',
+  sourceTagManual: {
+    backgroundColor: '#D1FAE5',
   },
   sourceText: {
     fontSize: 11,
-    color: '#3B82F6',
     fontWeight: '500',
   },
   actionsRow: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginTop: 12,
     paddingTop: 12,
     borderTopWidth: 1,
     borderTopColor: '#F1F5F9',
-    gap: 12,
-  },
-  confirmButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#D1FAE5',
-    paddingVertical: 10,
-    borderRadius: 8,
-    gap: 6,
-  },
-  confirmButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#10B981',
   },
   deleteButton: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
     backgroundColor: '#FEE2E2',
-    paddingVertical: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     borderRadius: 8,
     gap: 6,
   },
@@ -469,21 +453,17 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   deleteButtonText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
     color: '#EF4444',
   },
-  confirmedNote: {
+  protectedNote: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 12,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
-    gap: 6,
+    gap: 4,
   },
-  confirmedNoteText: {
-    fontSize: 12,
+  protectedNoteText: {
+    fontSize: 11,
     color: '#94A3B8',
     fontStyle: 'italic',
   },
