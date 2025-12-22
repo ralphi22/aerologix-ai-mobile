@@ -64,6 +64,7 @@ class PartRecordUpdate(BaseModel):
     invoice_number: Optional[str] = None
     work_order_reference: Optional[str] = None
     remarks: Optional[str] = None
+    confirmed: Optional[bool] = None  # For confirming OCR parts
 
 class PartRecord(PartRecordBase):
     id: str = Field(alias="_id")
