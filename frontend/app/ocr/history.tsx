@@ -7,6 +7,8 @@ import {
   FlatList,
   ActivityIndicator,
   SafeAreaView,
+  Alert,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -32,6 +34,7 @@ export default function OCRHistoryScreen() {
 
   const [scans, setScans] = useState<OCRScan[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deleting, setDeleting] = useState<string | null>(null);
 
   useEffect(() => {
     fetchHistory();
@@ -48,14 +51,56 @@ export default function OCRHistoryScreen() {
     }
   };
 
+  const handleDelete = async (scanId: string) => {
+    const doDelete = async () => {
+      setDeleting(scanId);
+      try {
+        await api.delete(`/api/ocr/${scanId}`);
+        setScans(scans.filter(s => s.id !== scanId));
+        if (Platform.OS === 'web') {
+          window.alert('Document supprimé');
+        } else {
+          Alert.alert('Succès', 'Document supprimé');
+        }
+      } catch (error: any) {
+        console.error('Delete error:', error);
+        const msg = error.response?.data?.detail || 'Erreur lors de la suppression';
+        if (Platform.OS === 'web') {
+          window.alert('Erreur: ' + msg);
+        } else {
+          Alert.alert('Erreur', msg);
+        }
+      } finally {
+        setDeleting(null);
+      }
+    };
+
+    if (Platform.OS === 'web') {
+      if (window.confirm('Supprimer ce document de l\'historique ?')) {
+        doDelete();
+      }
+    } else {
+      Alert.alert(
+        'Confirmer',
+        'Supprimer ce document de l\'historique ?',
+        [
+          { text: 'Annuler', style: 'cancel' },
+          { text: 'Supprimer', style: 'destructive', onPress: doDelete }
+        ]
+      );
+    }
+  };
+
   const getDocumentTypeLabel = (type: string) => {
     switch (type) {
+      case 'rapport':
       case 'logbook':
-        return 'Logbook';
+        return 'Rapport';
       case 'invoice':
         return 'Facture';
+      case 'pieces':
       case 'work_order':
-        return 'Work Order';
+        return 'Pièces';
       case 'ad_compliance':
         return 'AD Compliance';
       case 'sb_compliance':
@@ -73,12 +118,14 @@ export default function OCRHistoryScreen() {
 
   const getDocumentTypeIcon = (type: string) => {
     switch (type) {
+      case 'rapport':
       case 'logbook':
-        return 'book-outline';
+        return 'document-text-outline';
       case 'invoice':
         return 'receipt-outline';
+      case 'pieces':
       case 'work_order':
-        return 'construct-outline';
+        return 'hardware-chip-outline';
       case 'ad_compliance':
         return 'alert-circle-outline';
       case 'sb_compliance':
