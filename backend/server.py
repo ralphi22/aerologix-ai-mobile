@@ -55,6 +55,7 @@ app.include_router(adsb.router)
 app.include_router(stc.router)
 app.include_router(parts.router)
 app.include_router(elt.router)
+app.include_router(invoices.router)
 
 @app.get("/")
 async def root():
