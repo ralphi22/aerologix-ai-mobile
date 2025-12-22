@@ -76,7 +76,7 @@ export default function OCRScanScreen() {
     registration: string;
   }>();
 
-  const [selectedType, setSelectedType] = useState<DocumentType>('maintenance_report');
+  const [selectedType, setSelectedType] = useState<DocumentType>('other');
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [imageBase64, setImageBase64] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
