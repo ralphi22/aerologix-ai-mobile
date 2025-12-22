@@ -146,35 +146,18 @@ export default function AircraftDetailScreen() {
           <TouchableOpacity 
             style={[styles.moduleCard, styles.moduleCardActive]}
             onPress={() => router.push({
-              pathname: '/ocr/scan',
+              pathname: '/aircraft/logbook',
               params: { aircraftId: selectedAircraft._id, registration: selectedAircraft.registration }
             })}
           >
             <View style={[styles.moduleIcon, { backgroundColor: '#EFF6FF' }]}>
-              <Ionicons name="scan" size={24} color="#3B82F6" />
+              <Ionicons name="book" size={24} color="#3B82F6" />
             </View>
             <View style={styles.moduleContent}>
-              <Text style={styles.moduleName}>Scanner OCR</Text>
-              <Text style={styles.moduleSubtitle}>Analyser un document de maintenance</Text>
+              <Text style={styles.moduleName}>Log Book</Text>
+              <Text style={styles.moduleSubtitle}>Historique des vols et entrées</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color="#3B82F6" />
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={[styles.moduleCard, styles.moduleCardActive]}
-            onPress={() => router.push({
-              pathname: '/ocr/history',
-              params: { aircraftId: selectedAircraft._id, registration: selectedAircraft.registration }
-            })}
-          >
-            <View style={[styles.moduleIcon, { backgroundColor: '#F0FDF4' }]}>
-              <Ionicons name="time" size={24} color="#10B981" />
-            </View>
-            <View style={styles.moduleContent}>
-              <Text style={styles.moduleName}>Historique OCR</Text>
-              <Text style={styles.moduleSubtitle}>Rapports scannés</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color="#10B981" />
           </TouchableOpacity>
 
           <TouchableOpacity 
@@ -189,9 +172,81 @@ export default function AircraftDetailScreen() {
             </View>
             <View style={styles.moduleContent}>
               <Text style={styles.moduleName}>Maintenance</Text>
-              <Text style={styles.moduleSubtitle}>Rapport, Pièces, Factures, AD/SB, STC</Text>
+              <Text style={styles.moduleSubtitle}>Rapport, Pièces, AD/SB, STC</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color="#F59E0B" />
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={[styles.moduleCard, styles.moduleCardActive]}
+            onPress={() => router.push({
+              pathname: '/aircraft/elt',
+              params: { aircraftId: selectedAircraft._id, registration: selectedAircraft.registration }
+            })}
+          >
+            <View style={[styles.moduleIcon, { backgroundColor: '#FEE2E2' }]}>
+              <Ionicons name="radio" size={24} color="#EF4444" />
+            </View>
+            <View style={styles.moduleContent}>
+              <Text style={styles.moduleName}>ELT</Text>
+              <Text style={styles.moduleSubtitle}>Emergency Locator Transmitter</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#EF4444" />
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={[styles.moduleCard, styles.moduleCardActive]}
+            onPress={() => router.push({
+              pathname: '/aircraft/wb',
+              params: { aircraftId: selectedAircraft._id, registration: selectedAircraft.registration }
+            })}
+          >
+            <View style={[styles.moduleIcon, { backgroundColor: '#E0E7FF' }]}>
+              <Ionicons name="scale" size={24} color="#6366F1" />
+            </View>
+            <View style={styles.moduleContent}>
+              <Text style={styles.moduleName}>W/B</Text>
+              <Text style={styles.moduleSubtitle}>Weight & Balance</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#6366F1" />
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Outils</Text>
+          
+          <TouchableOpacity 
+            style={[styles.moduleCard, styles.moduleCardActive]}
+            onPress={() => router.push({
+              pathname: '/ocr/scan',
+              params: { aircraftId: selectedAircraft._id, registration: selectedAircraft.registration }
+            })}
+          >
+            <View style={[styles.moduleIcon, { backgroundColor: '#F0FDF4' }]}>
+              <Ionicons name="scan" size={24} color="#10B981" />
+            </View>
+            <View style={styles.moduleContent}>
+              <Text style={styles.moduleName}>Scanner OCR</Text>
+              <Text style={styles.moduleSubtitle}>Analyser un document</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#10B981" />
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={[styles.moduleCard, styles.moduleCardActive]}
+            onPress={() => router.push({
+              pathname: '/ocr/history',
+              params: { aircraftId: selectedAircraft._id, registration: selectedAircraft.registration }
+            })}
+          >
+            <View style={[styles.moduleIcon, { backgroundColor: '#F5F3FF' }]}>
+              <Ionicons name="time" size={24} color="#8B5CF6" />
+            </View>
+            <View style={styles.moduleContent}>
+              <Text style={styles.moduleName}>Historique OCR</Text>
+              <Text style={styles.moduleSubtitle}>Documents scannés</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#8B5CF6" />
           </TouchableOpacity>
         </View>
 
