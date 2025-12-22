@@ -520,41 +520,67 @@ async def apply_ocr_results(
             
             elt_created = True
         
-        # 7. Create Invoice record if document type is invoice
+        # 7. Create Invoice record if document type is invoice (WITH DEDUPLICATION)
         invoice_created = False
-        document_type = scan.get("document_type", "")
-        if document_type == "invoice":
-            # For invoice document type, create invoice record from extracted data
-            invoice_doc = {
-                "user_id": current_user.id,
-                "aircraft_id": aircraft_id,
-                "invoice_number": extracted_data.get("invoice_number"),
-                "supplier": extracted_data.get("supplier"),
-                "subtotal": extracted_data.get("subtotal"),
-                "tax": extracted_data.get("tax"),
-                "total": extracted_data.get("total"),
-                "currency": extracted_data.get("currency", "CAD"),
-                "source": "ocr",
-                "ocr_scan_id": scan_id,
-                "created_at": now,
-                "updated_at": now
-            }
-            
-            # Parse invoice date
+        if is_invoice:
+            # Préparer les données de la facture
+            invoice_total = extracted_data.get("total")
+            invoice_date = None
             if extracted_data.get("invoice_date"):
                 try:
-                    invoice_doc["invoice_date"] = datetime.fromisoformat(extracted_data["invoice_date"])
+                    invoice_date = datetime.fromisoformat(extracted_data["invoice_date"])
                 except:
                     pass
             
-            # Parse parts from invoice
-            parts = extracted_data.get("parts", [])
-            invoice_doc["parts"] = parts
+            # DÉDUPLICATION: vérifier si une facture similaire existe déjà
+            existing_invoice = None
+            if invoice_total and invoice_date:
+                # Chercher une facture avec même avion, même date, même montant
+                existing_invoice = await db.invoices.find_one({
+                    "aircraft_id": aircraft_id,
+                    "user_id": current_user.id,
+                    "total": invoice_total,
+                    "invoice_date": invoice_date
+                })
             
-            result = await db.invoices.insert_one(invoice_doc)
-            applied_ids["invoice_id"] = str(result.inserted_id)
-            invoice_created = True
-            logger.info(f"Created invoice record for aircraft {aircraft_id}")
+            if existing_invoice:
+                # Facture similaire existe - mettre à jour au lieu de créer
+                update_fields = {
+                    "updated_at": now,
+                    "invoice_number": extracted_data.get("invoice_number") or existing_invoice.get("invoice_number"),
+                    "supplier": extracted_data.get("supplier") or existing_invoice.get("supplier"),
+                }
+                await db.invoices.update_one(
+                    {"_id": existing_invoice["_id"]},
+                    {"$set": update_fields}
+                )
+                applied_ids["invoice_id"] = str(existing_invoice["_id"])
+                invoice_created = True
+                logger.info(f"Updated existing invoice {existing_invoice['_id']} for aircraft {aircraft_id} (deduplication)")
+            else:
+                # Créer nouvelle facture (SANS créer de pièces!)
+                invoice_doc = {
+                    "user_id": current_user.id,
+                    "aircraft_id": aircraft_id,
+                    "invoice_number": extracted_data.get("invoice_number"),
+                    "invoice_date": invoice_date,
+                    "supplier": extracted_data.get("supplier"),
+                    "subtotal": extracted_data.get("subtotal"),
+                    "tax": extracted_data.get("tax"),
+                    "total": invoice_total,
+                    "currency": extracted_data.get("currency", "CAD"),
+                    "source": "ocr",
+                    "ocr_scan_id": scan_id,
+                    # Stocker les pièces dans la facture (pour référence coûts), mais NE PAS créer de part_records
+                    "parts": extracted_data.get("parts", []) + extracted_data.get("parts_replaced", []),
+                    "created_at": now,
+                    "updated_at": now
+                }
+                
+                result = await db.invoices.insert_one(invoice_doc)
+                applied_ids["invoice_id"] = str(result.inserted_id)
+                invoice_created = True
+                logger.info(f"Created invoice record for aircraft {aircraft_id}")
         
         # Update OCR scan status to APPLIED
         await db.ocr_scans.update_one(
