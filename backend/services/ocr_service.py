@@ -296,6 +296,11 @@ class OCRService:
     
     def _transform_maintenance_report(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Transform maintenance report data"""
+        # Handle ELT data
+        elt_data = data.get("elt_data", {})
+        if not isinstance(elt_data, dict):
+            elt_data = {}
+        
         return {
             "date": data.get("date"),
             "ame_name": data.get("ame_name"),
@@ -342,7 +347,19 @@ class OCRService:
                     "installation_date": stc.get("installation_date")
                 }
                 for stc in data.get("stc_references", [])
-            ]
+            ],
+            "elt_data": {
+                "detected": elt_data.get("detected", False),
+                "brand": elt_data.get("brand"),
+                "model": elt_data.get("model"),
+                "serial_number": elt_data.get("serial_number"),
+                "installation_date": elt_data.get("installation_date"),
+                "certification_date": elt_data.get("certification_date"),
+                "battery_expiry_date": elt_data.get("battery_expiry_date"),
+                "battery_install_date": elt_data.get("battery_install_date"),
+                "battery_interval_months": elt_data.get("battery_interval_months"),
+                "beacon_hex_id": elt_data.get("beacon_hex_id")
+            }
         }
     
     def _transform_stc(self, data: Dict[str, Any]) -> Dict[str, Any]:
