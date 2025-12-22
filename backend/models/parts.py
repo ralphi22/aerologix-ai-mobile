@@ -39,6 +39,7 @@ class PartRecordBase(BaseModel):
     # Source
     source: str = "manual"  # manual, ocr
     ocr_scan_id: Optional[str] = None
+    confirmed: bool = True  # OCR parts start as False, manual as True
 
 class PartRecordCreate(PartRecordBase):
     pass
