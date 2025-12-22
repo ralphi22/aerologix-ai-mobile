@@ -15,14 +15,14 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import api from '../../services/api';
 
-type DocumentType = 'logbook' | 'invoice' | 'work_order' | 'ad_compliance' | 'sb_compliance' | 'stc' | 'other';
+type DocumentType = 'rapport' | 'invoice' | 'pieces' | 'ad_compliance' | 'sb_compliance' | 'stc' | 'other';
 
 const DOCUMENT_TYPES = [
   {
-    id: 'logbook' as DocumentType,
-    title: 'Logbook',
-    description: 'Carnet de vol / Journey log',
-    icon: 'book-outline',
+    id: 'rapport' as DocumentType,
+    title: 'Rapport',
+    description: 'Rapport de maintenance / Journey log',
+    icon: 'document-text-outline',
     color: '#3B82F6',
   },
   {
@@ -33,10 +33,10 @@ const DOCUMENT_TYPES = [
     color: '#10B981',
   },
   {
-    id: 'work_order' as DocumentType,
-    title: 'Work Order',
-    description: 'Maintenance release',
-    icon: 'construct-outline',
+    id: 'pieces' as DocumentType,
+    title: 'Pièces',
+    description: 'Documentation pièces détachées',
+    icon: 'hardware-chip-outline',
     color: '#8B5CF6',
   },
   {
