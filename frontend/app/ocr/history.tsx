@@ -183,51 +183,64 @@ export default function OCRHistoryScreen() {
   };
 
   const renderScanItem = ({ item }: { item: OCRScan }) => (
-    <TouchableOpacity
-      style={styles.scanCard}
-      onPress={() =>
-        router.push({
-          pathname: '/ocr/results',
-          params: {
-            scanId: item.id,
-            aircraftId,
-            registration,
-            rawText: '',
-            extractedData: JSON.stringify(item.extracted_data || {}),
-            documentType: item.document_type,
-          },
-        })
-      }
-    >
-      <View style={styles.scanIcon}>
-        <Ionicons
-          name={getDocumentTypeIcon(item.document_type) as any}
-          size={24}
-          color="#1E3A8A"
-        />
-      </View>
-      <View style={styles.scanContent}>
-        <Text style={styles.scanType}>{getDocumentTypeLabel(item.document_type)}</Text>
-        <Text style={styles.scanDate}>{formatDate(item.created_at)}</Text>
-        <View style={styles.scanStats}>
-          {item.extracted_data?.ad_sb_references?.length ? (
-            <Text style={styles.scanStat}>
-              {item.extracted_data.ad_sb_references.length} AD/SB
-            </Text>
-          ) : null}
-          {item.extracted_data?.parts_replaced?.length ? (
-            <Text style={styles.scanStat}>
-              {item.extracted_data.parts_replaced.length} pièces
-            </Text>
-          ) : null}
+    <View style={styles.scanCardWrapper}>
+      <TouchableOpacity
+        style={styles.scanCard}
+        onPress={() =>
+          router.push({
+            pathname: '/ocr/results',
+            params: {
+              scanId: item.id,
+              aircraftId,
+              registration,
+              rawText: '',
+              extractedData: JSON.stringify(item.extracted_data || {}),
+              documentType: item.document_type,
+            },
+          })
+        }
+      >
+        <View style={styles.scanIcon}>
+          <Ionicons
+            name={getDocumentTypeIcon(item.document_type) as any}
+            size={24}
+            color="#1E3A8A"
+          />
         </View>
-      </View>
-      <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) + '20' }]}>
-        <Text style={[styles.statusText, { color: getStatusColor(item.status) }]}>
-          {getStatusLabel(item.status)}
-        </Text>
-      </View>
-    </TouchableOpacity>
+        <View style={styles.scanContent}>
+          <Text style={styles.scanType}>{getDocumentTypeLabel(item.document_type)}</Text>
+          <Text style={styles.scanDate}>{formatDate(item.created_at)}</Text>
+          <View style={styles.scanStats}>
+            {item.extracted_data?.ad_sb_references?.length ? (
+              <Text style={styles.scanStat}>
+                {item.extracted_data.ad_sb_references.length} AD/SB
+              </Text>
+            ) : null}
+            {item.extracted_data?.parts_replaced?.length ? (
+              <Text style={styles.scanStat}>
+                {item.extracted_data.parts_replaced.length} pièces
+              </Text>
+            ) : null}
+          </View>
+        </View>
+        <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) + '20' }]}>
+          <Text style={[styles.statusText, { color: getStatusColor(item.status) }]}>
+            {getStatusLabel(item.status)}
+          </Text>
+        </View>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={styles.deleteButton}
+        onPress={() => handleDelete(item.id)}
+        disabled={deleting === item.id}
+      >
+        {deleting === item.id ? (
+          <ActivityIndicator size="small" color="#EF4444" />
+        ) : (
+          <Ionicons name="trash-outline" size={20} color="#EF4444" />
+        )}
+      </TouchableOpacity>
+    </View>
   );
 
   return (
