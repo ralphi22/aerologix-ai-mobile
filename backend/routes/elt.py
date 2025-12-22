@@ -17,6 +17,20 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/elt", tags=["elt"])
 
 
+def parse_date_string(date_str: Optional[str]) -> Optional[datetime]:
+    """Parse date string to datetime object"""
+    if not date_str or date_str == '':
+        return None
+    try:
+        # Handle ISO format with timezone
+        if 'T' in date_str:
+            return datetime.fromisoformat(date_str.replace('Z', '+00:00'))
+        # Handle simple date format YYYY-MM-DD
+        return datetime.strptime(date_str, '%Y-%m-%d')
+    except (ValueError, TypeError):
+        return None
+
+
 def compute_elt_alerts(elt_data: dict) -> tuple[ELTStatus, list]:
     """Compute ELT status and alerts based on dates"""
     alerts = []
