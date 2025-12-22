@@ -284,11 +284,17 @@ async def update_elt(
             detail="ELT record not found. Use POST to create."
         )
     
-    # Build update dict
+    # Build update dict with date parsing
     update_dict = {"updated_at": datetime.utcnow()}
+    date_fields = ["installation_date", "certification_date", "last_test_date", 
+                   "battery_expiry_date", "battery_install_date"]
+    
     for field, value in elt_update.dict(exclude_unset=True).items():
         if value is not None:
-            update_dict[field] = value
+            if field in date_fields:
+                update_dict[field] = parse_date_string(value)
+            else:
+                update_dict[field] = value
     
     await db.elt_records.update_one(
         {"_id": existing["_id"]},
