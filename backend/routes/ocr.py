@@ -435,44 +435,45 @@ async def apply_ocr_results(
         
         logger.info(f"Created {len(applied_ids['part_ids'])} part records")
         
-        # 5. Create STC records
-        for stc in extracted_data.get("stc_references", []):
-            if not stc.get("stc_number"):
-                continue
-            
-            installation_date = None
-            if stc.get("installation_date"):
-                try:
-                    installation_date = datetime.fromisoformat(stc["installation_date"])
-                except:
-                    pass
-            
-            stc_doc = {
-                "user_id": current_user.id,
-                "aircraft_id": aircraft_id,
-                "stc_number": stc["stc_number"],
-                "title": stc.get("title"),
-                "description": stc.get("description"),
-                "holder": stc.get("holder"),
-                "applicable_models": stc.get("applicable_models", []),
-                "installation_date": installation_date or now,
-                "installation_airframe_hours": stc.get("installation_airframe_hours") or extracted_data.get("airframe_hours"),
-                "installed_by": stc.get("installed_by") or extracted_data.get("ame_name"),
-                "source": "ocr",
-                "ocr_scan_id": scan_id,
-                "created_at": now,
-                "updated_at": now
-            }
-            
-            result = await db.stc_records.insert_one(stc_doc)
-            applied_ids["stc_ids"].append(str(result.inserted_id))
+        # 5. Create STC records (ONLY FOR RAPPORT)
+        if is_maintenance_report:
+            for stc in extracted_data.get("stc_references", []):
+                if not stc.get("stc_number"):
+                    continue
+                
+                installation_date = None
+                if stc.get("installation_date"):
+                    try:
+                        installation_date = datetime.fromisoformat(stc["installation_date"])
+                    except:
+                        pass
+                
+                stc_doc = {
+                    "user_id": current_user.id,
+                    "aircraft_id": aircraft_id,
+                    "stc_number": stc["stc_number"],
+                    "title": stc.get("title"),
+                    "description": stc.get("description"),
+                    "holder": stc.get("holder"),
+                    "applicable_models": stc.get("applicable_models", []),
+                    "installation_date": installation_date or now,
+                    "installation_airframe_hours": stc.get("installation_airframe_hours") or extracted_data.get("airframe_hours"),
+                    "installed_by": stc.get("installed_by") or extracted_data.get("ame_name"),
+                    "source": "ocr",
+                    "ocr_scan_id": scan_id,
+                    "created_at": now,
+                    "updated_at": now
+                }
+                
+                result = await db.stc_records.insert_one(stc_doc)
+                applied_ids["stc_ids"].append(str(result.inserted_id))
         
         logger.info(f"Created {len(applied_ids['stc_ids'])} STC records")
         
-        # 6. Create/Update ELT record if detected
+        # 6. Create/Update ELT record if detected (ONLY FOR RAPPORT)
         elt_data = extracted_data.get("elt_data", {})
         elt_created = False
-        if elt_data and elt_data.get("detected"):
+        if is_maintenance_report and elt_data and elt_data.get("detected"):
             # Check if ELT exists
             existing_elt = await db.elt_records.find_one({
                 "aircraft_id": aircraft_id,
