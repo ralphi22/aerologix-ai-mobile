@@ -225,10 +225,10 @@ async def get_adsb_summary(
     
     async for item in cursor:
         adsb_type = item["_id"]["type"]
-        status = item["_id"]["status"]
+        record_status = item["_id"]["status"]
         count = item["count"]
         
-        if adsb_type in summary and status in summary[adsb_type]:
-            summary[adsb_type][status] = count
+        if adsb_type in summary and record_status in summary[adsb_type]:
+            summary[adsb_type][record_status] = count
     
     return summary
