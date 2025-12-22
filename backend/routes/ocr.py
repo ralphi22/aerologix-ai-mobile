@@ -405,31 +405,33 @@ async def apply_ocr_results(
         
         logger.info(f"Created {len(applied_ids['adsb_ids'])} AD/SB records")
         
-        # 4. Create part records
-        for part in extracted_data.get("parts_replaced", []):
-            if not part.get("part_number"):
-                continue
-            
-            part_doc = {
-                "user_id": current_user.id,
-                "aircraft_id": aircraft_id,
-                "part_number": part["part_number"],
-                "name": part.get("name", part["part_number"]),
-                "serial_number": part.get("serial_number"),
-                "quantity": part.get("quantity", 1),
-                "purchase_price": part.get("price"),
-                "supplier": part.get("supplier"),
-                "installation_date": now,
-                "installation_airframe_hours": extracted_data.get("airframe_hours"),
-                "installed_on_aircraft": True,
-                "source": "ocr",
-                "ocr_scan_id": scan_id,
-                "created_at": now,
-                "updated_at": now
-            }
-            
-            result = await db.part_records.insert_one(part_doc)
-            applied_ids["part_ids"].append(str(result.inserted_id))
+        # 4. Create part records (ONLY FOR RAPPORT - pas pour factures!)
+        if is_maintenance_report:
+            for part in extracted_data.get("parts_replaced", []):
+                if not part.get("part_number"):
+                    continue
+                
+                part_doc = {
+                    "user_id": current_user.id,
+                    "aircraft_id": aircraft_id,
+                    "part_number": part["part_number"],
+                    "name": part.get("name", part["part_number"]),
+                    "serial_number": part.get("serial_number"),
+                    "quantity": part.get("quantity", 1),
+                    "purchase_price": part.get("price"),
+                    "supplier": part.get("supplier"),
+                    "installation_date": now,
+                    "installation_airframe_hours": extracted_data.get("airframe_hours"),
+                    "installed_on_aircraft": True,
+                    "source": "ocr",
+                    "ocr_scan_id": scan_id,
+                    "confirmed": False,  # OCR parts are NOT confirmed by default
+                    "created_at": now,
+                    "updated_at": now
+                }
+                
+                result = await db.part_records.insert_one(part_doc)
+                applied_ids["part_ids"].append(str(result.inserted_id))
         
         logger.info(f"Created {len(applied_ids['part_ids'])} part records")
         
