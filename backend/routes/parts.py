@@ -168,14 +168,70 @@ async def update_part_record(
     return {"message": "Part record updated successfully"}
 
 
+@router.put("/record/{record_id}/confirm", response_model=dict)
+async def confirm_part_record(
+    record_id: str,
+    current_user: User = Depends(get_current_user),
+    db=Depends(get_database)
+):
+    """Confirm an OCR part record (makes it undeletable)"""
+    
+    record = await db.part_records.find_one({
+        "_id": record_id,
+        "user_id": current_user.id
+    })
+    
+    if not record:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Part record not found"
+        )
+    
+    await db.part_records.update_one(
+        {"_id": record_id},
+        {"$set": {"confirmed": True, "updated_at": datetime.utcnow()}}
+    )
+    
+    return {"message": "Part record confirmed successfully"}
+
+
 @router.delete("/record/{record_id}")
 async def delete_part_record(
     record_id: str,
     current_user: User = Depends(get_current_user),
     db=Depends(get_database)
 ):
-    """Delete a part record"""
+    """Delete a part record - AVIATION SAFE: only OCR unconfirmed parts can be deleted"""
     
+    # First, get the record to check if it can be deleted
+    record = await db.part_records.find_one({
+        "_id": record_id,
+        "user_id": current_user.id
+    })
+    
+    if not record:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Part record not found"
+        )
+    
+    # AVIATION SAFETY RULE: Only OCR unconfirmed parts can be deleted
+    source = record.get("source", "manual")
+    confirmed = record.get("confirmed", True)  # Default to True for safety
+    
+    if source != "ocr":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Suppression interdite — Les pièces saisies manuellement ne peuvent pas être supprimées. Utilisez 'Corriger' ou 'Marquer comme erreur'."
+        )
+    
+    if confirmed:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Pièce confirmée — suppression désactivée. Utilisez 'Corriger' ou 'Marquer comme erreur'."
+        )
+    
+    # Safe to delete - OCR source and not confirmed
     result = await db.part_records.delete_one({
         "_id": record_id,
         "user_id": current_user.id
