@@ -177,37 +177,21 @@ export default function AircraftDetailScreen() {
             <Ionicons name="chevron-forward" size={20} color="#10B981" />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.moduleCard} disabled>
-            <View style={styles.moduleIcon}>
-              <Ionicons name="construct" size={24} color="#94A3B8" />
+          <TouchableOpacity 
+            style={[styles.moduleCard, styles.moduleCardActive]}
+            onPress={() => router.push({
+              pathname: '/aircraft/maintenance',
+              params: { aircraftId: selectedAircraft._id, registration: selectedAircraft.registration }
+            })}
+          >
+            <View style={[styles.moduleIcon, { backgroundColor: '#FEF3C7' }]}>
+              <Ionicons name="construct" size={24} color="#F59E0B" />
             </View>
             <View style={styles.moduleContent}>
               <Text style={styles.moduleName}>Maintenance</Text>
-              <Text style={styles.moduleSubtitle}>Suivi et historique maintenance</Text>
+              <Text style={styles.moduleSubtitle}>Rapport, Pièces, Factures, AD/SB, STC</Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color="#CBD5E1" />
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.moduleCard} disabled>
-            <View style={styles.moduleIcon}>
-              <Ionicons name="alert-circle" size={24} color="#94A3B8" />
-            </View>
-            <View style={styles.moduleContent}>
-              <Text style={styles.moduleName}>AD/SB</Text>
-              <Text style={styles.moduleSubtitle}>Directives et bulletins de service</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color="#CBD5E1" />
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.moduleCard} disabled>
-            <View style={styles.moduleIcon}>
-              <Ionicons name="document-text" size={24} color="#94A3B8" />
-            </View>
-            <View style={styles.moduleContent}>
-              <Text style={styles.moduleName}>STC</Text>
-              <Text style={styles.moduleSubtitle}>Certificats de type supplémentaires</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color="#CBD5E1" />
+            <Ionicons name="chevron-forward" size={20} color="#F59E0B" />
           </TouchableOpacity>
         </View>
 
