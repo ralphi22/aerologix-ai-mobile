@@ -459,6 +459,56 @@ async def apply_ocr_results(
         
         logger.info(f"Created {len(applied_ids['stc_ids'])} STC records")
         
+        # 6. Create/Update ELT record if detected
+        elt_data = extracted_data.get("elt_data", {})
+        elt_created = False
+        if elt_data and elt_data.get("detected"):
+            # Check if ELT exists
+            existing_elt = await db.elt_records.find_one({
+                "aircraft_id": aircraft_id,
+                "user_id": current_user.id
+            })
+            
+            elt_doc = {
+                "brand": elt_data.get("brand"),
+                "model": elt_data.get("model"),
+                "serial_number": elt_data.get("serial_number"),
+                "beacon_hex_id": elt_data.get("beacon_hex_id"),
+                "source": "ocr",
+                "ocr_scan_id": scan_id,
+                "updated_at": now
+            }
+            
+            # Parse dates
+            for date_field in ["installation_date", "certification_date", "battery_expiry_date", "battery_install_date"]:
+                if elt_data.get(date_field):
+                    try:
+                        elt_doc[date_field] = datetime.fromisoformat(elt_data[date_field])
+                    except:
+                        pass
+            
+            if elt_data.get("battery_interval_months"):
+                elt_doc["battery_interval_months"] = elt_data["battery_interval_months"]
+            
+            if existing_elt:
+                # Update existing
+                await db.elt_records.update_one(
+                    {"_id": existing_elt["_id"]},
+                    {"$set": elt_doc}
+                )
+                applied_ids["elt_id"] = str(existing_elt["_id"])
+                logger.info(f"Updated ELT record for aircraft {aircraft_id}")
+            else:
+                # Create new
+                elt_doc["user_id"] = current_user.id
+                elt_doc["aircraft_id"] = aircraft_id
+                elt_doc["created_at"] = now
+                result = await db.elt_records.insert_one(elt_doc)
+                applied_ids["elt_id"] = str(result.inserted_id)
+                logger.info(f"Created ELT record for aircraft {aircraft_id}")
+            
+            elt_created = True
+        
         # Update OCR scan status to APPLIED
         await db.ocr_scans.update_one(
             {"_id": scan_id},
@@ -469,6 +519,7 @@ async def apply_ocr_results(
                     "applied_adsb_ids": applied_ids["adsb_ids"],
                     "applied_part_ids": applied_ids["part_ids"],
                     "applied_stc_ids": applied_ids["stc_ids"],
+                    "applied_elt_id": applied_ids.get("elt_id"),
                     "updated_at": now
                 }
             }
@@ -480,7 +531,8 @@ async def apply_ocr_results(
                 "maintenance_record": applied_ids["maintenance_id"],
                 "adsb_records": len(applied_ids["adsb_ids"]),
                 "part_records": len(applied_ids["part_ids"]),
-                "stc_records": len(applied_ids["stc_ids"])
+                "stc_records": len(applied_ids["stc_ids"]),
+                "elt_updated": elt_created
             }
         }
         
