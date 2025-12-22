@@ -121,30 +121,6 @@ export default function MaintenancePartsScreen() {
     }
   };
 
-  const handleConfirm = async (part: Part) => {
-    try {
-      await api.put(`/api/parts/record/${part._id}/confirm`);
-      // Mettre à jour l'état local
-      setParts(parts.map(p => 
-        p._id === part._id ? { ...p, confirmed: true } : p
-      ));
-      
-      if (Platform.OS === 'web') {
-        window.alert('Pièce confirmée avec succès');
-      } else {
-        Alert.alert('Succès', 'Pièce confirmée avec succès');
-      }
-    } catch (error: any) {
-      console.error('Confirm error:', error);
-      const message = error.response?.data?.detail || 'Erreur lors de la confirmation';
-      if (Platform.OS === 'web') {
-        window.alert('Erreur: ' + message);
-      } else {
-        Alert.alert('Erreur', message);
-      }
-    }
-  };
-
   const renderPart = ({ item }: { item: Part }) => {
     const isOCR = item.source === 'ocr';
     
