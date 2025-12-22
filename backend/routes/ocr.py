@@ -369,8 +369,9 @@ async def apply_ocr_results(
             applied_ids["maintenance_id"] = str(result.inserted_id)
             logger.info(f"Created maintenance record {applied_ids['maintenance_id']}")
         
-        # 3. Create AD/SB records
-        for adsb in extracted_data.get("ad_sb_references", []):
+        # 3. Create AD/SB records (ONLY FOR RAPPORT)
+        if is_maintenance_report:
+            for adsb in extracted_data.get("ad_sb_references", []):
             if not adsb.get("reference_number"):
                 continue
             
