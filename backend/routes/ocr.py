@@ -372,36 +372,36 @@ async def apply_ocr_results(
         # 3. Create AD/SB records (ONLY FOR RAPPORT)
         if is_maintenance_report:
             for adsb in extracted_data.get("ad_sb_references", []):
-            if not adsb.get("reference_number"):
-                continue
-            
-            compliance_date = None
-            if adsb.get("compliance_date"):
-                try:
-                    compliance_date = datetime.fromisoformat(adsb["compliance_date"])
-                except:
-                    pass
-            
-            adsb_doc = {
-                "user_id": current_user.id,
-                "aircraft_id": aircraft_id,
-                "adsb_type": adsb.get("adsb_type", "AD"),
-                "reference_number": adsb["reference_number"],
-                "title": adsb.get("description"),
-                "description": adsb.get("description"),
-                "status": adsb.get("status", "UNKNOWN"),
-                "compliance_date": compliance_date,
-                "compliance_airframe_hours": adsb.get("airframe_hours"),
-                "compliance_engine_hours": adsb.get("engine_hours"),
-                "compliance_propeller_hours": adsb.get("propeller_hours"),
-                "source": "ocr",
-                "ocr_scan_id": scan_id,
-                "created_at": now,
-                "updated_at": now
-            }
-            
-            result = await db.adsb_records.insert_one(adsb_doc)
-            applied_ids["adsb_ids"].append(str(result.inserted_id))
+                if not adsb.get("reference_number"):
+                    continue
+                
+                compliance_date = None
+                if adsb.get("compliance_date"):
+                    try:
+                        compliance_date = datetime.fromisoformat(adsb["compliance_date"])
+                    except:
+                        pass
+                
+                adsb_doc = {
+                    "user_id": current_user.id,
+                    "aircraft_id": aircraft_id,
+                    "adsb_type": adsb.get("adsb_type", "AD"),
+                    "reference_number": adsb["reference_number"],
+                    "title": adsb.get("description"),
+                    "description": adsb.get("description"),
+                    "status": adsb.get("status", "UNKNOWN"),
+                    "compliance_date": compliance_date,
+                    "compliance_airframe_hours": adsb.get("airframe_hours"),
+                    "compliance_engine_hours": adsb.get("engine_hours"),
+                    "compliance_propeller_hours": adsb.get("propeller_hours"),
+                    "source": "ocr",
+                    "ocr_scan_id": scan_id,
+                    "created_at": now,
+                    "updated_at": now
+                }
+                
+                result = await db.adsb_records.insert_one(adsb_doc)
+                applied_ids["adsb_ids"].append(str(result.inserted_id))
         
         logger.info(f"Created {len(applied_ids['adsb_ids'])} AD/SB records")
         
