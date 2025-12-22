@@ -168,7 +168,7 @@ async def delete_adsb_record(
     # Try to convert to ObjectId if it's a valid format, otherwise use string
     try:
         query_id = ObjectId(record_id)
-    except:
+    except Exception:
         query_id = record_id
     
     result = await db.adsb_records.delete_one({
