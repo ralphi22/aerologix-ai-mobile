@@ -282,16 +282,18 @@ async def apply_ocr_results(
             detail="OCR scan not found"
         )
     
-    if scan["status"] != OCRStatus.COMPLETED.value:
+    # Check if scan can be applied
+    scan_status = scan.get("status", "")
+    if scan_status == OCRStatus.APPLIED.value:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Can only apply completed OCR scans"
+            detail="Ce scan a déjà été appliqué"
         )
     
-    if scan["status"] == OCRStatus.APPLIED.value:
+    if scan_status != OCRStatus.COMPLETED.value:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="OCR scan already applied"
+            detail="Seuls les scans complétés peuvent être appliqués"
         )
     
     extracted_data = scan.get("extracted_data", {})
