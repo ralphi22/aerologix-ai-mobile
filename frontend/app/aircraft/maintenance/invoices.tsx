@@ -184,7 +184,7 @@ export default function MaintenanceInvoicesScreen() {
           </View>
 
           {invoices.map((invoice) => (
-            <View key={invoice.id} style={styles.invoiceCard}>
+            <View key={invoice._id} style={styles.invoiceCard}>
               <View style={styles.invoiceHeader}>
                 <View style={styles.invoiceIconContainer}>
                   <Ionicons name="receipt" size={24} color="#10B981" />
@@ -235,15 +235,32 @@ export default function MaintenanceInvoicesScreen() {
                 </View>
               )}
 
-              <View style={styles.sourceRow}>
-                <Ionicons 
-                  name={invoice.source === 'ocr' ? 'scan' : 'create'} 
-                  size={12} 
-                  color="#94A3B8" 
-                />
-                <Text style={styles.sourceText}>
-                  {invoice.source === 'ocr' ? 'Importé via OCR' : 'Saisie manuelle'}
-                </Text>
+              <View style={styles.actionsRow}>
+                <View style={styles.sourceTag}>
+                  <Ionicons 
+                    name={invoice.source === 'ocr' ? 'scan' : 'create'} 
+                    size={12} 
+                    color="#94A3B8" 
+                  />
+                  <Text style={styles.sourceText}>
+                    {invoice.source === 'ocr' ? 'OCR' : 'Manuel'}
+                  </Text>
+                </View>
+                
+                <TouchableOpacity
+                  style={[styles.deleteButton, deletingId === invoice._id && styles.deleteButtonDisabled]}
+                  onPress={() => handleDelete(invoice)}
+                  disabled={deletingId === invoice._id}
+                >
+                  {deletingId === invoice._id ? (
+                    <ActivityIndicator size="small" color="#EF4444" />
+                  ) : (
+                    <>
+                      <Ionicons name="trash-outline" size={16} color="#EF4444" />
+                      <Text style={styles.deleteButtonText}>Supprimer</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
               </View>
             </View>
           ))}
