@@ -17,8 +17,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import api from '../../services/api';
 
-// Type pour le statut ELT
-type ELTStatusLevel = 'ok' | 'warning' | 'critical' | 'unknown';
+// Type pour le statut ELT - CORRIGÉ avec 'none' pour aucune donnée
+type ELTStatusLevel = 'ok' | 'warning' | 'critical' | 'none';
 
 interface ELTStatusData {
   status: ELTStatusLevel;
@@ -32,7 +32,7 @@ export default function AircraftDetailScreen() {
   const insets = useSafeAreaInsets();
   
   // État pour le statut ELT
-  const [eltStatus, setEltStatus] = useState<ELTStatusData>({ status: 'unknown', label: '' });
+  const [eltStatus, setEltStatus] = useState<ELTStatusData>({ status: 'none', label: '' });
   const [loadingELT, setLoadingELT] = useState(true);
 
   // Charger le statut ELT au montage
@@ -47,40 +47,53 @@ export default function AircraftDetailScreen() {
       const response = await api.get(`/api/elt/aircraft/${selectedAircraft?._id}`);
       if (response.data) {
         const eltData = response.data;
-        // Calculer le statut basé sur les alertes
-        let status: ELTStatusLevel = 'ok';
-        let label = 'Opérationnel';
         
-        if (eltData.alerts && eltData.alerts.length > 0) {
+        // LOGIQUE CORRIGÉE:
+        // - Gris (none): aucune date ELT enregistrée
+        // - Vert (ok): dates valides, aucune alerte
+        // - Jaune (warning): test OU batterie ≤ 15 jours
+        // - Rouge (critical): test OU batterie échu
+        
+        // Vérifier si des dates importantes sont présentes
+        const hasTestDate = eltData.last_test_date !== null;
+        const hasBatteryDate = eltData.battery_expiry_date !== null;
+        const hasAnyDate = hasTestDate || hasBatteryDate;
+        
+        if (!hasAnyDate) {
+          // Aucune date enregistrée = Gris
+          setEltStatus({ status: 'none', label: 'Non configuré' });
+        } else if (eltData.alerts && eltData.alerts.length > 0) {
           const hasCritical = eltData.alerts.some((a: any) => a.level === 'critical');
           const hasWarning = eltData.alerts.some((a: any) => a.level === 'warning');
           
           if (hasCritical) {
-            status = 'critical';
-            label = 'Échu';
+            setEltStatus({ status: 'critical', label: 'Échu' });
           } else if (hasWarning) {
-            status = 'warning';
-            label = 'À surveiller';
+            setEltStatus({ status: 'warning', label: 'À surveiller' });
+          } else {
+            setEltStatus({ status: 'ok', label: 'Opérationnel' });
           }
+        } else {
+          // Dates présentes, pas d'alerte = Vert
+          setEltStatus({ status: 'ok', label: 'Opérationnel' });
         }
-        
-        setEltStatus({ status, label });
       } else {
-        setEltStatus({ status: 'unknown', label: 'Non configuré' });
+        setEltStatus({ status: 'none', label: 'Non configuré' });
       }
     } catch (error: any) {
       // 404 = pas d'ELT configuré
       if (error.response?.status === 404) {
-        setEltStatus({ status: 'unknown', label: 'Non configuré' });
+        setEltStatus({ status: 'none', label: 'Non configuré' });
       } else {
         console.error('Error fetching ELT status:', error);
-        setEltStatus({ status: 'unknown', label: '' });
+        setEltStatus({ status: 'none', label: '' });
       }
     } finally {
       setLoadingELT(false);
     }
   };
 
+  // Couleurs corrigées - Gris pour 'none'
   const getELTStatusColor = (status: ELTStatusLevel): string => {
     switch (status) {
       case 'ok':
@@ -89,6 +102,7 @@ export default function AircraftDetailScreen() {
         return '#F59E0B'; // Jaune
       case 'critical':
         return '#EF4444'; // Rouge
+      case 'none':
       default:
         return '#94A3B8'; // Gris
     }
@@ -249,7 +263,7 @@ export default function AircraftDetailScreen() {
             <Ionicons name="chevron-forward" size={20} color="#F59E0B" />
           </TouchableOpacity>
 
-          {/* ELT avec indicateur de statut */}
+          {/* ELT avec indicateur de statut CORRIGÉ */}
           <TouchableOpacity 
             style={[styles.moduleCard, styles.moduleCardActive]}
             onPress={() => router.push({
@@ -263,8 +277,8 @@ export default function AircraftDetailScreen() {
             <View style={styles.moduleContent}>
               <View style={styles.moduleNameRow}>
                 <Text style={styles.moduleName}>ELT</Text>
-                {/* Indicateur de statut ELT */}
-                {!loadingELT && eltStatus.status !== 'unknown' && (
+                {/* Indicateur de statut ELT - toujours affiché */}
+                {!loadingELT && (
                   <View style={styles.eltStatusContainer}>
                     <View 
                       style={[
@@ -272,12 +286,14 @@ export default function AircraftDetailScreen() {
                         { backgroundColor: getELTStatusColor(eltStatus.status) }
                       ]} 
                     />
-                    <Text style={[
-                      styles.eltStatusText,
-                      { color: getELTStatusColor(eltStatus.status) }
-                    ]}>
-                      {eltStatus.label}
-                    </Text>
+                    {eltStatus.label && (
+                      <Text style={[
+                        styles.eltStatusText,
+                        { color: getELTStatusColor(eltStatus.status) }
+                      ]}>
+                        {eltStatus.label}
+                      </Text>
+                    )}
                   </View>
                 )}
               </View>
