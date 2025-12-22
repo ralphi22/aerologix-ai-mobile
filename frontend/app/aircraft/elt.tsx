@@ -29,6 +29,7 @@ interface ELTAlert {
 
 interface ELTData {
   id?: string;
+  _id?: string;  // Backend returns _id
   aircraft_id: string;
   brand?: string;
   model?: string;
