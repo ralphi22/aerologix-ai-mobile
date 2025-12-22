@@ -84,16 +84,52 @@ export default function ELTScreen() {
   const handleSave = async () => {
     setSaving(true);
     try {
+      // Préparer les données en filtrant les champs vides
+      const cleanedData: Record<string, any> = {};
+      
+      // Champs texte
+      if (formData.brand) cleanedData.brand = formData.brand;
+      if (formData.model) cleanedData.model = formData.model;
+      if (formData.serial_number) cleanedData.serial_number = formData.serial_number;
+      if (formData.beacon_hex_id) cleanedData.beacon_hex_id = formData.beacon_hex_id;
+      if (formData.registration_number) cleanedData.registration_number = formData.registration_number;
+      if (formData.remarks) cleanedData.remarks = formData.remarks;
+      
+      // Champs dates - formater correctement
+      const dateFields = ['installation_date', 'certification_date', 'last_test_date', 
+                         'battery_expiry_date', 'battery_install_date'];
+      dateFields.forEach(field => {
+        const value = formData[field as keyof typeof formData];
+        if (value && typeof value === 'string') {
+          // Extraire juste la date YYYY-MM-DD
+          const dateStr = value.split('T')[0];
+          if (dateStr && dateStr !== '') {
+            cleanedData[field] = dateStr;
+          }
+        }
+      });
+      
+      // Champs numériques
+      if (formData.battery_interval_months) {
+        cleanedData.battery_interval_months = Number(formData.battery_interval_months);
+      }
+      
+      console.log('Saving ELT data:', cleanedData);
+      
       if (eltData?.id) {
         // Update existing
-        await api.put(`/api/elt/aircraft/${aircraftId}`, formData);
+        const response = await api.put(`/api/elt/aircraft/${aircraftId}`, cleanedData);
+        console.log('Update response:', response.data);
       } else {
         // Create new
-        await api.post('/api/elt/', {
+        const payload = {
           aircraft_id: aircraftId,
-          ...formData,
+          ...cleanedData,
           source: 'manual'
-        });
+        };
+        console.log('Creating ELT with payload:', payload);
+        const response = await api.post('/api/elt/', payload);
+        console.log('Create response:', response.data);
       }
       
       await fetchELTData();
@@ -106,7 +142,20 @@ export default function ELTScreen() {
       }
     } catch (error: any) {
       console.error('Save ELT error:', error);
-      const message = error.response?.data?.detail || 'Erreur lors de l\'enregistrement';
+      console.error('Error response:', error.response?.data);
+      
+      let message = 'Erreur lors de l\'enregistrement';
+      if (error.response?.status === 422) {
+        message = 'Données invalides. Vérifiez le format des dates (YYYY-MM-DD).';
+      } else if (error.response?.status === 400) {
+        message = error.response?.data?.detail || 'Erreur: données incorrectes';
+      } else if (error.response?.status === 401 || error.response?.status === 403) {
+        message = 'Non autorisé. Veuillez vous reconnecter.';
+      } else if (error.response?.data?.detail) {
+        message = error.response.data.detail;
+      }
+      
+      // Ne pas fermer l'écran si erreur
       if (Platform.OS === 'web') {
         window.alert('Erreur: ' + message);
       } else {
