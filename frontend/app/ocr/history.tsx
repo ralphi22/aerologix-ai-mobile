@@ -384,7 +384,13 @@ const styles = StyleSheet.create({
   listContainer: {
     padding: 16,
   },
+  scanCardWrapper: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    gap: 8,
+  },
   scanCard: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
@@ -392,6 +398,13 @@ const styles = StyleSheet.create({
     padding: 16,
     borderWidth: 1,
     borderColor: '#E2E8F0',
+  },
+  deleteButton: {
+    width: 44,
+    backgroundColor: '#FEE2E2',
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   scanIcon: {
     width: 48,
