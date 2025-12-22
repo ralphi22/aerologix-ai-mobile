@@ -201,7 +201,7 @@ async def delete_part_record(
     current_user: User = Depends(get_current_user),
     db=Depends(get_database)
 ):
-    """Delete a part record - AVIATION SAFE: only OCR unconfirmed parts can be deleted"""
+    """Delete a part record - AVIATION SAFE: only OCR parts can be deleted"""
     
     # First, get the record to check if it can be deleted
     record = await db.part_records.find_one({
@@ -215,23 +215,16 @@ async def delete_part_record(
             detail="Part record not found"
         )
     
-    # AVIATION SAFETY RULE: Only OCR unconfirmed parts can be deleted
+    # AVIATION SAFETY RULE: Only OCR parts can be deleted (manual parts are protected)
     source = record.get("source", "manual")
-    confirmed = record.get("confirmed", True)  # Default to True for safety
     
     if source != "ocr":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Suppression interdite — Les pièces saisies manuellement ne peuvent pas être supprimées. Utilisez 'Corriger' ou 'Marquer comme erreur'."
+            detail="Suppression interdite — Les pièces saisies manuellement ne peuvent pas être supprimées."
         )
     
-    if confirmed:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Pièce confirmée — suppression désactivée. Utilisez 'Corriger' ou 'Marquer comme erreur'."
-        )
-    
-    # Safe to delete - OCR source and not confirmed
+    # Safe to delete - OCR source
     result = await db.part_records.delete_one({
         "_id": record_id,
         "user_id": current_user.id
