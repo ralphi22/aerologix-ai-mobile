@@ -509,6 +509,42 @@ async def apply_ocr_results(
             
             elt_created = True
         
+        # 7. Create Invoice record if document type is invoice
+        invoice_created = False
+        document_type = scan.get("document_type", "")
+        if document_type == "invoice":
+            # For invoice document type, create invoice record from extracted data
+            invoice_doc = {
+                "user_id": current_user.id,
+                "aircraft_id": aircraft_id,
+                "invoice_number": extracted_data.get("invoice_number"),
+                "supplier": extracted_data.get("supplier"),
+                "subtotal": extracted_data.get("subtotal"),
+                "tax": extracted_data.get("tax"),
+                "total": extracted_data.get("total"),
+                "currency": extracted_data.get("currency", "CAD"),
+                "source": "ocr",
+                "ocr_scan_id": scan_id,
+                "created_at": now,
+                "updated_at": now
+            }
+            
+            # Parse invoice date
+            if extracted_data.get("invoice_date"):
+                try:
+                    invoice_doc["invoice_date"] = datetime.fromisoformat(extracted_data["invoice_date"])
+                except:
+                    pass
+            
+            # Parse parts from invoice
+            parts = extracted_data.get("parts", [])
+            invoice_doc["parts"] = parts
+            
+            result = await db.invoices.insert_one(invoice_doc)
+            applied_ids["invoice_id"] = str(result.inserted_id)
+            invoice_created = True
+            logger.info(f"Created invoice record for aircraft {aircraft_id}")
+        
         # Update OCR scan status to APPLIED
         await db.ocr_scans.update_one(
             {"_id": scan_id},
