@@ -7,6 +7,8 @@ import {
   SafeAreaView,
   FlatList,
   ActivityIndicator,
+  Alert,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -23,6 +25,7 @@ interface Part {
   installation_date?: string;
   installation_airframe_hours?: number;
   source?: string;
+  confirmed?: boolean;
 }
 
 export default function MaintenancePartsScreen() {
@@ -34,6 +37,7 @@ export default function MaintenancePartsScreen() {
 
   const [parts, setParts] = useState<Part[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchParts();
@@ -55,53 +59,203 @@ export default function MaintenancePartsScreen() {
     return new Date(dateString).toLocaleDateString('fr-CA');
   };
 
-  const renderPart = ({ item }: { item: Part }) => (
-    <View style={styles.partCard}>
-      <View style={styles.partHeader}>
-        <View style={styles.partIcon}>
-          <Ionicons name="hardware-chip" size={20} color="#8B5CF6" />
+  // Vérifie si une pièce peut être supprimée (OCR non confirmée uniquement)
+  const canDelete = (part: Part): boolean => {
+    return part.source === 'ocr' && part.confirmed === false;
+  };
+
+  const handleDelete = async (part: Part) => {
+    if (!canDelete(part)) {
+      const message = part.source !== 'ocr' 
+        ? 'Les pièces saisies manuellement ne peuvent pas être supprimées.'
+        : 'Pièce confirmée — suppression désactivée. Utilisez "Corriger" ou "Marquer comme erreur".';
+      
+      if (Platform.OS === 'web') {
+        window.alert(message);
+      } else {
+        Alert.alert('Suppression interdite', message);
+      }
+      return;
+    }
+
+    const confirmDelete = async () => {
+      setDeletingId(part._id);
+      try {
+        await api.delete(`/api/parts/record/${part._id}`);
+        setParts(parts.filter(p => p._id !== part._id));
+        
+        if (Platform.OS === 'web') {
+          window.alert('Pièce supprimée avec succès');
+        } else {
+          Alert.alert('Succès', 'Pièce supprimée avec succès');
+        }
+      } catch (error: any) {
+        console.error('Delete error:', error);
+        const message = error.response?.data?.detail || 'Erreur lors de la suppression';
+        if (Platform.OS === 'web') {
+          window.alert('Erreur: ' + message);
+        } else {
+          Alert.alert('Erreur', message);
+        }
+      } finally {
+        setDeletingId(null);
+      }
+    };
+
+    if (Platform.OS === 'web') {
+      if (window.confirm(`Supprimer la pièce ${part.part_number} ?\n\nCette action est irréversible.`)) {
+        confirmDelete();
+      }
+    } else {
+      Alert.alert(
+        'Confirmer la suppression',
+        `Supprimer la pièce ${part.part_number} ?\n\nCette action est irréversible.`,
+        [
+          { text: 'Annuler', style: 'cancel' },
+          { text: 'Supprimer', style: 'destructive', onPress: confirmDelete }
+        ]
+      );
+    }
+  };
+
+  const handleConfirm = async (part: Part) => {
+    try {
+      await api.put(`/api/parts/record/${part._id}/confirm`);
+      // Mettre à jour l'état local
+      setParts(parts.map(p => 
+        p._id === part._id ? { ...p, confirmed: true } : p
+      ));
+      
+      if (Platform.OS === 'web') {
+        window.alert('Pièce confirmée avec succès');
+      } else {
+        Alert.alert('Succès', 'Pièce confirmée avec succès');
+      }
+    } catch (error: any) {
+      console.error('Confirm error:', error);
+      const message = error.response?.data?.detail || 'Erreur lors de la confirmation';
+      if (Platform.OS === 'web') {
+        window.alert('Erreur: ' + message);
+      } else {
+        Alert.alert('Erreur', message);
+      }
+    }
+  };
+
+  const renderPart = ({ item }: { item: Part }) => {
+    const deletable = canDelete(item);
+    const isOCR = item.source === 'ocr';
+    const isConfirmed = item.confirmed !== false; // Default to true for safety
+    
+    return (
+      <View style={styles.partCard}>
+        <View style={styles.partHeader}>
+          <View style={styles.partIcon}>
+            <Ionicons name="hardware-chip" size={20} color="#8B5CF6" />
+          </View>
+          <View style={styles.partInfo}>
+            <Text style={styles.partName}>{item.name || item.part_number}</Text>
+            <Text style={styles.partNumber}>P/N: {item.part_number}</Text>
+          </View>
+          <View style={styles.partQty}>
+            <Text style={styles.qtyValue}>{item.quantity}</Text>
+            <Text style={styles.qtyLabel}>Qté</Text>
+          </View>
         </View>
-        <View style={styles.partInfo}>
-          <Text style={styles.partName}>{item.name || item.part_number}</Text>
-          <Text style={styles.partNumber}>P/N: {item.part_number}</Text>
+        
+        <View style={styles.partDetails}>
+          {item.serial_number && (
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>S/N:</Text>
+              <Text style={styles.detailValue}>{item.serial_number}</Text>
+            </View>
+          )}
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>Installé:</Text>
+            <Text style={styles.detailValue}>{formatDate(item.installation_date)}</Text>
+          </View>
+          {item.installation_airframe_hours && (
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Heures:</Text>
+              <Text style={styles.detailValue}>{item.installation_airframe_hours} h</Text>
+            </View>
+          )}
+          {item.purchase_price && (
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Prix:</Text>
+              <Text style={styles.detailValue}>${item.purchase_price.toFixed(2)}</Text>
+            </View>
+          )}
         </View>
-        <View style={styles.partQty}>
-          <Text style={styles.qtyValue}>{item.quantity}</Text>
-          <Text style={styles.qtyLabel}>Qté</Text>
+
+        {/* Source et statut */}
+        <View style={styles.statusRow}>
+          {isOCR && (
+            <View style={[
+              styles.sourceTag,
+              isConfirmed ? styles.sourceTagConfirmed : styles.sourceTagPending
+            ]}>
+              <Ionicons 
+                name={isConfirmed ? "checkmark-circle" : "scan"} 
+                size={12} 
+                color={isConfirmed ? "#10B981" : "#F59E0B"} 
+              />
+              <Text style={[
+                styles.sourceText,
+                { color: isConfirmed ? "#10B981" : "#F59E0B" }
+              ]}>
+                {isConfirmed ? "OCR Confirmé" : "OCR Non confirmé"}
+              </Text>
+            </View>
+          )}
+          {!isOCR && (
+            <View style={styles.sourceTag}>
+              <Ionicons name="create" size={12} color="#3B82F6" />
+              <Text style={styles.sourceText}>Manuel</Text>
+            </View>
+          )}
         </View>
+
+        {/* Actions */}
+        {isOCR && !isConfirmed && (
+          <View style={styles.actionsRow}>
+            <TouchableOpacity 
+              style={styles.confirmButton}
+              onPress={() => handleConfirm(item)}
+            >
+              <Ionicons name="checkmark" size={16} color="#10B981" />
+              <Text style={styles.confirmButtonText}>Confirmer</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={[styles.deleteButton, deletingId === item._id && styles.deleteButtonDisabled]}
+              onPress={() => handleDelete(item)}
+              disabled={deletingId === item._id}
+            >
+              {deletingId === item._id ? (
+                <ActivityIndicator size="small" color="#EF4444" />
+              ) : (
+                <>
+                  <Ionicons name="trash" size={16} color="#EF4444" />
+                  <Text style={styles.deleteButtonText}>Supprimer</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Message pour pièces confirmées */}
+        {isOCR && isConfirmed && (
+          <View style={styles.confirmedNote}>
+            <Ionicons name="lock-closed" size={12} color="#94A3B8" />
+            <Text style={styles.confirmedNoteText}>
+              Pièce confirmée — suppression désactivée
+            </Text>
+          </View>
+        )}
       </View>
-      <View style={styles.partDetails}>
-        {item.serial_number && (
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>S/N:</Text>
-            <Text style={styles.detailValue}>{item.serial_number}</Text>
-          </View>
-        )}
-        <View style={styles.detailRow}>
-          <Text style={styles.detailLabel}>Installé:</Text>
-          <Text style={styles.detailValue}>{formatDate(item.installation_date)}</Text>
-        </View>
-        {item.installation_airframe_hours && (
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Heures:</Text>
-            <Text style={styles.detailValue}>{item.installation_airframe_hours} h</Text>
-          </View>
-        )}
-        {item.purchase_price && (
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Prix:</Text>
-            <Text style={styles.detailValue}>${item.purchase_price.toFixed(2)}</Text>
-          </View>
-        )}
-      </View>
-      {item.source === 'ocr' && (
-        <View style={styles.sourceTag}>
-          <Ionicons name="scan" size={12} color="#3B82F6" />
-          <Text style={styles.sourceText}>OCR</Text>
-        </View>
-      )}
-    </View>
-  );
+    );
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -276,20 +430,83 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#1E293B',
   },
+  statusRow: {
+    flexDirection: 'row',
+    marginTop: 12,
+  },
   sourceTag: {
     flexDirection: 'row',
     alignItems: 'center',
-    alignSelf: 'flex-start',
     backgroundColor: '#EFF6FF',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 4,
-    marginTop: 12,
     gap: 4,
+  },
+  sourceTagConfirmed: {
+    backgroundColor: '#D1FAE5',
+  },
+  sourceTagPending: {
+    backgroundColor: '#FEF3C7',
   },
   sourceText: {
     fontSize: 11,
     color: '#3B82F6',
     fontWeight: '500',
+  },
+  actionsRow: {
+    flexDirection: 'row',
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+    gap: 12,
+  },
+  confirmButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#D1FAE5',
+    paddingVertical: 10,
+    borderRadius: 8,
+    gap: 6,
+  },
+  confirmButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#10B981',
+  },
+  deleteButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FEE2E2',
+    paddingVertical: 10,
+    borderRadius: 8,
+    gap: 6,
+  },
+  deleteButtonDisabled: {
+    opacity: 0.5,
+  },
+  deleteButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#EF4444',
+  },
+  confirmedNote: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+    gap: 6,
+  },
+  confirmedNoteText: {
+    fontSize: 12,
+    color: '#94A3B8',
+    fontStyle: 'italic',
   },
 });
