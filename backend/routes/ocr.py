@@ -519,3 +519,46 @@ async def get_ocr_quota_status(
         "limit": ocr_limit if ocr_limit != -1 else "unlimited",
         "remaining": (ocr_limit - ocr_count) if ocr_limit != -1 else "unlimited"
     }
+
+
+@router.delete("/{scan_id}")
+async def delete_ocr_scan(
+    scan_id: str,
+    current_user: User = Depends(get_current_user),
+    db=Depends(get_database)
+):
+    """
+    Delete an OCR scan from history
+    """
+    
+    # Try to find by string ID first, then by ObjectId
+    scan = await db.ocr_scans.find_one({
+        "_id": scan_id,
+        "user_id": current_user.id
+    })
+    
+    if not scan:
+        # Try with ObjectId
+        try:
+            scan = await db.ocr_scans.find_one({
+                "_id": ObjectId(scan_id),
+                "user_id": current_user.id
+            })
+        except:
+            pass
+    
+    if not scan:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="OCR scan not found"
+        )
+    
+    # Delete the scan
+    if isinstance(scan["_id"], ObjectId):
+        await db.ocr_scans.delete_one({"_id": scan["_id"]})
+    else:
+        await db.ocr_scans.delete_one({"_id": scan_id})
+    
+    logger.info(f"Deleted OCR scan {scan_id} for user {current_user.id}")
+    
+    return {"message": "OCR scan deleted successfully"}
