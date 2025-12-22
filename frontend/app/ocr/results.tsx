@@ -69,37 +69,52 @@ export default function OCRResultsScreen() {
     : {};
 
   const applyResults = async () => {
-    Alert.alert(
-      'Appliquer les résultats',
-      'Cela va mettre à jour les heures de l\'avion et créer les enregistrements correspondants. Continuer ?',
-      [
-        { text: 'Annuler', style: 'cancel' },
-        {
-          text: 'Appliquer',
-          onPress: async () => {
-            setIsApplying(true);
-            try {
-              const response = await api.post(`/api/ocr/apply/${params.scanId}`);
-              Alert.alert(
-                'Succès !',
-                `Données appliquées :\n• Maintenance: ${response.data.applied.maintenance_record ? 'Créé' : 'Non'}\n• AD/SB: ${response.data.applied.adsb_records} enregistrements\n• Pièces: ${response.data.applied.part_records} enregistrements\n• STC: ${response.data.applied.stc_records} enregistrements`,
-                [
-                  {
-                    text: 'OK',
-                    onPress: () => router.back(),
-                  },
-                ]
-              );
-            } catch (error: any) {
-              const message = error.response?.data?.detail || 'Erreur lors de l\'application';
-              Alert.alert('Erreur', message);
-            } finally {
-              setIsApplying(false);
-            }
-          },
-        },
-      ]
-    );
+    const doApply = async () => {
+      setIsApplying(true);
+      try {
+        console.log('Applying OCR results for scan:', params.scanId);
+        const response = await api.post(`/api/ocr/apply/${params.scanId}`);
+        console.log('Apply response:', response.data);
+        
+        const successMessage = `Données appliquées :\n• Maintenance: ${response.data.applied?.maintenance_record ? 'Créé' : 'Non'}\n• AD/SB: ${response.data.applied?.adsb_records || 0} enregistrements\n• Pièces: ${response.data.applied?.part_records || 0} enregistrements\n• STC: ${response.data.applied?.stc_records || 0} enregistrements`;
+        
+        if (Platform.OS === 'web') {
+          window.alert('Succès !\n\n' + successMessage);
+          router.back();
+        } else {
+          Alert.alert(
+            'Succès !',
+            successMessage,
+            [{ text: 'OK', onPress: () => router.back() }]
+          );
+        }
+      } catch (error: any) {
+        console.error('Apply error:', error);
+        const message = error.response?.data?.detail || 'Erreur lors de l\'application';
+        if (Platform.OS === 'web') {
+          window.alert('Erreur: ' + message);
+        } else {
+          Alert.alert('Erreur', message);
+        }
+      } finally {
+        setIsApplying(false);
+      }
+    };
+
+    if (Platform.OS === 'web') {
+      if (window.confirm('Cela va mettre à jour les heures de l\'avion et créer les enregistrements correspondants. Continuer ?')) {
+        doApply();
+      }
+    } else {
+      Alert.alert(
+        'Appliquer les résultats',
+        'Cela va mettre à jour les heures de l\'avion et créer les enregistrements correspondants. Continuer ?',
+        [
+          { text: 'Annuler', style: 'cancel' },
+          { text: 'Appliquer', onPress: doApply }
+        ]
+      );
+    }
   };
 
   const getStatusColor = (status: string) => {
