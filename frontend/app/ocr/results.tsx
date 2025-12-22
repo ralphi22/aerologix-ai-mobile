@@ -112,12 +112,9 @@ export default function OCRResultsScreen() {
       
       // IMPORTANT: Rafraîchir les données de l'avion pour mettre à jour les heures
       try {
-        await refreshAircraftList();
-        // Re-sélectionner l'avion pour mettre à jour les données affichées
-        const aircraftResponse = await api.get(`/api/aircraft/${params.aircraftId}`);
-        if (aircraftResponse.data) {
-          selectAircraft(aircraftResponse.data);
-        }
+        // Utiliser la nouvelle méthode qui met à jour le store correctement
+        await refreshAircraftById(params.aircraftId);
+        console.log('Aircraft data refreshed successfully');
       } catch (refreshError) {
         console.log('Refresh error (non-critical):', refreshError);
       }
