@@ -568,7 +568,8 @@ async def apply_ocr_results(
                 "adsb_records": len(applied_ids["adsb_ids"]),
                 "part_records": len(applied_ids["part_ids"]),
                 "stc_records": len(applied_ids["stc_ids"]),
-                "elt_updated": elt_created
+                "elt_updated": elt_created,
+                "invoice_created": invoice_created
             }
         }
         
