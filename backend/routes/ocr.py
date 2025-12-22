@@ -331,8 +331,8 @@ async def apply_ocr_results(
                 )
                 logger.info(f"Updated aircraft {aircraft_id} hours: {hours_update}")
         
-        # 2. Create maintenance record
-        if extracted_data.get("description") or extracted_data.get("work_order_number"):
+        # 2. Create maintenance record (ONLY FOR RAPPORT)
+        if is_maintenance_report and (extracted_data.get("description") or extracted_data.get("work_order_number")):
             maintenance_date = now
             if extracted_data.get("date"):
                 try:
