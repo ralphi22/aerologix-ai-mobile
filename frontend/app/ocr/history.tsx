@@ -75,11 +75,9 @@ export default function OCRHistoryScreen() {
       }
     };
 
-    if (Platform.OS === 'web') {
-      if (window.confirm('Supprimer ce document de l\'historique ?')) {
-        doDelete();
-      }
-    } else {
+    // Sur mobile natif, utiliser Alert.alert
+    // Sur web/preview, exécuter directement
+    if (Platform.OS !== 'web') {
       Alert.alert(
         'Confirmer',
         'Supprimer ce document de l\'historique ?',
@@ -88,6 +86,8 @@ export default function OCRHistoryScreen() {
           { text: 'Supprimer', style: 'destructive', onPress: doDelete }
         ]
       );
+    } else {
+      doDelete();
     }
   };
 
