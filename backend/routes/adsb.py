@@ -165,8 +165,14 @@ async def delete_adsb_record(
 ):
     """Delete an AD/SB record"""
     
+    # Try to convert to ObjectId if it's a valid format, otherwise use string
+    try:
+        query_id = ObjectId(record_id)
+    except:
+        query_id = record_id
+    
     result = await db.adsb_records.delete_one({
-        "_id": record_id,
+        "_id": query_id,
         "user_id": current_user.id
     })
     
