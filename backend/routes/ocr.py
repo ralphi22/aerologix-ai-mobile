@@ -305,9 +305,16 @@ async def apply_ocr_results(
         "stc_ids": []
     }
     
+    # Determine document type - critical for business rules
+    document_type = scan.get("document_type", "maintenance_report")
+    is_maintenance_report = document_type == "maintenance_report"
+    is_invoice = document_type == "invoice"
+    
     try:
-        # 1. Update aircraft hours if provided
-        if update_aircraft_hours:
+        # ===== RÈGLE MÉTIER: Seul "Rapport" peut créer maintenance/pièces =====
+        
+        # 1. Update aircraft hours if provided (ONLY FOR RAPPORT)
+        if is_maintenance_report and update_aircraft_hours:
             hours_update = {}
             if extracted_data.get("airframe_hours"):
                 hours_update["airframe_hours"] = extracted_data["airframe_hours"]
