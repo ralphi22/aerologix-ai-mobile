@@ -15,7 +15,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import api from '../../services/api';
 
-type DocumentType = 'rapport' | 'invoice' | 'pieces' | 'ad_compliance' | 'sb_compliance' | 'stc' | 'other';
+type DocumentType = 'rapport' | 'invoice' | 'other';
 
 const DOCUMENT_TYPES = [
   {
@@ -31,34 +31,6 @@ const DOCUMENT_TYPES = [
     description: 'Factures, bons de commande',
     icon: 'receipt-outline',
     color: '#10B981',
-  },
-  {
-    id: 'pieces' as DocumentType,
-    title: 'Pièces',
-    description: 'Documentation pièces détachées',
-    icon: 'hardware-chip-outline',
-    color: '#8B5CF6',
-  },
-  {
-    id: 'ad_compliance' as DocumentType,
-    title: 'AD Compliance',
-    description: 'Airworthiness Directive',
-    icon: 'alert-circle-outline',
-    color: '#EF4444',
-  },
-  {
-    id: 'sb_compliance' as DocumentType,
-    title: 'SB Compliance',
-    description: 'Service Bulletin',
-    icon: 'warning-outline',
-    color: '#F59E0B',
-  },
-  {
-    id: 'stc' as DocumentType,
-    title: 'STC',
-    description: 'Supplemental Type Certificate',
-    icon: 'document-text-outline',
-    color: '#6366F1',
   },
   {
     id: 'other' as DocumentType,
