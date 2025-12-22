@@ -15,29 +15,57 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import api from '../../services/api';
 
-type DocumentType = 'maintenance_report' | 'stc' | 'invoice';
+type DocumentType = 'logbook' | 'invoice' | 'work_order' | 'ad_compliance' | 'sb_compliance' | 'stc' | 'other';
 
 const DOCUMENT_TYPES = [
   {
-    id: 'maintenance_report' as DocumentType,
-    title: 'Rapport de maintenance',
-    description: 'Work orders, inspections, réparations',
-    icon: 'construct-outline',
+    id: 'logbook' as DocumentType,
+    title: 'Logbook',
+    description: 'Carnet de vol / Journey log',
+    icon: 'book-outline',
     color: '#3B82F6',
+  },
+  {
+    id: 'invoice' as DocumentType,
+    title: 'Facture',
+    description: 'Factures, bons de commande',
+    icon: 'receipt-outline',
+    color: '#10B981',
+  },
+  {
+    id: 'work_order' as DocumentType,
+    title: 'Work Order',
+    description: 'Maintenance release',
+    icon: 'construct-outline',
+    color: '#8B5CF6',
+  },
+  {
+    id: 'ad_compliance' as DocumentType,
+    title: 'AD Compliance',
+    description: 'Airworthiness Directive',
+    icon: 'alert-circle-outline',
+    color: '#EF4444',
+  },
+  {
+    id: 'sb_compliance' as DocumentType,
+    title: 'SB Compliance',
+    description: 'Service Bulletin',
+    icon: 'warning-outline',
+    color: '#F59E0B',
   },
   {
     id: 'stc' as DocumentType,
     title: 'STC',
     description: 'Supplemental Type Certificate',
     icon: 'document-text-outline',
-    color: '#8B5CF6',
+    color: '#6366F1',
   },
   {
-    id: 'invoice' as DocumentType,
-    title: 'Facture / Pièces',
-    description: 'Factures, bons de commande',
-    icon: 'receipt-outline',
-    color: '#10B981',
+    id: 'other' as DocumentType,
+    title: 'Autre',
+    description: 'Document divers',
+    icon: 'folder-outline',
+    color: '#64748B',
   },
 ];
 
