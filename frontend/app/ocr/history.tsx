@@ -50,12 +50,22 @@ export default function OCRHistoryScreen() {
 
   const getDocumentTypeLabel = (type: string) => {
     switch (type) {
-      case 'maintenance_report':
-        return 'Rapport maintenance';
-      case 'stc':
-        return 'STC';
+      case 'logbook':
+        return 'Logbook';
       case 'invoice':
         return 'Facture';
+      case 'work_order':
+        return 'Work Order';
+      case 'ad_compliance':
+        return 'AD Compliance';
+      case 'sb_compliance':
+        return 'SB Compliance';
+      case 'stc':
+        return 'STC';
+      case 'maintenance_report':
+        return 'Rapport maintenance';
+      case 'other':
+        return 'Autre';
       default:
         return type;
     }
@@ -63,12 +73,22 @@ export default function OCRHistoryScreen() {
 
   const getDocumentTypeIcon = (type: string) => {
     switch (type) {
-      case 'maintenance_report':
-        return 'construct-outline';
-      case 'stc':
-        return 'document-text-outline';
+      case 'logbook':
+        return 'book-outline';
       case 'invoice':
         return 'receipt-outline';
+      case 'work_order':
+        return 'construct-outline';
+      case 'ad_compliance':
+        return 'alert-circle-outline';
+      case 'sb_compliance':
+        return 'warning-outline';
+      case 'stc':
+        return 'document-text-outline';
+      case 'maintenance_report':
+        return 'construct-outline';
+      case 'other':
+        return 'folder-outline';
       default:
         return 'document-outline';
     }
