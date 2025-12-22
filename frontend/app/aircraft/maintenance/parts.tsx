@@ -146,9 +146,7 @@ export default function MaintenancePartsScreen() {
   };
 
   const renderPart = ({ item }: { item: Part }) => {
-    const deletable = canDelete(item);
     const isOCR = item.source === 'ocr';
-    const isConfirmed = item.confirmed !== false; // Default to true for safety
     
     return (
       <View style={styles.partCard}>
@@ -191,46 +189,25 @@ export default function MaintenancePartsScreen() {
           )}
         </View>
 
-        {/* Source et statut */}
-        <View style={styles.statusRow}>
-          {isOCR && (
-            <View style={[
-              styles.sourceTag,
-              isConfirmed ? styles.sourceTagConfirmed : styles.sourceTagPending
+        {/* Actions row with source tag and delete button */}
+        <View style={styles.actionsRow}>
+          <View style={[styles.sourceTag, isOCR ? styles.sourceTagOCR : styles.sourceTagManual]}>
+            <Ionicons 
+              name={isOCR ? "scan" : "create"} 
+              size={12} 
+              color={isOCR ? "#3B82F6" : "#10B981"} 
+            />
+            <Text style={[
+              styles.sourceText,
+              { color: isOCR ? "#3B82F6" : "#10B981" }
             ]}>
-              <Ionicons 
-                name={isConfirmed ? "checkmark-circle" : "scan"} 
-                size={12} 
-                color={isConfirmed ? "#10B981" : "#F59E0B"} 
-              />
-              <Text style={[
-                styles.sourceText,
-                { color: isConfirmed ? "#10B981" : "#F59E0B" }
-              ]}>
-                {isConfirmed ? "OCR Confirmé" : "OCR Non confirmé"}
-              </Text>
-            </View>
-          )}
-          {!isOCR && (
-            <View style={styles.sourceTag}>
-              <Ionicons name="create" size={12} color="#3B82F6" />
-              <Text style={styles.sourceText}>Manuel</Text>
-            </View>
-          )}
-        </View>
-
-        {/* Actions */}
-        {isOCR && !isConfirmed && (
-          <View style={styles.actionsRow}>
-            <TouchableOpacity 
-              style={styles.confirmButton}
-              onPress={() => handleConfirm(item)}
-            >
-              <Ionicons name="checkmark" size={16} color="#10B981" />
-              <Text style={styles.confirmButtonText}>Confirmer</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
+              {isOCR ? "OCR" : "Manuel"}
+            </Text>
+          </View>
+          
+          {/* Delete button - only for OCR parts */}
+          {isOCR && (
+            <TouchableOpacity
               style={[styles.deleteButton, deletingId === item._id && styles.deleteButtonDisabled]}
               onPress={() => handleDelete(item)}
               disabled={deletingId === item._id}
@@ -239,23 +216,21 @@ export default function MaintenancePartsScreen() {
                 <ActivityIndicator size="small" color="#EF4444" />
               ) : (
                 <>
-                  <Ionicons name="trash" size={16} color="#EF4444" />
+                  <Ionicons name="trash-outline" size={16} color="#EF4444" />
                   <Text style={styles.deleteButtonText}>Supprimer</Text>
                 </>
               )}
             </TouchableOpacity>
-          </View>
-        )}
-
-        {/* Message pour pièces confirmées */}
-        {isOCR && isConfirmed && (
-          <View style={styles.confirmedNote}>
-            <Ionicons name="lock-closed" size={12} color="#94A3B8" />
-            <Text style={styles.confirmedNoteText}>
-              Pièce confirmée — suppression désactivée
-            </Text>
-          </View>
-        )}
+          )}
+          
+          {/* Info message for manual parts */}
+          {!isOCR && (
+            <View style={styles.protectedNote}>
+              <Ionicons name="lock-closed" size={12} color="#94A3B8" />
+              <Text style={styles.protectedNoteText}>Protégé</Text>
+            </View>
+          )}
+        </View>
       </View>
     );
   };
