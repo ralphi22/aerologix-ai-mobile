@@ -68,7 +68,7 @@ interface ExtractedData {
 
 export default function OCRResultsScreen() {
   const router = useRouter();
-  const { refreshAircraftList, selectAircraft } = useAircraftStore();
+  const { fetchAircraft, refreshAircraftById, selectAircraft } = useAircraftStore();
   const params = useLocalSearchParams<{
     scanId: string;
     aircraftId: string;
