@@ -117,8 +117,12 @@ export default function ELTScreen() {
       
       console.log('Saving ELT data:', cleanedData);
       
-      if (eltData?.id) {
+      // Check if ELT exists (backend returns _id)
+      const hasExistingELT = eltData?._id || eltData?.id;
+      
+      if (hasExistingELT) {
         // Update existing
+        console.log('Updating existing ELT for aircraft:', aircraftId);
         const response = await api.put(`/api/elt/aircraft/${aircraftId}`, cleanedData);
         console.log('Update response:', response.data);
       } else {
