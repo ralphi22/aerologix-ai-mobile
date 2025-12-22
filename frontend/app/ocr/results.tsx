@@ -76,18 +76,15 @@ export default function OCRResultsScreen() {
         const response = await api.post(`/api/ocr/apply/${params.scanId}`);
         console.log('Apply response:', response.data);
         
-        const successMessage = `Données appliquées :\n• Maintenance: ${response.data.applied?.maintenance_record ? 'Créé' : 'Non'}\n• AD/SB: ${response.data.applied?.adsb_records || 0} enregistrements\n• Pièces: ${response.data.applied?.part_records || 0} enregistrements\n• STC: ${response.data.applied?.stc_records || 0} enregistrements`;
+        const applied = response.data.applied || {};
+        const successMessage = `Données appliquées :\n• Maintenance: ${applied.maintenance_record ? 'Créé' : 'Non'}\n• AD/SB: ${applied.adsb_records || 0} enregistrements\n• Pièces: ${applied.part_records || 0} enregistrements\n• STC: ${applied.stc_records || 0} enregistrements`;
         
         if (Platform.OS === 'web') {
           window.alert('Succès !\n\n' + successMessage);
-          router.back();
         } else {
-          Alert.alert(
-            'Succès !',
-            successMessage,
-            [{ text: 'OK', onPress: () => router.back() }]
-          );
+          Alert.alert('Succès !', successMessage);
         }
+        router.back();
       } catch (error: any) {
         console.error('Apply error:', error);
         const message = error.response?.data?.detail || 'Erreur lors de l\'application';
@@ -101,11 +98,9 @@ export default function OCRResultsScreen() {
       }
     };
 
-    if (Platform.OS === 'web') {
-      if (window.confirm('Cela va mettre à jour les heures de l\'avion et créer les enregistrements correspondants. Continuer ?')) {
-        doApply();
-      }
-    } else {
+    // Sur mobile natif, utiliser Alert.alert avec callback
+    // Sur web/preview, exécuter directement (plus fiable)
+    if (Platform.OS !== 'web') {
       Alert.alert(
         'Appliquer les résultats',
         'Cela va mettre à jour les heures de l\'avion et créer les enregistrements correspondants. Continuer ?',
@@ -114,6 +109,9 @@ export default function OCRResultsScreen() {
           { text: 'Appliquer', onPress: doApply }
         ]
       );
+    } else {
+      // Pour web/preview mobile, exécuter directement
+      doApply();
     }
   };
 
