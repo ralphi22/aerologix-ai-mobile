@@ -206,7 +206,7 @@ async def delete_part_record(
     # Try to convert to ObjectId if it's a valid format, otherwise use string
     try:
         query_id = ObjectId(record_id)
-    except:
+    except Exception:
         query_id = record_id
     
     # First, get the record to check if it can be deleted
