@@ -87,6 +87,12 @@ async def scan_document(
     result = await db.ocr_scans.insert_one(scan_doc)
     scan_id = str(result.inserted_id)
     
+    # Also update the document with string ID for easier querying
+    await db.ocr_scans.update_one(
+        {"_id": result.inserted_id},
+        {"$set": {"_id": scan_id}}
+    )
+    
     try:
         # Analyze image with OCR service
         logger.info(f"Processing OCR scan {scan_id} for user {current_user.id}")
