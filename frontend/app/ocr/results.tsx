@@ -14,6 +14,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import api from '../../services/api';
+import { useAircraftStore } from '../../stores/aircraftStore';
 
 interface ExtractedADSB {
   adsb_type: string;
@@ -67,6 +68,7 @@ interface ExtractedData {
 
 export default function OCRResultsScreen() {
   const router = useRouter();
+  const { refreshAircraftList, selectAircraft } = useAircraftStore();
   const params = useLocalSearchParams<{
     scanId: string;
     aircraftId: string;
@@ -103,6 +105,21 @@ export default function OCRResultsScreen() {
       
       if (applied.elt_updated) {
         successMessage += '\n• ELT: Mis à jour';
+      }
+      if (applied.invoice_created) {
+        successMessage += '\n• Facture: Créée';
+      }
+      
+      // IMPORTANT: Rafraîchir les données de l'avion pour mettre à jour les heures
+      try {
+        await refreshAircraftList();
+        // Re-sélectionner l'avion pour mettre à jour les données affichées
+        const aircraftResponse = await api.get(`/api/aircraft/${params.aircraftId}`);
+        if (aircraftResponse.data) {
+          selectAircraft(aircraftResponse.data);
+        }
+      } catch (refreshError) {
+        console.log('Refresh error (non-critical):', refreshError);
       }
       
       if (Platform.OS === 'web') {
@@ -253,7 +270,7 @@ export default function OCRResultsScreen() {
           </View>
         )}
 
-        {/* ELT Section - NEW */}
+        {/* ELT Section */}
         {hasELTData && (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
@@ -278,7 +295,6 @@ export default function OCRResultsScreen() {
             
             <View style={styles.eltCard}>
               {editingELT ? (
-                // Editable mode
                 <>
                   <View style={styles.eltEditRow}>
                     <Text style={styles.eltLabel}>Marque</Text>
@@ -307,36 +323,8 @@ export default function OCRResultsScreen() {
                       placeholder="Numéro de série"
                     />
                   </View>
-                  <View style={styles.eltEditRow}>
-                    <Text style={styles.eltLabel}>Date installation</Text>
-                    <TextInput
-                      style={styles.eltInput}
-                      value={eltData.installation_date || ''}
-                      onChangeText={(text) => setEltData({...eltData, installation_date: text})}
-                      placeholder="YYYY-MM-DD"
-                    />
-                  </View>
-                  <View style={styles.eltEditRow}>
-                    <Text style={styles.eltLabel}>Date certification</Text>
-                    <TextInput
-                      style={styles.eltInput}
-                      value={eltData.certification_date || ''}
-                      onChangeText={(text) => setEltData({...eltData, certification_date: text})}
-                      placeholder="YYYY-MM-DD"
-                    />
-                  </View>
-                  <View style={styles.eltEditRow}>
-                    <Text style={styles.eltLabel}>Expiration batterie</Text>
-                    <TextInput
-                      style={styles.eltInput}
-                      value={eltData.battery_expiry_date || ''}
-                      onChangeText={(text) => setEltData({...eltData, battery_expiry_date: text})}
-                      placeholder="YYYY-MM-DD"
-                    />
-                  </View>
                 </>
               ) : (
-                // Display mode
                 <>
                   {(eltData.brand || eltData.model) && (
                     <View style={styles.eltRow}>
@@ -350,30 +338,6 @@ export default function OCRResultsScreen() {
                     <View style={styles.eltRow}>
                       <Text style={styles.eltLabel}>N° série</Text>
                       <Text style={styles.eltValue}>{eltData.serial_number}</Text>
-                    </View>
-                  )}
-                  {eltData.installation_date && (
-                    <View style={styles.eltRow}>
-                      <Text style={styles.eltLabel}>Installation</Text>
-                      <Text style={styles.eltValue}>{formatDate(eltData.installation_date)}</Text>
-                    </View>
-                  )}
-                  {eltData.certification_date && (
-                    <View style={styles.eltRow}>
-                      <Text style={styles.eltLabel}>Certification</Text>
-                      <Text style={styles.eltValue}>{formatDate(eltData.certification_date)}</Text>
-                    </View>
-                  )}
-                  {eltData.battery_expiry_date && (
-                    <View style={styles.eltRow}>
-                      <Text style={styles.eltLabel}>Batterie expire</Text>
-                      <Text style={styles.eltValue}>{formatDate(eltData.battery_expiry_date)}</Text>
-                    </View>
-                  )}
-                  {eltData.beacon_hex_id && (
-                    <View style={styles.eltRow}>
-                      <Text style={styles.eltLabel}>ID Balise</Text>
-                      <Text style={styles.eltValue}>{eltData.beacon_hex_id}</Text>
                     </View>
                   )}
                 </>
@@ -412,16 +376,6 @@ export default function OCRResultsScreen() {
                 {item.description && (
                   <Text style={styles.adsbDescription}>{item.description}</Text>
                 )}
-                {(item.compliance_date || item.airframe_hours) && (
-                  <View style={styles.adsbDetails}>
-                    {item.compliance_date && (
-                      <Text style={styles.adsbDetail}>Date: {item.compliance_date}</Text>
-                    )}
-                    {item.airframe_hours && (
-                      <Text style={styles.adsbDetail}>Heures: {item.airframe_hours}</Text>
-                    )}
-                  </View>
-                )}
               </View>
             ))}
           </View>
@@ -446,11 +400,6 @@ export default function OCRResultsScreen() {
                   )}
                 </View>
                 {part.name && <Text style={styles.partName}>{part.name}</Text>}
-                <View style={styles.partDetails}>
-                  {part.serial_number && <Text style={styles.partDetail}>S/N: {part.serial_number}</Text>}
-                  {part.price && <Text style={styles.partDetail}>${part.price}</Text>}
-                  {part.supplier && <Text style={styles.partDetail}>{part.supplier}</Text>}
-                </View>
               </View>
             ))}
           </View>
@@ -626,7 +575,6 @@ const styles = StyleSheet.create({
     flex: 1,
     textAlign: 'right',
   },
-  // ELT Styles
   eltTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -700,7 +648,6 @@ const styles = StyleSheet.create({
     color: '#64748B',
     fontStyle: 'italic',
   },
-  // AD/SB Styles
   adsbCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
@@ -742,15 +689,6 @@ const styles = StyleSheet.create({
     color: '#64748B',
     marginTop: 8,
   },
-  adsbDetails: {
-    flexDirection: 'row',
-    gap: 16,
-    marginTop: 8,
-  },
-  adsbDetail: {
-    fontSize: 12,
-    color: '#94A3B8',
-  },
   partCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
@@ -777,15 +715,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#64748B',
     marginTop: 4,
-  },
-  partDetails: {
-    flexDirection: 'row',
-    gap: 16,
-    marginTop: 8,
-  },
-  partDetail: {
-    fontSize: 12,
-    color: '#94A3B8',
   },
   rawTextToggle: {
     flexDirection: 'row',

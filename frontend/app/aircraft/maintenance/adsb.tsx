@@ -7,6 +7,8 @@ import {
   SafeAreaView,
   FlatList,
   ActivityIndicator,
+  Alert,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -34,6 +36,7 @@ export default function MaintenanceADSBScreen() {
 
   const [records, setRecords] = useState<ADSB[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchRecords();
@@ -47,6 +50,47 @@ export default function MaintenanceADSBScreen() {
       console.error('Error fetching AD/SB:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDelete = async (item: ADSB) => {
+    const confirmDelete = async () => {
+      setDeletingId(item._id);
+      try {
+        await api.delete(`/api/adsb/record/${item._id}`);
+        setRecords(records.filter(r => r._id !== item._id));
+        
+        if (Platform.OS === 'web') {
+          window.alert('AD/SB supprimé avec succès');
+        } else {
+          Alert.alert('Succès', 'AD/SB supprimé avec succès');
+        }
+      } catch (error: any) {
+        console.error('Delete error:', error);
+        const message = error.response?.data?.detail || 'Erreur lors de la suppression';
+        if (Platform.OS === 'web') {
+          window.alert('Erreur: ' + message);
+        } else {
+          Alert.alert('Erreur', message);
+        }
+      } finally {
+        setDeletingId(null);
+      }
+    };
+
+    if (Platform.OS === 'web') {
+      if (window.confirm(`Supprimer ${item.adsb_type} ${item.reference_number} ?\n\nCette action est irréversible.`)) {
+        confirmDelete();
+      }
+    } else {
+      Alert.alert(
+        'Confirmer la suppression',
+        `Supprimer ${item.adsb_type} ${item.reference_number} ?\n\nCette action est irréversible.`,
+        [
+          { text: 'Annuler', style: 'cancel' },
+          { text: 'Supprimer', style: 'destructive', onPress: confirmDelete }
+        ]
+      );
     }
   };
 
@@ -123,12 +167,29 @@ export default function MaintenanceADSBScreen() {
         )}
       </View>
 
-      {item.source === 'ocr' && (
-        <View style={styles.sourceTag}>
-          <Ionicons name="scan" size={12} color="#3B82F6" />
-          <Text style={styles.sourceText}>OCR</Text>
-        </View>
-      )}
+      <View style={styles.actionsRow}>
+        {item.source === 'ocr' && (
+          <View style={styles.sourceTag}>
+            <Ionicons name="scan" size={12} color="#3B82F6" />
+            <Text style={styles.sourceText}>OCR</Text>
+          </View>
+        )}
+        
+        <TouchableOpacity
+          style={[styles.deleteButton, deletingId === item._id && styles.deleteButtonDisabled]}
+          onPress={() => handleDelete(item)}
+          disabled={deletingId === item._id}
+        >
+          {deletingId === item._id ? (
+            <ActivityIndicator size="small" color="#EF4444" />
+          ) : (
+            <>
+              <Ionicons name="trash-outline" size={16} color="#EF4444" />
+              <Text style={styles.deleteButtonText}>Supprimer</Text>
+            </>
+          )}
+        </TouchableOpacity>
+      </View>
     </View>
   );
 
@@ -339,20 +400,44 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#64748B',
   },
+  actionsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+  },
   sourceTag: {
     flexDirection: 'row',
     alignItems: 'center',
-    alignSelf: 'flex-start',
     backgroundColor: '#EFF6FF',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 4,
-    marginTop: 12,
     gap: 4,
   },
   sourceText: {
     fontSize: 11,
     color: '#3B82F6',
     fontWeight: '500',
+  },
+  deleteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEE2E2',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    gap: 6,
+  },
+  deleteButtonDisabled: {
+    opacity: 0.5,
+  },
+  deleteButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#EF4444',
   },
 });
