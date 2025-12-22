@@ -59,17 +59,17 @@ export default function MaintenancePartsScreen() {
     return new Date(dateString).toLocaleDateString('fr-CA');
   };
 
-  // Vérifie si une pièce peut être supprimée (OCR non confirmée uniquement)
+  // Vérifie si une pièce peut être supprimée
+  // Règle simplifiée: les pièces OCR peuvent être supprimées (avec confirmation)
+  // Les pièces manuelles ne peuvent pas être supprimées
   const canDelete = (part: Part): boolean => {
-    return part.source === 'ocr' && part.confirmed === false;
+    return part.source === 'ocr';
   };
 
   const handleDelete = async (part: Part) => {
-    if (!canDelete(part)) {
-      const message = part.source !== 'ocr' 
-        ? 'Les pièces saisies manuellement ne peuvent pas être supprimées.'
-        : 'Pièce confirmée — suppression désactivée. Utilisez "Corriger" ou "Marquer comme erreur".';
-      
+    // Vérification côté client
+    if (part.source !== 'ocr') {
+      const message = 'Les pièces saisies manuellement ne peuvent pas être supprimées.';
       if (Platform.OS === 'web') {
         window.alert(message);
       } else {
@@ -81,7 +81,9 @@ export default function MaintenancePartsScreen() {
     const confirmDelete = async () => {
       setDeletingId(part._id);
       try {
+        console.log('Deleting part:', part._id);
         await api.delete(`/api/parts/record/${part._id}`);
+        console.log('Part deleted successfully');
         setParts(parts.filter(p => p._id !== part._id));
         
         if (Platform.OS === 'web') {
@@ -91,6 +93,7 @@ export default function MaintenancePartsScreen() {
         }
       } catch (error: any) {
         console.error('Delete error:', error);
+        console.error('Error response:', error.response?.data);
         const message = error.response?.data?.detail || 'Erreur lors de la suppression';
         if (Platform.OS === 'web') {
           window.alert('Erreur: ' + message);
