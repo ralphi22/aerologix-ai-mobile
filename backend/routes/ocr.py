@@ -84,14 +84,11 @@ async def scan_document(
         "updated_at": now
     }
     
-    result = await db.ocr_scans.insert_one(scan_doc)
-    scan_id = str(result.inserted_id)
+    # Generate string ID before insertion
+    scan_id = str(datetime.utcnow().timestamp()).replace(".", "")
+    scan_doc["_id"] = scan_id
     
-    # Also update the document with string ID for easier querying
-    await db.ocr_scans.update_one(
-        {"_id": result.inserted_id},
-        {"$set": {"_id": scan_id}}
-    )
+    await db.ocr_scans.insert_one(scan_doc)
     
     try:
         # Analyze image with OCR service
