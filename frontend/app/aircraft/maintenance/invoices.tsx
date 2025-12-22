@@ -8,6 +8,8 @@ import {
   ScrollView,
   ActivityIndicator,
   RefreshControl,
+  Alert,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -22,7 +24,6 @@ interface InvoicePart {
 
 interface Invoice {
   _id: string;
-  id?: string;
   invoice_number?: string;
   invoice_date?: string;
   supplier?: string;
@@ -43,6 +44,7 @@ export default function MaintenanceInvoicesScreen() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (aircraftId) {
@@ -56,7 +58,6 @@ export default function MaintenanceInvoicesScreen() {
       setInvoices(response.data || []);
     } catch (error: any) {
       console.error('Error fetching invoices:', error);
-      // 404 is expected if no invoices
       if (error.response?.status !== 404) {
         setInvoices([]);
       }
@@ -69,6 +70,49 @@ export default function MaintenanceInvoicesScreen() {
   const onRefresh = () => {
     setRefreshing(true);
     fetchInvoices();
+  };
+
+  const handleDelete = async (invoice: Invoice) => {
+    const confirmDelete = async () => {
+      setDeletingId(invoice._id);
+      try {
+        console.log('Deleting invoice:', invoice._id);
+        await api.delete(`/api/invoices/${invoice._id}`);
+        console.log('Invoice deleted successfully');
+        setInvoices(invoices.filter(i => i._id !== invoice._id));
+        
+        if (Platform.OS === 'web') {
+          window.alert('Facture supprimée avec succès');
+        } else {
+          Alert.alert('Succès', 'Facture supprimée avec succès');
+        }
+      } catch (error: any) {
+        console.error('Delete error:', error);
+        const message = error.response?.data?.detail || 'Erreur lors de la suppression';
+        if (Platform.OS === 'web') {
+          window.alert('Erreur: ' + message);
+        } else {
+          Alert.alert('Erreur', message);
+        }
+      } finally {
+        setDeletingId(null);
+      }
+    };
+
+    if (Platform.OS === 'web') {
+      if (window.confirm(`Supprimer la facture ${invoice.invoice_number || 'sans numéro'} ?\n\nCette action est irréversible.`)) {
+        confirmDelete();
+      }
+    } else {
+      Alert.alert(
+        'Confirmer la suppression',
+        `Supprimer la facture ${invoice.invoice_number || 'sans numéro'} ?\n\nCette action est irréversible.`,
+        [
+          { text: 'Annuler', style: 'cancel' },
+          { text: 'Supprimer', style: 'destructive', onPress: confirmDelete }
+        ]
+      );
+    }
   };
 
   const formatDate = (dateStr?: string) => {
