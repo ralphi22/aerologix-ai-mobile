@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -15,12 +15,84 @@ import { useAircraftStore } from '../../stores/aircraftStore';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import api from '../../services/api';
+
+// Type pour le statut ELT
+type ELTStatusLevel = 'ok' | 'warning' | 'critical' | 'unknown';
+
+interface ELTStatusData {
+  status: ELTStatusLevel;
+  label: string;
+}
 
 export default function AircraftDetailScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
   const { selectedAircraft, deleteAircraft } = useAircraftStore();
   const insets = useSafeAreaInsets();
+  
+  // État pour le statut ELT
+  const [eltStatus, setEltStatus] = useState<ELTStatusData>({ status: 'unknown', label: '' });
+  const [loadingELT, setLoadingELT] = useState(true);
+
+  // Charger le statut ELT au montage
+  useEffect(() => {
+    if (selectedAircraft?._id) {
+      fetchELTStatus();
+    }
+  }, [selectedAircraft?._id]);
+
+  const fetchELTStatus = async () => {
+    try {
+      const response = await api.get(`/api/elt/aircraft/${selectedAircraft?._id}`);
+      if (response.data) {
+        const eltData = response.data;
+        // Calculer le statut basé sur les alertes
+        let status: ELTStatusLevel = 'ok';
+        let label = 'Opérationnel';
+        
+        if (eltData.alerts && eltData.alerts.length > 0) {
+          const hasCritical = eltData.alerts.some((a: any) => a.level === 'critical');
+          const hasWarning = eltData.alerts.some((a: any) => a.level === 'warning');
+          
+          if (hasCritical) {
+            status = 'critical';
+            label = 'Échu';
+          } else if (hasWarning) {
+            status = 'warning';
+            label = 'À surveiller';
+          }
+        }
+        
+        setEltStatus({ status, label });
+      } else {
+        setEltStatus({ status: 'unknown', label: 'Non configuré' });
+      }
+    } catch (error: any) {
+      // 404 = pas d'ELT configuré
+      if (error.response?.status === 404) {
+        setEltStatus({ status: 'unknown', label: 'Non configuré' });
+      } else {
+        console.error('Error fetching ELT status:', error);
+        setEltStatus({ status: 'unknown', label: '' });
+      }
+    } finally {
+      setLoadingELT(false);
+    }
+  };
+
+  const getELTStatusColor = (status: ELTStatusLevel): string => {
+    switch (status) {
+      case 'ok':
+        return '#10B981'; // Vert
+      case 'warning':
+        return '#F59E0B'; // Jaune
+      case 'critical':
+        return '#EF4444'; // Rouge
+      default:
+        return '#94A3B8'; // Gris
+    }
+  };
 
   if (!selectedAircraft) {
     return (
@@ -177,6 +249,7 @@ export default function AircraftDetailScreen() {
             <Ionicons name="chevron-forward" size={20} color="#F59E0B" />
           </TouchableOpacity>
 
+          {/* ELT avec indicateur de statut */}
           <TouchableOpacity 
             style={[styles.moduleCard, styles.moduleCardActive]}
             onPress={() => router.push({
@@ -188,7 +261,26 @@ export default function AircraftDetailScreen() {
               <Ionicons name="radio" size={24} color="#EF4444" />
             </View>
             <View style={styles.moduleContent}>
-              <Text style={styles.moduleName}>ELT</Text>
+              <View style={styles.moduleNameRow}>
+                <Text style={styles.moduleName}>ELT</Text>
+                {/* Indicateur de statut ELT */}
+                {!loadingELT && eltStatus.status !== 'unknown' && (
+                  <View style={styles.eltStatusContainer}>
+                    <View 
+                      style={[
+                        styles.eltStatusDot, 
+                        { backgroundColor: getELTStatusColor(eltStatus.status) }
+                      ]} 
+                    />
+                    <Text style={[
+                      styles.eltStatusText,
+                      { color: getELTStatusColor(eltStatus.status) }
+                    ]}>
+                      {eltStatus.label}
+                    </Text>
+                  </View>
+                )}
+              </View>
               <Text style={styles.moduleSubtitle}>Emergency Locator Transmitter</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color="#EF4444" />
@@ -406,6 +498,11 @@ const styles = StyleSheet.create({
   moduleContent: {
     flex: 1,
   },
+  moduleNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   moduleName: {
     fontSize: 16,
     fontWeight: '600',
@@ -415,6 +512,25 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#64748B',
     marginTop: 2,
+  },
+  // Styles pour l'indicateur de statut ELT
+  eltStatusContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 10,
+  },
+  eltStatusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  eltStatusText: {
+    fontSize: 11,
+    fontWeight: '600',
   },
   editButton: {
     flexDirection: 'row',
