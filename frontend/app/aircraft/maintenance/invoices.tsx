@@ -21,7 +21,8 @@ interface InvoicePart {
 }
 
 interface Invoice {
-  id: string;
+  _id: string;
+  id?: string;
   invoice_number?: string;
   invoice_date?: string;
   supplier?: string;
