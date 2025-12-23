@@ -150,7 +150,7 @@ export default function AircraftDetailScreen() {
       `Supprimer définitivement ${selectedAircraft.registration} et toutes ses données ?\n\nAction irréversible.`,
       [
         { text: 'Annuler', style: 'cancel' },
-        { text: 'Supprimer', style: 'destructive', onPress: performDelete }
+        { text: 'Supprimer', style: 'destructive', onPress: () => { performDelete(); } }
       ]
     );
   };
