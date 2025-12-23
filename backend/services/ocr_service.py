@@ -79,7 +79,8 @@ Expected JSON structure:
             "detected": true/false,
             "type": "ALTIMETER, PITOT-STATIC, TRANSPONDER or null",
             "certification_date": "YYYY-MM-DD or null",
-            "next_due_date": "YYYY-MM-DD or null"
+            "next_due_date": "YYYY-MM-DD or null",
+            "status": "CURRENT, DUE, PAST_DUE or null (detect from text: PAST DUE, DUE, OVERDUE)"
         },
         "vacuum_pump": {
             "detected": true/false,
