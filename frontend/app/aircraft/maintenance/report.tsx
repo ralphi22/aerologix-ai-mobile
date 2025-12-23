@@ -269,10 +269,14 @@ export default function MaintenanceReportScreen() {
       hasData: vacuumCalc.hasData
     });
 
-    // 7. ELT (optionnel) - Source: ELT record
+    // 7. ELT (optionnel) - Source: ELT record + intervalles configurables
     if (elt) {
-      // Test annuel (12 mois)
-      const eltTestCalc = calculateDatePercentage(elt.last_test_date, 12);
+      // Intervalles configurables (défauts: test 12 mois, batterie 24 mois)
+      const testInterval = s.elt_test_interval_months || 12;
+      const batteryInterval = s.elt_battery_interval_months || elt.battery_interval_months || 24;
+      
+      // Test - calculé depuis last_test_date
+      const eltTestCalc = calculateDatePercentage(elt.last_test_date, testInterval);
       
       // Batterie - utilise battery_expiry_date si disponible, sinon calcule depuis battery_install_date
       let eltBatteryCalc: { pct: number; hasData: boolean } = { pct: 0, hasData: false };
@@ -283,15 +287,13 @@ export default function MaintenanceReportScreen() {
         const expiryDate = new Date(elt.battery_expiry_date);
         const now = new Date();
         const monthsUntilExpiry = (expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24 * 30);
-        const totalMonths = elt.battery_interval_months || 72;
-        // Pourcentage inversé car on compte vers l'expiration
-        const pct = Math.max(0, Math.min(((totalMonths - monthsUntilExpiry) / totalMonths) * 100, 150));
+        // Pourcentage basé sur le temps restant vs intervalle configuré
+        const pct = Math.max(0, Math.min(((batteryInterval - monthsUntilExpiry) / batteryInterval) * 100, 150));
         eltBatteryCalc = { pct, hasData: true };
         batteryDisplayDate = elt.battery_expiry_date;
       } else if (elt.battery_install_date) {
-        // Calcul depuis la date d'installation
-        const intervalMonths = elt.battery_interval_months || 72;
-        eltBatteryCalc = calculateDatePercentage(elt.battery_install_date, intervalMonths);
+        // Calcul depuis la date d'installation avec intervalle configurable
+        eltBatteryCalc = calculateDatePercentage(elt.battery_install_date, batteryInterval);
         batteryDisplayDate = elt.battery_install_date;
       }
       
@@ -315,7 +317,7 @@ export default function MaintenanceReportScreen() {
         icon: 'locate',
         percentage: maxEltPct,
         current: eltCurrent,
-        limit: 'Test 12m / Batt 72m',
+        limit: `Test ${testInterval}m / Batt ${batteryInterval}m`,
         ...eltStatus,
         type: 'date',
         hasData: hasEltData
