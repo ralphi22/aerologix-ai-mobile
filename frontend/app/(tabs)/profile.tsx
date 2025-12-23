@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../stores/authStore';
 import { useRouter, Link } from 'expo-router';
@@ -9,17 +9,39 @@ export default function ProfileScreen() {
   const router = useRouter();
 
   const handleLogout = () => {
-    Alert.alert('Logout', 'Are you sure you want to logout?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Logout',
-        style: 'destructive',
-        onPress: async () => {
-          await logout();
-          router.replace('/login');
-        },
-      },
-    ]);
+    const performLogout = async () => {
+      try {
+        // 1. Supprimer le token et réinitialiser l'état
+        await logout();
+        
+        // 2. Rediriger vers login
+        router.replace('/login');
+      } catch (error) {
+        console.error('Logout error:', error);
+        // Même en cas d'erreur, on redirige vers login
+        router.replace('/login');
+      }
+    };
+
+    // Confirmation
+    if (Platform.OS === 'web') {
+      if (window.confirm('Voulez-vous vraiment vous déconnecter ?')) {
+        performLogout();
+      }
+    } else {
+      Alert.alert(
+        'Déconnexion',
+        'Voulez-vous vraiment vous déconnecter ?',
+        [
+          { text: 'Annuler', style: 'cancel' },
+          {
+            text: 'Déconnexion',
+            style: 'destructive',
+            onPress: performLogout,
+          },
+        ]
+      );
+    }
   };
 
   const getPlanColor = (plan: string) => {
@@ -37,10 +59,25 @@ export default function ProfileScreen() {
     }
   };
 
+  const getPlanName = (plan: string) => {
+    switch (plan) {
+      case 'BASIC':
+        return 'Basic';
+      case 'PILOT':
+        return 'Pilot';
+      case 'MAINTENANCE_PRO':
+        return 'Maintenance Pro';
+      case 'FLEET_AI':
+        return 'Fleet AI';
+      default:
+        return plan;
+    }
+  };
+
   if (!user) {
     return (
       <View style={styles.container}>
-        <Text>Loading...</Text>
+        <Text>Chargement...</Text>
       </View>
     );
   }
@@ -56,41 +93,43 @@ export default function ProfileScreen() {
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Subscription</Text>
+        <Text style={styles.sectionTitle}>Abonnement</Text>
         <View
           style={[
             styles.planCard,
             { backgroundColor: getPlanColor(user.subscription.plan) },
           ]}
         >
-          <Text style={styles.planName}>{user.subscription.plan}</Text>
-          <Text style={styles.planStatus}>{user.subscription.status}</Text>
+          <Text style={styles.planName}>{getPlanName(user.subscription.plan)}</Text>
+          <Text style={styles.planStatus}>
+            {user.subscription.status === 'active' ? 'Actif' : user.subscription.status}
+          </Text>
         </View>
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Limits</Text>
+        <Text style={styles.sectionTitle}>Limites</Text>
         <View style={styles.limitCard}>
           <View style={styles.limitRow}>
             <Ionicons name="airplane-outline" size={20} color="#64748B" />
-            <Text style={styles.limitLabel}>Aircraft</Text>
+            <Text style={styles.limitLabel}>Aéronefs</Text>
             <Text style={styles.limitValue}>
-              {user.limits.max_aircrafts === -1 ? 'Unlimited' : user.limits.max_aircrafts}
+              {user.limits.max_aircrafts === -1 ? 'Illimité' : user.limits.max_aircrafts}
             </Text>
           </View>
           <View style={styles.limitRow}>
             <Ionicons name="camera-outline" size={20} color="#64748B" />
-            <Text style={styles.limitLabel}>OCR per month</Text>
+            <Text style={styles.limitLabel}>OCR par mois</Text>
             <Text style={styles.limitValue}>
-              {user.limits.ocr_per_month === -1 ? 'Unlimited' : user.limits.ocr_per_month}
+              {user.limits.ocr_per_month === -1 ? 'Illimité' : user.limits.ocr_per_month}
             </Text>
           </View>
-          <View style={styles.limitRow}>
+          <View style={[styles.limitRow, { borderBottomWidth: 0 }]}>
             <Ionicons name="book-outline" size={20} color="#64748B" />
-            <Text style={styles.limitLabel}>Logbook entries/month</Text>
+            <Text style={styles.limitLabel}>Entrées carnet/mois</Text>
             <Text style={styles.limitValue}>
               {user.limits.logbook_entries_per_month === -1
-                ? 'Unlimited'
+                ? 'Illimité'
                 : user.limits.logbook_entries_per_month}
             </Text>
           </View>
@@ -106,11 +145,13 @@ export default function ProfileScreen() {
           </TouchableOpacity>
         </Link>
 
-        <TouchableOpacity style={styles.button} onPress={handleLogout}>
+        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
           <Ionicons name="log-out-outline" size={20} color="#EF4444" />
-          <Text style={styles.buttonText}>Déconnexion</Text>
+          <Text style={styles.logoutButtonText}>Déconnexion</Text>
         </TouchableOpacity>
       </View>
+
+      <View style={{ height: 40 }} />
     </ScrollView>
   );
 }
@@ -203,16 +244,16 @@ const styles = StyleSheet.create({
     color: '#1E3A8A',
     marginLeft: 12,
   },
-  button: {
+  logoutButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#FEE2E2',
     padding: 16,
     borderRadius: 12,
     gap: 8,
   },
-  buttonText: {
+  logoutButtonText: {
     fontSize: 16,
     fontWeight: '600',
     color: '#EF4444',
