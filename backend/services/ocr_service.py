@@ -30,6 +30,12 @@ MAINTENANCE_REPORT_PROMPT = """Tu es un expert en maintenance aéronautique. Ana
 
 IMPORTANT: Réponds UNIQUEMENT avec un JSON valide, sans texte avant ou après.
 
+RÈGLES CRITIQUES POUR LES NOMBRES:
+- Les espaces ou virgules peuvent être des séparateurs de milliers (ex: "6 344.6" = 6344.6, "6,344.6" = 6344.6)
+- Le point décimal est toujours "." (ex: 6344.6)
+- Fais très attention à ne pas inverser les chiffres
+- En cas de doute sur un nombre, lis-le plusieurs fois attentivement
+
 Structure JSON attendue:
 {
     "date": "YYYY-MM-DD ou null",
@@ -38,9 +44,9 @@ Structure JSON attendue:
     "ame_license": "Numéro de licence AME ou null",
     "work_order_number": "Numéro de Work Order ou null",
     "description": "Description complète des travaux effectués",
-    "airframe_hours": nombre ou null,
-    "engine_hours": nombre ou null,
-    "propeller_hours": nombre ou null,
+    "airframe_hours": nombre décimal ou null,
+    "engine_hours": nombre décimal ou null,
+    "propeller_hours": nombre décimal ou null,
     "remarks": "Remarques additionnelles ou null",
     "labor_cost": nombre ou null,
     "parts_cost": nombre ou null,
@@ -74,7 +80,19 @@ Structure JSON attendue:
             "description": "Description ou null",
             "installation_date": "YYYY-MM-DD ou null"
         }
-    ]
+    ],
+    "elt_data": {
+        "detected": true/false,
+        "brand": "Artex, Kannad, ACK, etc. ou null",
+        "model": "Modèle ELT ou null",
+        "serial_number": "Numéro de série ELT ou null",
+        "installation_date": "YYYY-MM-DD ou null",
+        "certification_date": "YYYY-MM-DD ou null",
+        "battery_expiry_date": "YYYY-MM-DD ou null",
+        "battery_install_date": "YYYY-MM-DD ou null",
+        "battery_interval_months": nombre ou null,
+        "beacon_hex_id": "ID hexadécimal de la balise ou null"
+    }
 }
 
 RÈGLES IMPORTANTES:
@@ -84,6 +102,10 @@ RÈGLES IMPORTANTES:
 4. Extrait les heures cellule (airframe), moteur (engine) et hélice (propeller) si mentionnées
 5. Identifie toutes les pièces remplacées avec leurs P/N
 6. Si une information n'est pas trouvée, utilise null
+7. DÉTECTION ELT: Cherche toute mention de "ELT", "Emergency Locator Transmitter", "balise de détresse"
+   - Marques courantes: Artex, Kannad, ACK, Ameri-King, ACR
+   - Si tu détectes des informations ELT, mets detected=true et remplis les champs
+   - Si aucune info ELT, mets detected=false et tous les autres champs à null
 
 Analyse l'image maintenant:"""
 
@@ -274,6 +296,11 @@ class OCRService:
     
     def _transform_maintenance_report(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Transform maintenance report data"""
+        # Handle ELT data
+        elt_data = data.get("elt_data", {})
+        if not isinstance(elt_data, dict):
+            elt_data = {}
+        
         return {
             "date": data.get("date"),
             "ame_name": data.get("ame_name"),
@@ -320,7 +347,19 @@ class OCRService:
                     "installation_date": stc.get("installation_date")
                 }
                 for stc in data.get("stc_references", [])
-            ]
+            ],
+            "elt_data": {
+                "detected": elt_data.get("detected", False),
+                "brand": elt_data.get("brand"),
+                "model": elt_data.get("model"),
+                "serial_number": elt_data.get("serial_number"),
+                "installation_date": elt_data.get("installation_date"),
+                "certification_date": elt_data.get("certification_date"),
+                "battery_expiry_date": elt_data.get("battery_expiry_date"),
+                "battery_install_date": elt_data.get("battery_install_date"),
+                "battery_interval_months": elt_data.get("battery_interval_months"),
+                "beacon_hex_id": elt_data.get("beacon_hex_id")
+            }
         }
     
     def _transform_stc(self, data: Dict[str, Any]) -> Dict[str, Any]:

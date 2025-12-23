@@ -282,16 +282,18 @@ async def apply_ocr_results(
             detail="OCR scan not found"
         )
     
-    if scan["status"] != OCRStatus.COMPLETED.value:
+    # Check if scan can be applied
+    scan_status = scan.get("status", "")
+    if scan_status == OCRStatus.APPLIED.value:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Can only apply completed OCR scans"
+            detail="Ce scan a déjà été appliqué"
         )
     
-    if scan["status"] == OCRStatus.APPLIED.value:
+    if scan_status != OCRStatus.COMPLETED.value:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="OCR scan already applied"
+            detail="Seuls les scans complétés peuvent être appliqués"
         )
     
     extracted_data = scan.get("extracted_data", {})
@@ -305,9 +307,16 @@ async def apply_ocr_results(
         "stc_ids": []
     }
     
+    # Determine document type - critical for business rules
+    document_type = scan.get("document_type", "maintenance_report")
+    is_maintenance_report = document_type == "maintenance_report"
+    is_invoice = document_type == "invoice"
+    
     try:
-        # 1. Update aircraft hours if provided
-        if update_aircraft_hours:
+        # ===== RÈGLE MÉTIER: Seul "Rapport" peut créer maintenance/pièces =====
+        
+        # 1. Update aircraft hours if provided (ONLY FOR RAPPORT)
+        if is_maintenance_report and update_aircraft_hours:
             hours_update = {}
             if extracted_data.get("airframe_hours"):
                 hours_update["airframe_hours"] = extracted_data["airframe_hours"]
@@ -324,8 +333,8 @@ async def apply_ocr_results(
                 )
                 logger.info(f"Updated aircraft {aircraft_id} hours: {hours_update}")
         
-        # 2. Create maintenance record
-        if extracted_data.get("description") or extracted_data.get("work_order_number"):
+        # 2. Create maintenance record (ONLY FOR RAPPORT)
+        if is_maintenance_report and (extracted_data.get("description") or extracted_data.get("work_order_number")):
             maintenance_date = now
             if extracted_data.get("date"):
                 try:
@@ -362,102 +371,218 @@ async def apply_ocr_results(
             applied_ids["maintenance_id"] = str(result.inserted_id)
             logger.info(f"Created maintenance record {applied_ids['maintenance_id']}")
         
-        # 3. Create AD/SB records
-        for adsb in extracted_data.get("ad_sb_references", []):
-            if not adsb.get("reference_number"):
-                continue
-            
-            compliance_date = None
-            if adsb.get("compliance_date"):
-                try:
-                    compliance_date = datetime.fromisoformat(adsb["compliance_date"])
-                except:
-                    pass
-            
-            adsb_doc = {
-                "user_id": current_user.id,
-                "aircraft_id": aircraft_id,
-                "adsb_type": adsb.get("adsb_type", "AD"),
-                "reference_number": adsb["reference_number"],
-                "title": adsb.get("description"),
-                "description": adsb.get("description"),
-                "status": adsb.get("status", "UNKNOWN"),
-                "compliance_date": compliance_date,
-                "compliance_airframe_hours": adsb.get("airframe_hours"),
-                "compliance_engine_hours": adsb.get("engine_hours"),
-                "compliance_propeller_hours": adsb.get("propeller_hours"),
-                "source": "ocr",
-                "ocr_scan_id": scan_id,
-                "created_at": now,
-                "updated_at": now
-            }
-            
-            result = await db.adsb_records.insert_one(adsb_doc)
-            applied_ids["adsb_ids"].append(str(result.inserted_id))
+        # 3. Create AD/SB records (ONLY FOR RAPPORT)
+        if is_maintenance_report:
+            for adsb in extracted_data.get("ad_sb_references", []):
+                if not adsb.get("reference_number"):
+                    continue
+                
+                compliance_date = None
+                if adsb.get("compliance_date"):
+                    try:
+                        compliance_date = datetime.fromisoformat(adsb["compliance_date"])
+                    except:
+                        pass
+                
+                adsb_doc = {
+                    "user_id": current_user.id,
+                    "aircraft_id": aircraft_id,
+                    "adsb_type": adsb.get("adsb_type", "AD"),
+                    "reference_number": adsb["reference_number"],
+                    "title": adsb.get("description"),
+                    "description": adsb.get("description"),
+                    "status": adsb.get("status", "UNKNOWN"),
+                    "compliance_date": compliance_date,
+                    "compliance_airframe_hours": adsb.get("airframe_hours"),
+                    "compliance_engine_hours": adsb.get("engine_hours"),
+                    "compliance_propeller_hours": adsb.get("propeller_hours"),
+                    "source": "ocr",
+                    "ocr_scan_id": scan_id,
+                    "created_at": now,
+                    "updated_at": now
+                }
+                
+                result = await db.adsb_records.insert_one(adsb_doc)
+                applied_ids["adsb_ids"].append(str(result.inserted_id))
         
         logger.info(f"Created {len(applied_ids['adsb_ids'])} AD/SB records")
         
-        # 4. Create part records
-        for part in extracted_data.get("parts_replaced", []):
-            if not part.get("part_number"):
-                continue
-            
-            part_doc = {
-                "user_id": current_user.id,
-                "aircraft_id": aircraft_id,
-                "part_number": part["part_number"],
-                "name": part.get("name", part["part_number"]),
-                "serial_number": part.get("serial_number"),
-                "quantity": part.get("quantity", 1),
-                "purchase_price": part.get("price"),
-                "supplier": part.get("supplier"),
-                "installation_date": now,
-                "installation_airframe_hours": extracted_data.get("airframe_hours"),
-                "installed_on_aircraft": True,
-                "source": "ocr",
-                "ocr_scan_id": scan_id,
-                "created_at": now,
-                "updated_at": now
-            }
-            
-            result = await db.part_records.insert_one(part_doc)
-            applied_ids["part_ids"].append(str(result.inserted_id))
+        # 4. Create part records (ONLY FOR RAPPORT - pas pour factures!)
+        if is_maintenance_report:
+            for part in extracted_data.get("parts_replaced", []):
+                if not part.get("part_number"):
+                    continue
+                
+                part_doc = {
+                    "user_id": current_user.id,
+                    "aircraft_id": aircraft_id,
+                    "part_number": part["part_number"],
+                    "name": part.get("name", part["part_number"]),
+                    "serial_number": part.get("serial_number"),
+                    "quantity": part.get("quantity", 1),
+                    "purchase_price": part.get("price"),
+                    "supplier": part.get("supplier"),
+                    "installation_date": now,
+                    "installation_airframe_hours": extracted_data.get("airframe_hours"),
+                    "installed_on_aircraft": True,
+                    "source": "ocr",
+                    "ocr_scan_id": scan_id,
+                    "confirmed": False,  # OCR parts are NOT confirmed by default
+                    "created_at": now,
+                    "updated_at": now
+                }
+                
+                result = await db.part_records.insert_one(part_doc)
+                applied_ids["part_ids"].append(str(result.inserted_id))
         
         logger.info(f"Created {len(applied_ids['part_ids'])} part records")
         
-        # 5. Create STC records
-        for stc in extracted_data.get("stc_references", []):
-            if not stc.get("stc_number"):
-                continue
-            
-            installation_date = None
-            if stc.get("installation_date"):
-                try:
-                    installation_date = datetime.fromisoformat(stc["installation_date"])
-                except:
-                    pass
-            
-            stc_doc = {
-                "user_id": current_user.id,
+        # 5. Create STC records (ONLY FOR RAPPORT)
+        if is_maintenance_report:
+            for stc in extracted_data.get("stc_references", []):
+                if not stc.get("stc_number"):
+                    continue
+                
+                installation_date = None
+                if stc.get("installation_date"):
+                    try:
+                        installation_date = datetime.fromisoformat(stc["installation_date"])
+                    except:
+                        pass
+                
+                stc_doc = {
+                    "user_id": current_user.id,
+                    "aircraft_id": aircraft_id,
+                    "stc_number": stc["stc_number"],
+                    "title": stc.get("title"),
+                    "description": stc.get("description"),
+                    "holder": stc.get("holder"),
+                    "applicable_models": stc.get("applicable_models", []),
+                    "installation_date": installation_date or now,
+                    "installation_airframe_hours": stc.get("installation_airframe_hours") or extracted_data.get("airframe_hours"),
+                    "installed_by": stc.get("installed_by") or extracted_data.get("ame_name"),
+                    "source": "ocr",
+                    "ocr_scan_id": scan_id,
+                    "created_at": now,
+                    "updated_at": now
+                }
+                
+                result = await db.stc_records.insert_one(stc_doc)
+                applied_ids["stc_ids"].append(str(result.inserted_id))
+        
+        logger.info(f"Created {len(applied_ids['stc_ids'])} STC records")
+        
+        # 6. Create/Update ELT record if detected (ONLY FOR RAPPORT)
+        elt_data = extracted_data.get("elt_data", {})
+        elt_created = False
+        if is_maintenance_report and elt_data and elt_data.get("detected"):
+            # Check if ELT exists
+            existing_elt = await db.elt_records.find_one({
                 "aircraft_id": aircraft_id,
-                "stc_number": stc["stc_number"],
-                "title": stc.get("title"),
-                "description": stc.get("description"),
-                "holder": stc.get("holder"),
-                "applicable_models": stc.get("applicable_models", []),
-                "installation_date": installation_date or now,
-                "installation_airframe_hours": stc.get("installation_airframe_hours") or extracted_data.get("airframe_hours"),
-                "installed_by": stc.get("installed_by") or extracted_data.get("ame_name"),
+                "user_id": current_user.id
+            })
+            
+            elt_doc = {
+                "brand": elt_data.get("brand"),
+                "model": elt_data.get("model"),
+                "serial_number": elt_data.get("serial_number"),
+                "beacon_hex_id": elt_data.get("beacon_hex_id"),
                 "source": "ocr",
                 "ocr_scan_id": scan_id,
-                "created_at": now,
                 "updated_at": now
             }
             
-            result = await db.stc_records.insert_one(stc_doc)
-            applied_ids["stc_ids"].append(str(result.inserted_id))
+            # Parse dates
+            for date_field in ["installation_date", "certification_date", "battery_expiry_date", "battery_install_date"]:
+                if elt_data.get(date_field):
+                    try:
+                        elt_doc[date_field] = datetime.fromisoformat(elt_data[date_field])
+                    except:
+                        pass
+            
+            if elt_data.get("battery_interval_months"):
+                elt_doc["battery_interval_months"] = elt_data["battery_interval_months"]
+            
+            if existing_elt:
+                # Update existing
+                await db.elt_records.update_one(
+                    {"_id": existing_elt["_id"]},
+                    {"$set": elt_doc}
+                )
+                applied_ids["elt_id"] = str(existing_elt["_id"])
+                logger.info(f"Updated ELT record for aircraft {aircraft_id}")
+            else:
+                # Create new
+                elt_doc["user_id"] = current_user.id
+                elt_doc["aircraft_id"] = aircraft_id
+                elt_doc["created_at"] = now
+                result = await db.elt_records.insert_one(elt_doc)
+                applied_ids["elt_id"] = str(result.inserted_id)
+                logger.info(f"Created ELT record for aircraft {aircraft_id}")
+            
+            elt_created = True
         
-        logger.info(f"Created {len(applied_ids['stc_ids'])} STC records")
+        # 7. Create Invoice record if document type is invoice (WITH DEDUPLICATION)
+        invoice_created = False
+        if is_invoice:
+            # Préparer les données de la facture
+            invoice_total = extracted_data.get("total")
+            invoice_date = None
+            if extracted_data.get("invoice_date"):
+                try:
+                    invoice_date = datetime.fromisoformat(extracted_data["invoice_date"])
+                except:
+                    pass
+            
+            # DÉDUPLICATION: vérifier si une facture similaire existe déjà
+            existing_invoice = None
+            if invoice_total and invoice_date:
+                # Chercher une facture avec même avion, même date, même montant
+                existing_invoice = await db.invoices.find_one({
+                    "aircraft_id": aircraft_id,
+                    "user_id": current_user.id,
+                    "total": invoice_total,
+                    "invoice_date": invoice_date
+                })
+            
+            if existing_invoice:
+                # Facture similaire existe - mettre à jour au lieu de créer
+                update_fields = {
+                    "updated_at": now,
+                    "invoice_number": extracted_data.get("invoice_number") or existing_invoice.get("invoice_number"),
+                    "supplier": extracted_data.get("supplier") or existing_invoice.get("supplier"),
+                }
+                await db.invoices.update_one(
+                    {"_id": existing_invoice["_id"]},
+                    {"$set": update_fields}
+                )
+                applied_ids["invoice_id"] = str(existing_invoice["_id"])
+                invoice_created = True
+                logger.info(f"Updated existing invoice {existing_invoice['_id']} for aircraft {aircraft_id} (deduplication)")
+            else:
+                # Créer nouvelle facture (SANS créer de pièces!)
+                invoice_doc = {
+                    "user_id": current_user.id,
+                    "aircraft_id": aircraft_id,
+                    "invoice_number": extracted_data.get("invoice_number"),
+                    "invoice_date": invoice_date,
+                    "supplier": extracted_data.get("supplier"),
+                    "subtotal": extracted_data.get("subtotal"),
+                    "tax": extracted_data.get("tax"),
+                    "total": invoice_total,
+                    "currency": extracted_data.get("currency", "CAD"),
+                    "source": "ocr",
+                    "ocr_scan_id": scan_id,
+                    # Stocker les pièces dans la facture (pour référence coûts), mais NE PAS créer de part_records
+                    "parts": extracted_data.get("parts", []) + extracted_data.get("parts_replaced", []),
+                    "created_at": now,
+                    "updated_at": now
+                }
+                
+                result = await db.invoices.insert_one(invoice_doc)
+                applied_ids["invoice_id"] = str(result.inserted_id)
+                invoice_created = True
+                logger.info(f"Created invoice record for aircraft {aircraft_id}")
         
         # Update OCR scan status to APPLIED
         await db.ocr_scans.update_one(
@@ -469,6 +594,7 @@ async def apply_ocr_results(
                     "applied_adsb_ids": applied_ids["adsb_ids"],
                     "applied_part_ids": applied_ids["part_ids"],
                     "applied_stc_ids": applied_ids["stc_ids"],
+                    "applied_elt_id": applied_ids.get("elt_id"),
                     "updated_at": now
                 }
             }
@@ -480,7 +606,9 @@ async def apply_ocr_results(
                 "maintenance_record": applied_ids["maintenance_id"],
                 "adsb_records": len(applied_ids["adsb_ids"]),
                 "part_records": len(applied_ids["part_ids"]),
-                "stc_records": len(applied_ids["stc_ids"])
+                "stc_records": len(applied_ids["stc_ids"]),
+                "elt_updated": elt_created,
+                "invoice_created": invoice_created
             }
         }
         

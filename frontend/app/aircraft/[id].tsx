@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -15,12 +15,98 @@ import { useAircraftStore } from '../../stores/aircraftStore';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import api from '../../services/api';
+
+// Type pour le statut ELT - CORRIGÉ avec 'none' pour aucune donnée
+type ELTStatusLevel = 'ok' | 'warning' | 'critical' | 'none';
+
+interface ELTStatusData {
+  status: ELTStatusLevel;
+  label: string;
+}
 
 export default function AircraftDetailScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
   const { selectedAircraft, deleteAircraft } = useAircraftStore();
   const insets = useSafeAreaInsets();
+  
+  // État pour le statut ELT
+  const [eltStatus, setEltStatus] = useState<ELTStatusData>({ status: 'none', label: '' });
+  const [loadingELT, setLoadingELT] = useState(true);
+
+  // Charger le statut ELT au montage
+  useEffect(() => {
+    if (selectedAircraft?._id) {
+      fetchELTStatus();
+    }
+  }, [selectedAircraft?._id]);
+
+  const fetchELTStatus = async () => {
+    try {
+      const response = await api.get(`/api/elt/aircraft/${selectedAircraft?._id}`);
+      if (response.data) {
+        const eltData = response.data;
+        
+        // LOGIQUE CORRIGÉE:
+        // - Gris (none): aucune date ELT enregistrée
+        // - Vert (ok): dates valides, aucune alerte
+        // - Jaune (warning): test OU batterie ≤ 15 jours
+        // - Rouge (critical): test OU batterie échu
+        
+        // Vérifier si des dates importantes sont présentes
+        const hasTestDate = eltData.last_test_date !== null;
+        const hasBatteryDate = eltData.battery_expiry_date !== null;
+        const hasAnyDate = hasTestDate || hasBatteryDate;
+        
+        if (!hasAnyDate) {
+          // Aucune date enregistrée = Gris
+          setEltStatus({ status: 'none', label: 'Non configuré' });
+        } else if (eltData.alerts && eltData.alerts.length > 0) {
+          const hasCritical = eltData.alerts.some((a: any) => a.level === 'critical');
+          const hasWarning = eltData.alerts.some((a: any) => a.level === 'warning');
+          
+          if (hasCritical) {
+            setEltStatus({ status: 'critical', label: 'Échu' });
+          } else if (hasWarning) {
+            setEltStatus({ status: 'warning', label: 'À surveiller' });
+          } else {
+            setEltStatus({ status: 'ok', label: 'Opérationnel' });
+          }
+        } else {
+          // Dates présentes, pas d'alerte = Vert
+          setEltStatus({ status: 'ok', label: 'Opérationnel' });
+        }
+      } else {
+        setEltStatus({ status: 'none', label: 'Non configuré' });
+      }
+    } catch (error: any) {
+      // 404 = pas d'ELT configuré
+      if (error.response?.status === 404) {
+        setEltStatus({ status: 'none', label: 'Non configuré' });
+      } else {
+        console.error('Error fetching ELT status:', error);
+        setEltStatus({ status: 'none', label: '' });
+      }
+    } finally {
+      setLoadingELT(false);
+    }
+  };
+
+  // Couleurs corrigées - Gris pour 'none'
+  const getELTStatusColor = (status: ELTStatusLevel): string => {
+    switch (status) {
+      case 'ok':
+        return '#10B981'; // Vert
+      case 'warning':
+        return '#F59E0B'; // Jaune
+      case 'critical':
+        return '#EF4444'; // Rouge
+      case 'none':
+      default:
+        return '#94A3B8'; // Gris
+    }
+  };
 
   if (!selectedAircraft) {
     return (
@@ -146,18 +232,112 @@ export default function AircraftDetailScreen() {
           <TouchableOpacity 
             style={[styles.moduleCard, styles.moduleCardActive]}
             onPress={() => router.push({
-              pathname: '/ocr/scan',
+              pathname: '/aircraft/logbook',
               params: { aircraftId: selectedAircraft._id, registration: selectedAircraft.registration }
             })}
           >
             <View style={[styles.moduleIcon, { backgroundColor: '#EFF6FF' }]}>
-              <Ionicons name="scan" size={24} color="#3B82F6" />
+              <Ionicons name="book" size={24} color="#3B82F6" />
+            </View>
+            <View style={styles.moduleContent}>
+              <Text style={styles.moduleName}>Log Book</Text>
+              <Text style={styles.moduleSubtitle}>Historique des vols et entrées</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#3B82F6" />
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={[styles.moduleCard, styles.moduleCardActive]}
+            onPress={() => router.push({
+              pathname: '/aircraft/maintenance',
+              params: { aircraftId: selectedAircraft._id, registration: selectedAircraft.registration }
+            })}
+          >
+            <View style={[styles.moduleIcon, { backgroundColor: '#FEF3C7' }]}>
+              <Ionicons name="construct" size={24} color="#F59E0B" />
+            </View>
+            <View style={styles.moduleContent}>
+              <Text style={styles.moduleName}>Maintenance</Text>
+              <Text style={styles.moduleSubtitle}>Rapport, Pièces, AD/SB, STC</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#F59E0B" />
+          </TouchableOpacity>
+
+          {/* ELT avec indicateur de statut CORRIGÉ */}
+          <TouchableOpacity 
+            style={[styles.moduleCard, styles.moduleCardActive]}
+            onPress={() => router.push({
+              pathname: '/aircraft/elt',
+              params: { aircraftId: selectedAircraft._id, registration: selectedAircraft.registration }
+            })}
+          >
+            <View style={[styles.moduleIcon, { backgroundColor: '#FEE2E2' }]}>
+              <Ionicons name="radio" size={24} color="#EF4444" />
+            </View>
+            <View style={styles.moduleContent}>
+              <View style={styles.moduleNameRow}>
+                <Text style={styles.moduleName}>ELT</Text>
+                {/* Indicateur de statut ELT - toujours affiché */}
+                {!loadingELT && (
+                  <View style={styles.eltStatusContainer}>
+                    <View 
+                      style={[
+                        styles.eltStatusDot, 
+                        { backgroundColor: getELTStatusColor(eltStatus.status) }
+                      ]} 
+                    />
+                    {eltStatus.label && (
+                      <Text style={[
+                        styles.eltStatusText,
+                        { color: getELTStatusColor(eltStatus.status) }
+                      ]}>
+                        {eltStatus.label}
+                      </Text>
+                    )}
+                  </View>
+                )}
+              </View>
+              <Text style={styles.moduleSubtitle}>Emergency Locator Transmitter</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#EF4444" />
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={[styles.moduleCard, styles.moduleCardActive]}
+            onPress={() => router.push({
+              pathname: '/aircraft/wb',
+              params: { aircraftId: selectedAircraft._id, registration: selectedAircraft.registration }
+            })}
+          >
+            <View style={[styles.moduleIcon, { backgroundColor: '#E0E7FF' }]}>
+              <Ionicons name="scale" size={24} color="#6366F1" />
+            </View>
+            <View style={styles.moduleContent}>
+              <Text style={styles.moduleName}>W/B</Text>
+              <Text style={styles.moduleSubtitle}>Weight & Balance</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#6366F1" />
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Outils</Text>
+          
+          <TouchableOpacity 
+            style={[styles.moduleCard, styles.moduleCardActive]}
+            onPress={() => router.push({
+              pathname: '/ocr/scan',
+              params: { aircraftId: selectedAircraft._id, registration: selectedAircraft.registration }
+            })}
+          >
+            <View style={[styles.moduleIcon, { backgroundColor: '#F0FDF4' }]}>
+              <Ionicons name="scan" size={24} color="#10B981" />
             </View>
             <View style={styles.moduleContent}>
               <Text style={styles.moduleName}>Scanner OCR</Text>
-              <Text style={styles.moduleSubtitle}>Analyser un document de maintenance</Text>
+              <Text style={styles.moduleSubtitle}>Analyser un document</Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color="#3B82F6" />
+            <Ionicons name="chevron-forward" size={20} color="#10B981" />
           </TouchableOpacity>
 
           <TouchableOpacity 
@@ -167,47 +347,14 @@ export default function AircraftDetailScreen() {
               params: { aircraftId: selectedAircraft._id, registration: selectedAircraft.registration }
             })}
           >
-            <View style={[styles.moduleIcon, { backgroundColor: '#F0FDF4' }]}>
-              <Ionicons name="time" size={24} color="#10B981" />
+            <View style={[styles.moduleIcon, { backgroundColor: '#F5F3FF' }]}>
+              <Ionicons name="time" size={24} color="#8B5CF6" />
             </View>
             <View style={styles.moduleContent}>
               <Text style={styles.moduleName}>Historique OCR</Text>
-              <Text style={styles.moduleSubtitle}>Rapports scannés</Text>
+              <Text style={styles.moduleSubtitle}>Documents scannés</Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color="#10B981" />
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.moduleCard} disabled>
-            <View style={styles.moduleIcon}>
-              <Ionicons name="construct" size={24} color="#94A3B8" />
-            </View>
-            <View style={styles.moduleContent}>
-              <Text style={styles.moduleName}>Maintenance</Text>
-              <Text style={styles.moduleSubtitle}>Suivi et historique maintenance</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color="#CBD5E1" />
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.moduleCard} disabled>
-            <View style={styles.moduleIcon}>
-              <Ionicons name="alert-circle" size={24} color="#94A3B8" />
-            </View>
-            <View style={styles.moduleContent}>
-              <Text style={styles.moduleName}>AD/SB</Text>
-              <Text style={styles.moduleSubtitle}>Directives et bulletins de service</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color="#CBD5E1" />
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.moduleCard} disabled>
-            <View style={styles.moduleIcon}>
-              <Ionicons name="document-text" size={24} color="#94A3B8" />
-            </View>
-            <View style={styles.moduleContent}>
-              <Text style={styles.moduleName}>STC</Text>
-              <Text style={styles.moduleSubtitle}>Certificats de type supplémentaires</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color="#CBD5E1" />
+            <Ionicons name="chevron-forward" size={20} color="#8B5CF6" />
           </TouchableOpacity>
         </View>
 
@@ -367,6 +514,11 @@ const styles = StyleSheet.create({
   moduleContent: {
     flex: 1,
   },
+  moduleNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   moduleName: {
     fontSize: 16,
     fontWeight: '600',
@@ -376,6 +528,25 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#64748B',
     marginTop: 2,
+  },
+  // Styles pour l'indicateur de statut ELT
+  eltStatusContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 10,
+  },
+  eltStatusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  eltStatusText: {
+    fontSize: 11,
+    fontWeight: '600',
   },
   editButton: {
     flexDirection: 'row',

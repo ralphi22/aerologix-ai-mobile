@@ -7,6 +7,8 @@ import {
   FlatList,
   ActivityIndicator,
   SafeAreaView,
+  Alert,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -32,6 +34,7 @@ export default function OCRHistoryScreen() {
 
   const [scans, setScans] = useState<OCRScan[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deleting, setDeleting] = useState<string | null>(null);
 
   useEffect(() => {
     fetchHistory();
@@ -48,14 +51,66 @@ export default function OCRHistoryScreen() {
     }
   };
 
+  const handleDelete = async (scanId: string) => {
+    const doDelete = async () => {
+      setDeleting(scanId);
+      try {
+        await api.delete(`/api/ocr/${scanId}`);
+        setScans(scans.filter(s => s.id !== scanId));
+        if (Platform.OS === 'web') {
+          window.alert('Document supprimé');
+        } else {
+          Alert.alert('Succès', 'Document supprimé');
+        }
+      } catch (error: any) {
+        console.error('Delete error:', error);
+        const msg = error.response?.data?.detail || 'Erreur lors de la suppression';
+        if (Platform.OS === 'web') {
+          window.alert('Erreur: ' + msg);
+        } else {
+          Alert.alert('Erreur', msg);
+        }
+      } finally {
+        setDeleting(null);
+      }
+    };
+
+    // Sur mobile natif, utiliser Alert.alert
+    // Sur web/preview, exécuter directement
+    if (Platform.OS !== 'web') {
+      Alert.alert(
+        'Confirmer',
+        'Supprimer ce document de l\'historique ?',
+        [
+          { text: 'Annuler', style: 'cancel' },
+          { text: 'Supprimer', style: 'destructive', onPress: doDelete }
+        ]
+      );
+    } else {
+      doDelete();
+    }
+  };
+
   const getDocumentTypeLabel = (type: string) => {
     switch (type) {
-      case 'maintenance_report':
-        return 'Rapport maintenance';
-      case 'stc':
-        return 'STC';
+      case 'rapport':
+      case 'logbook':
+        return 'Rapport';
       case 'invoice':
         return 'Facture';
+      case 'pieces':
+      case 'work_order':
+        return 'Pièces';
+      case 'ad_compliance':
+        return 'AD Compliance';
+      case 'sb_compliance':
+        return 'SB Compliance';
+      case 'stc':
+        return 'STC';
+      case 'maintenance_report':
+        return 'Rapport maintenance';
+      case 'other':
+        return 'Autre';
       default:
         return type;
     }
@@ -63,12 +118,24 @@ export default function OCRHistoryScreen() {
 
   const getDocumentTypeIcon = (type: string) => {
     switch (type) {
-      case 'maintenance_report':
-        return 'construct-outline';
-      case 'stc':
+      case 'rapport':
+      case 'logbook':
         return 'document-text-outline';
       case 'invoice':
         return 'receipt-outline';
+      case 'pieces':
+      case 'work_order':
+        return 'hardware-chip-outline';
+      case 'ad_compliance':
+        return 'alert-circle-outline';
+      case 'sb_compliance':
+        return 'warning-outline';
+      case 'stc':
+        return 'document-text-outline';
+      case 'maintenance_report':
+        return 'construct-outline';
+      case 'other':
+        return 'folder-outline';
       default:
         return 'document-outline';
     }
@@ -116,51 +183,64 @@ export default function OCRHistoryScreen() {
   };
 
   const renderScanItem = ({ item }: { item: OCRScan }) => (
-    <TouchableOpacity
-      style={styles.scanCard}
-      onPress={() =>
-        router.push({
-          pathname: '/ocr/results',
-          params: {
-            scanId: item.id,
-            aircraftId,
-            registration,
-            rawText: '',
-            extractedData: JSON.stringify(item.extracted_data || {}),
-            documentType: item.document_type,
-          },
-        })
-      }
-    >
-      <View style={styles.scanIcon}>
-        <Ionicons
-          name={getDocumentTypeIcon(item.document_type) as any}
-          size={24}
-          color="#1E3A8A"
-        />
-      </View>
-      <View style={styles.scanContent}>
-        <Text style={styles.scanType}>{getDocumentTypeLabel(item.document_type)}</Text>
-        <Text style={styles.scanDate}>{formatDate(item.created_at)}</Text>
-        <View style={styles.scanStats}>
-          {item.extracted_data?.ad_sb_references?.length ? (
-            <Text style={styles.scanStat}>
-              {item.extracted_data.ad_sb_references.length} AD/SB
-            </Text>
-          ) : null}
-          {item.extracted_data?.parts_replaced?.length ? (
-            <Text style={styles.scanStat}>
-              {item.extracted_data.parts_replaced.length} pièces
-            </Text>
-          ) : null}
+    <View style={styles.scanCardWrapper}>
+      <TouchableOpacity
+        style={styles.scanCard}
+        onPress={() =>
+          router.push({
+            pathname: '/ocr/results',
+            params: {
+              scanId: item.id,
+              aircraftId,
+              registration,
+              rawText: '',
+              extractedData: JSON.stringify(item.extracted_data || {}),
+              documentType: item.document_type,
+            },
+          })
+        }
+      >
+        <View style={styles.scanIcon}>
+          <Ionicons
+            name={getDocumentTypeIcon(item.document_type) as any}
+            size={24}
+            color="#1E3A8A"
+          />
         </View>
-      </View>
-      <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) + '20' }]}>
-        <Text style={[styles.statusText, { color: getStatusColor(item.status) }]}>
-          {getStatusLabel(item.status)}
-        </Text>
-      </View>
-    </TouchableOpacity>
+        <View style={styles.scanContent}>
+          <Text style={styles.scanType}>{getDocumentTypeLabel(item.document_type)}</Text>
+          <Text style={styles.scanDate}>{formatDate(item.created_at)}</Text>
+          <View style={styles.scanStats}>
+            {item.extracted_data?.ad_sb_references?.length ? (
+              <Text style={styles.scanStat}>
+                {item.extracted_data.ad_sb_references.length} AD/SB
+              </Text>
+            ) : null}
+            {item.extracted_data?.parts_replaced?.length ? (
+              <Text style={styles.scanStat}>
+                {item.extracted_data.parts_replaced.length} pièces
+              </Text>
+            ) : null}
+          </View>
+        </View>
+        <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) + '20' }]}>
+          <Text style={[styles.statusText, { color: getStatusColor(item.status) }]}>
+            {getStatusLabel(item.status)}
+          </Text>
+        </View>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={styles.deleteButton}
+        onPress={() => handleDelete(item.id)}
+        disabled={deleting === item.id}
+      >
+        {deleting === item.id ? (
+          <ActivityIndicator size="small" color="#EF4444" />
+        ) : (
+          <Ionicons name="trash-outline" size={20} color="#EF4444" />
+        )}
+      </TouchableOpacity>
+    </View>
   );
 
   return (
@@ -304,7 +384,13 @@ const styles = StyleSheet.create({
   listContainer: {
     padding: 16,
   },
+  scanCardWrapper: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    gap: 8,
+  },
   scanCard: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
@@ -312,6 +398,13 @@ const styles = StyleSheet.create({
     padding: 16,
     borderWidth: 1,
     borderColor: '#E2E8F0',
+  },
+  deleteButton: {
+    width: 44,
+    backgroundColor: '#FEE2E2',
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   scanIcon: {
     width: 48,

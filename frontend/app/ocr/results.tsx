@@ -8,10 +8,13 @@ import {
   Alert,
   ActivityIndicator,
   SafeAreaView,
+  Platform,
+  TextInput,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import api from '../../services/api';
+import { useAircraftStore } from '../../stores/aircraftStore';
 
 interface ExtractedADSB {
   adsb_type: string;
@@ -33,6 +36,19 @@ interface ExtractedPart {
   supplier?: string;
 }
 
+interface ExtractedELT {
+  detected: boolean;
+  brand?: string;
+  model?: string;
+  serial_number?: string;
+  installation_date?: string;
+  certification_date?: string;
+  battery_expiry_date?: string;
+  battery_install_date?: string;
+  battery_interval_months?: number;
+  beacon_hex_id?: string;
+}
+
 interface ExtractedData {
   date?: string;
   ame_name?: string;
@@ -47,10 +63,12 @@ interface ExtractedData {
   ad_sb_references?: ExtractedADSB[];
   parts_replaced?: ExtractedPart[];
   stc_references?: any[];
+  elt_data?: ExtractedELT;
 }
 
 export default function OCRResultsScreen() {
   const router = useRouter();
+  const { refreshAircraftList, selectAircraft } = useAircraftStore();
   const params = useLocalSearchParams<{
     scanId: string;
     aircraftId: string;
@@ -62,43 +80,65 @@ export default function OCRResultsScreen() {
 
   const [isApplying, setIsApplying] = useState(false);
   const [showRawText, setShowRawText] = useState(false);
+  const [editingELT, setEditingELT] = useState(false);
 
-  const extractedData: ExtractedData = params.extractedData
+  const initialExtractedData: ExtractedData = params.extractedData
     ? JSON.parse(params.extractedData)
     : {};
 
+  // State for editable ELT data
+  const [eltData, setEltData] = useState<ExtractedELT>(
+    initialExtractedData.elt_data || { detected: false }
+  );
+
+  const extractedData = initialExtractedData;
+
   const applyResults = async () => {
-    Alert.alert(
-      'Appliquer les résultats',
-      'Cela va mettre à jour les heures de l\'avion et créer les enregistrements correspondants. Continuer ?',
-      [
-        { text: 'Annuler', style: 'cancel' },
-        {
-          text: 'Appliquer',
-          onPress: async () => {
-            setIsApplying(true);
-            try {
-              const response = await api.post(`/api/ocr/apply/${params.scanId}`);
-              Alert.alert(
-                'Succès !',
-                `Données appliquées :\n• Maintenance: ${response.data.applied.maintenance_record ? 'Créé' : 'Non'}\n• AD/SB: ${response.data.applied.adsb_records} enregistrements\n• Pièces: ${response.data.applied.part_records} enregistrements\n• STC: ${response.data.applied.stc_records} enregistrements`,
-                [
-                  {
-                    text: 'OK',
-                    onPress: () => router.back(),
-                  },
-                ]
-              );
-            } catch (error: any) {
-              const message = error.response?.data?.detail || 'Erreur lors de l\'application';
-              Alert.alert('Erreur', message);
-            } finally {
-              setIsApplying(false);
-            }
-          },
-        },
-      ]
-    );
+    setIsApplying(true);
+    try {
+      console.log('Applying OCR results for scan:', params.scanId);
+      const response = await api.post(`/api/ocr/apply/${params.scanId}`);
+      console.log('Apply response:', response.data);
+      
+      const applied = response.data.applied || {};
+      let successMessage = `Données appliquées :\n• Maintenance: ${applied.maintenance_record ? 'Créé' : 'Non'}\n• AD/SB: ${applied.adsb_records || 0} enregistrements\n• Pièces: ${applied.part_records || 0} enregistrements\n• STC: ${applied.stc_records || 0} enregistrements`;
+      
+      if (applied.elt_updated) {
+        successMessage += '\n• ELT: Mis à jour';
+      }
+      if (applied.invoice_created) {
+        successMessage += '\n• Facture: Créée';
+      }
+      
+      // IMPORTANT: Rafraîchir les données de l'avion pour mettre à jour les heures
+      try {
+        await refreshAircraftList();
+        // Re-sélectionner l'avion pour mettre à jour les données affichées
+        const aircraftResponse = await api.get(`/api/aircraft/${params.aircraftId}`);
+        if (aircraftResponse.data) {
+          selectAircraft(aircraftResponse.data);
+        }
+      } catch (refreshError) {
+        console.log('Refresh error (non-critical):', refreshError);
+      }
+      
+      if (Platform.OS === 'web') {
+        window.alert('Succès !\n\n' + successMessage);
+      } else {
+        Alert.alert('Succès !', successMessage);
+      }
+      router.back();
+    } catch (error: any) {
+      console.error('Apply error:', error);
+      const message = error.response?.data?.detail || 'Erreur lors de l\'application';
+      if (Platform.OS === 'web') {
+        window.alert('Erreur: ' + message);
+      } else {
+        Alert.alert('Erreur', message);
+      }
+    } finally {
+      setIsApplying(false);
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -122,6 +162,18 @@ export default function OCRResultsScreen() {
         return 'Inconnu';
     }
   };
+
+  const formatDate = (dateStr?: string) => {
+    if (!dateStr) return '-';
+    try {
+      const date = new Date(dateStr);
+      return date.toLocaleDateString('fr-FR');
+    } catch {
+      return dateStr;
+    }
+  };
+
+  const hasELTData = eltData.detected || eltData.brand || eltData.model || eltData.serial_number;
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -218,6 +270,87 @@ export default function OCRResultsScreen() {
           </View>
         )}
 
+        {/* ELT Section */}
+        {hasELTData && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <View style={styles.eltTitleRow}>
+                <Ionicons name="radio" size={20} color="#EF4444" />
+                <Text style={styles.sectionTitle}>Données ELT détectées</Text>
+              </View>
+              <TouchableOpacity
+                style={styles.editButton}
+                onPress={() => setEditingELT(!editingELT)}
+              >
+                <Ionicons 
+                  name={editingELT ? "checkmark" : "pencil"} 
+                  size={16} 
+                  color="#3B82F6" 
+                />
+                <Text style={styles.editButtonText}>
+                  {editingELT ? 'Valider' : 'Corriger'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+            
+            <View style={styles.eltCard}>
+              {editingELT ? (
+                <>
+                  <View style={styles.eltEditRow}>
+                    <Text style={styles.eltLabel}>Marque</Text>
+                    <TextInput
+                      style={styles.eltInput}
+                      value={eltData.brand || ''}
+                      onChangeText={(text) => setEltData({...eltData, brand: text})}
+                      placeholder="Ex: Artex, Kannad..."
+                    />
+                  </View>
+                  <View style={styles.eltEditRow}>
+                    <Text style={styles.eltLabel}>Modèle</Text>
+                    <TextInput
+                      style={styles.eltInput}
+                      value={eltData.model || ''}
+                      onChangeText={(text) => setEltData({...eltData, model: text})}
+                      placeholder="Modèle ELT"
+                    />
+                  </View>
+                  <View style={styles.eltEditRow}>
+                    <Text style={styles.eltLabel}>N° série</Text>
+                    <TextInput
+                      style={styles.eltInput}
+                      value={eltData.serial_number || ''}
+                      onChangeText={(text) => setEltData({...eltData, serial_number: text})}
+                      placeholder="Numéro de série"
+                    />
+                  </View>
+                </>
+              ) : (
+                <>
+                  {(eltData.brand || eltData.model) && (
+                    <View style={styles.eltRow}>
+                      <Text style={styles.eltLabel}>ELT</Text>
+                      <Text style={styles.eltValue}>
+                        {[eltData.brand, eltData.model].filter(Boolean).join(' ')}
+                      </Text>
+                    </View>
+                  )}
+                  {eltData.serial_number && (
+                    <View style={styles.eltRow}>
+                      <Text style={styles.eltLabel}>N° série</Text>
+                      <Text style={styles.eltValue}>{eltData.serial_number}</Text>
+                    </View>
+                  )}
+                </>
+              )}
+              
+              <View style={styles.eltSourceBadge}>
+                <Ionicons name="scan" size={12} color="#64748B" />
+                <Text style={styles.eltSourceText}>Source: OCR (rapport de maintenance)</Text>
+              </View>
+            </View>
+          </View>
+        )}
+
         {/* AD/SB Section */}
         {extractedData.ad_sb_references && extractedData.ad_sb_references.length > 0 && (
           <View style={styles.section}>
@@ -243,16 +376,6 @@ export default function OCRResultsScreen() {
                 {item.description && (
                   <Text style={styles.adsbDescription}>{item.description}</Text>
                 )}
-                {(item.compliance_date || item.airframe_hours) && (
-                  <View style={styles.adsbDetails}>
-                    {item.compliance_date && (
-                      <Text style={styles.adsbDetail}>Date: {item.compliance_date}</Text>
-                    )}
-                    {item.airframe_hours && (
-                      <Text style={styles.adsbDetail}>Heures: {item.airframe_hours}</Text>
-                    )}
-                  </View>
-                )}
               </View>
             ))}
           </View>
@@ -277,11 +400,6 @@ export default function OCRResultsScreen() {
                   )}
                 </View>
                 {part.name && <Text style={styles.partName}>{part.name}</Text>}
-                <View style={styles.partDetails}>
-                  {part.serial_number && <Text style={styles.partDetail}>S/N: {part.serial_number}</Text>}
-                  {part.price && <Text style={styles.partDetail}>${part.price}</Text>}
-                  {part.supplier && <Text style={styles.partDetail}>{part.supplier}</Text>}
-                </View>
               </View>
             ))}
           </View>
@@ -391,14 +509,14 @@ const styles = StyleSheet.create({
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: 12,
-    gap: 8,
   },
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
     color: '#1E293B',
-    marginBottom: 12,
+    marginBottom: 0,
   },
   badge: {
     backgroundColor: '#1E3A8A',
@@ -457,6 +575,79 @@ const styles = StyleSheet.create({
     flex: 1,
     textAlign: 'right',
   },
+  eltTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  editButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: '#EFF6FF',
+    borderRadius: 8,
+  },
+  editButtonText: {
+    fontSize: 13,
+    color: '#3B82F6',
+    fontWeight: '500',
+  },
+  eltCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 2,
+    borderColor: '#FEE2E2',
+  },
+  eltRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
+  eltEditRow: {
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
+  eltLabel: {
+    fontSize: 14,
+    color: '#64748B',
+    marginBottom: 4,
+  },
+  eltValue: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1E293B',
+  },
+  eltInput: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+    color: '#1E293B',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  eltSourceBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+  },
+  eltSourceText: {
+    fontSize: 12,
+    color: '#64748B',
+    fontStyle: 'italic',
+  },
   adsbCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
@@ -498,15 +689,6 @@ const styles = StyleSheet.create({
     color: '#64748B',
     marginTop: 8,
   },
-  adsbDetails: {
-    flexDirection: 'row',
-    gap: 16,
-    marginTop: 8,
-  },
-  adsbDetail: {
-    fontSize: 12,
-    color: '#94A3B8',
-  },
   partCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
@@ -533,15 +715,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#64748B',
     marginTop: 4,
-  },
-  partDetails: {
-    flexDirection: 'row',
-    gap: 16,
-    marginTop: 8,
-  },
-  partDetail: {
-    fontSize: 12,
-    color: '#94A3B8',
   },
   rawTextToggle: {
     flexDirection: 'row',

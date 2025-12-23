@@ -39,6 +39,7 @@ class PartRecordBase(BaseModel):
     # Source
     source: str = "manual"  # manual, ocr
     ocr_scan_id: Optional[str] = None
+    confirmed: bool = True  # OCR parts start as False, manual as True
 
 class PartRecordCreate(PartRecordBase):
     pass
@@ -63,6 +64,7 @@ class PartRecordUpdate(BaseModel):
     invoice_number: Optional[str] = None
     work_order_reference: Optional[str] = None
     remarks: Optional[str] = None
+    confirmed: Optional[bool] = None  # For confirming OCR parts
 
 class PartRecord(PartRecordBase):
     id: str = Field(alias="_id")

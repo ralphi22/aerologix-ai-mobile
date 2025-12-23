@@ -15,29 +15,30 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import api from '../../services/api';
 
-type DocumentType = 'maintenance_report' | 'stc' | 'invoice';
+// Types de documents avec mapping vers le backend
+type DocumentType = 'maintenance_report' | 'invoice' | 'other';
 
 const DOCUMENT_TYPES = [
   {
     id: 'maintenance_report' as DocumentType,
-    title: 'Rapport de maintenance',
-    description: 'Work orders, inspections, réparations',
-    icon: 'construct-outline',
+    title: 'Rapport',
+    description: 'Rapport de maintenance / Journey log',
+    icon: 'document-text-outline',
     color: '#3B82F6',
   },
   {
-    id: 'stc' as DocumentType,
-    title: 'STC',
-    description: 'Supplemental Type Certificate',
-    icon: 'document-text-outline',
-    color: '#8B5CF6',
-  },
-  {
     id: 'invoice' as DocumentType,
-    title: 'Facture / Pièces',
+    title: 'Facture',
     description: 'Factures, bons de commande',
     icon: 'receipt-outline',
     color: '#10B981',
+  },
+  {
+    id: 'other' as DocumentType,
+    title: 'Autre',
+    description: 'Document divers',
+    icon: 'folder-outline',
+    color: '#64748B',
   },
 ];
 
@@ -48,6 +49,7 @@ export default function OCRScanScreen() {
     registration: string;
   }>();
 
+  // Par défaut: rapport de maintenance (scan complet)
   const [selectedType, setSelectedType] = useState<DocumentType>('maintenance_report');
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [imageBase64, setImageBase64] = useState<string | null>(null);
@@ -108,11 +110,15 @@ export default function OCRScanScreen() {
     setIsAnalyzing(true);
 
     try {
+      console.log('Sending OCR request with document_type:', selectedType);
+      
       const response = await api.post('/api/ocr/scan', {
         aircraft_id: aircraftId,
-        document_type: selectedType,
+        document_type: selectedType, // Maintenant envoie le bon format
         image_base64: imageBase64,
       });
+
+      console.log('OCR response received:', response.data?.id);
 
       // Navigate to results screen
       router.push({
@@ -179,11 +185,11 @@ export default function OCRScanScreen() {
 
         {/* Image Selection */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Document à analyser</Text>
+          <Text style={styles.sectionTitle}>Image du document</Text>
           
           {imageUri ? (
             <View style={styles.imagePreviewContainer}>
-              <Image source={{ uri: imageUri }} style={styles.imagePreview} resizeMode="contain" />
+              <Image source={{ uri: imageUri }} style={styles.imagePreview} />
               <TouchableOpacity
                 style={styles.removeImageButton}
                 onPress={() => {
@@ -195,32 +201,35 @@ export default function OCRScanScreen() {
               </TouchableOpacity>
             </View>
           ) : (
-            <View style={styles.imagePickerContainer}>
-              <TouchableOpacity style={styles.imagePickerButton} onPress={() => pickImage(true)}>
-                <Ionicons name="camera" size={32} color="#1E3A8A" />
-                <Text style={styles.imagePickerText}>Prendre une photo</Text>
+            <View style={styles.imageSelectionContainer}>
+              <TouchableOpacity
+                style={styles.imageButton}
+                onPress={() => pickImage(true)}
+              >
+                <Ionicons name="camera" size={32} color="#3B82F6" />
+                <Text style={styles.imageButtonText}>Prendre une photo</Text>
               </TouchableOpacity>
               
-              <View style={styles.divider}>
-                <View style={styles.dividerLine} />
-                <Text style={styles.dividerText}>ou</Text>
-                <View style={styles.dividerLine} />
-              </View>
-              
-              <TouchableOpacity style={styles.imagePickerButton} onPress={() => pickImage(false)}>
-                <Ionicons name="images" size={32} color="#1E3A8A" />
-                <Text style={styles.imagePickerText}>Galerie photo</Text>
+              <TouchableOpacity
+                style={styles.imageButton}
+                onPress={() => pickImage(false)}
+              >
+                <Ionicons name="images" size={32} color="#8B5CF6" />
+                <Text style={styles.imageButtonText}>Galerie</Text>
               </TouchableOpacity>
             </View>
           )}
         </View>
 
-        {/* Info Box */}
+        {/* Info box pour le type sélectionné */}
         <View style={styles.infoBox}>
-          <Ionicons name="information-circle" size={24} color="#3B82F6" />
+          <Ionicons name="information-circle" size={20} color="#3B82F6" />
           <Text style={styles.infoText}>
-            L'IA analysera le document et extraira automatiquement les informations :
-            heures, AD/SB, pièces remplacées, etc.
+            {selectedType === 'maintenance_report' 
+              ? 'Scan complet: heures, maintenance, pièces, AD/SB, ELT'
+              : selectedType === 'invoice'
+              ? 'Extraction des pièces et coûts de la facture'
+              : 'Extraction générale du document'}
           </Text>
         </View>
 
@@ -262,7 +271,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: '#E2E8F0',
   },
@@ -300,19 +308,16 @@ const styles = StyleSheet.create({
   },
   typeContainer: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: 12,
   },
   typeCard: {
     flex: 1,
-    minWidth: '30%',
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
     padding: 16,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    position: 'relative',
   },
   typeIcon: {
     width: 48,
@@ -323,13 +328,13 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   typeTitle: {
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '600',
     color: '#1E293B',
     textAlign: 'center',
   },
   typeDescription: {
-    fontSize: 10,
+    fontSize: 11,
     color: '#64748B',
     textAlign: 'center',
     marginTop: 4,
@@ -344,74 +349,60 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  imagePickerContainer: {
+  imageSelectionContainer: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  imageButton: {
+    flex: 1,
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
     padding: 24,
     alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#E2E8F0',
+    borderStyle: 'dashed',
   },
-  imagePickerButton: {
-    alignItems: 'center',
-    padding: 16,
-  },
-  imagePickerText: {
-    fontSize: 16,
-    color: '#1E3A8A',
-    fontWeight: '600',
+  imageButtonText: {
+    fontSize: 14,
+    color: '#64748B',
     marginTop: 8,
   },
-  divider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    width: '100%',
-    marginVertical: 16,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: '#E2E8F0',
-  },
-  dividerText: {
-    marginHorizontal: 16,
-    color: '#64748B',
-    fontSize: 14,
-  },
   imagePreviewContainer: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
     position: 'relative',
   },
   imagePreview: {
     width: '100%',
     height: 300,
-    borderRadius: 8,
+    borderRadius: 12,
+    backgroundColor: '#E2E8F0',
   },
   removeImageButton: {
     position: 'absolute',
     top: 8,
     right: 8,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
   },
   infoBox: {
     flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: '#EFF6FF',
     marginHorizontal: 16,
-    padding: 16,
-    borderRadius: 12,
-    gap: 12,
+    padding: 12,
+    borderRadius: 8,
+    gap: 8,
   },
   infoText: {
     flex: 1,
-    fontSize: 14,
+    fontSize: 13,
     color: '#1E40AF',
-    lineHeight: 20,
   },
   analyzeButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#1E3A8A',
+    backgroundColor: '#10B981',
     marginHorizontal: 16,
     marginTop: 16,
     padding: 16,
@@ -422,8 +413,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#94A3B8',
   },
   analyzeButtonText: {
-    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
+    color: '#FFFFFF',
   },
 });

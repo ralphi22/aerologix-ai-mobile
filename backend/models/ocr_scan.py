@@ -44,6 +44,20 @@ class ExtractedSTC(BaseModel):
     description: Optional[str] = None
     installation_date: Optional[str] = None
 
+class ExtractedELTData(BaseModel):
+    """ELT data extracted from OCR"""
+    detected: bool = False
+    brand: Optional[str] = None
+    model: Optional[str] = None
+    serial_number: Optional[str] = None
+    installation_date: Optional[str] = None
+    certification_date: Optional[str] = None
+    battery_expiry_date: Optional[str] = None
+    battery_install_date: Optional[str] = None
+    battery_interval_months: Optional[int] = None
+    beacon_hex_id: Optional[str] = None
+
+
 class ExtractedMaintenanceData(BaseModel):
     """Structured data extracted from maintenance report"""
     date: Optional[str] = None
@@ -64,6 +78,9 @@ class ExtractedMaintenanceData(BaseModel):
     ad_sb_references: List[ExtractedADSB] = []
     parts_replaced: List[ExtractedPart] = []
     stc_references: List[ExtractedSTC] = []
+    
+    # ELT data
+    elt_data: Optional[ExtractedELTData] = None
 
 class OCRScanBase(BaseModel):
     aircraft_id: str
