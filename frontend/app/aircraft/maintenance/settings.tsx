@@ -69,17 +69,20 @@ export default function ComponentSettingsScreen() {
   const fetchData = async () => {
     console.log('[SETTINGS] Fetching data for aircraft:', aircraftId);
     try {
-      // Récupérer les heures actuelles de l'avion ET les paramètres
-      const [aircraftRes, settingsRes] = await Promise.all([
+      // Récupérer les heures actuelles de l'avion, les paramètres ET l'ELT
+      const [aircraftRes, settingsRes, eltRes] = await Promise.all([
         api.get(`/api/aircraft/${aircraftId}`),
-        api.get(`/api/components/aircraft/${aircraftId}`)
+        api.get(`/api/components/aircraft/${aircraftId}`),
+        api.get(`/api/elt/aircraft/${aircraftId}`).catch(() => ({ data: null }))
       ]);
       
       console.log('[SETTINGS] Aircraft loaded:', JSON.stringify(aircraftRes.data));
       console.log('[SETTINGS] Settings loaded:', JSON.stringify(settingsRes.data));
+      console.log('[SETTINGS] ELT loaded:', eltRes.data ? 'found' : 'none');
       
       setAircraft(aircraftRes.data);
       const data = settingsRes.data;
+      const elt = eltRes.data;
       
       setSettings({
         engine_model: data.engine_model || '',
@@ -102,6 +105,12 @@ export default function ComponentSettingsScreen() {
         vacuum_pump_last_replacement_date: data.vacuum_pump_last_replacement_date || '',
         airframe_last_annual_date: data.airframe_last_annual_date || '',
         airframe_last_annual_hours: data.airframe_last_annual_hours != null ? String(data.airframe_last_annual_hours) : '',
+        // ELT - charger depuis le module ELT existant
+        elt_last_test_date: elt?.last_test_date ? elt.last_test_date.split('T')[0] : '',
+        elt_test_interval_months: String(data.elt_test_interval_months || 12),
+        elt_battery_install_date: elt?.battery_install_date ? elt.battery_install_date.split('T')[0] : '',
+        elt_battery_expiry_date: elt?.battery_expiry_date ? elt.battery_expiry_date.split('T')[0] : '',
+        elt_battery_interval_months: String(data.elt_battery_interval_months || elt?.battery_interval_months || 24),
       });
       console.log('[SETTINGS] Settings state updated');
     } catch (error: any) {
