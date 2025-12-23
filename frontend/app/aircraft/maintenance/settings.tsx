@@ -53,6 +53,12 @@ export default function ComponentSettingsScreen() {
     vacuum_pump_last_replacement_date: '',
     airframe_last_annual_date: '',
     airframe_last_annual_hours: '',
+    // ELT settings
+    elt_last_test_date: '',
+    elt_test_interval_months: '12',
+    elt_battery_install_date: '',
+    elt_battery_expiry_date: '',
+    elt_battery_interval_months: '24',
   });
 
   useEffect(() => {
