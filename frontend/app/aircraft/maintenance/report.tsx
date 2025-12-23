@@ -67,6 +67,16 @@ interface ComponentStatus {
   hasData: boolean;
 }
 
+// Interface pour les alertes TC-SAFE
+interface Alert {
+  id: string;
+  component: string;
+  icon: string;
+  message: string;
+  severity: 'warning' | 'critical';  // Jaune ou Rouge
+  color: string;
+}
+
 export default function MaintenanceReportScreen() {
   const router = useRouter();
   const { aircraftId, registration } = useLocalSearchParams<{
@@ -80,6 +90,7 @@ export default function MaintenanceReportScreen() {
   const [settings, setSettings] = useState<ComponentSettings | null>(null);
   const [eltData, setEltData] = useState<ELTData | null>(null);
   const [components, setComponents] = useState<ComponentStatus[]>([]);
+  const [alerts, setAlerts] = useState<Alert[]>([]);
 
   // Recharger les données à chaque focus (retour de settings)
   useFocusEffect(
