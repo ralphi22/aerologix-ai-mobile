@@ -67,8 +67,12 @@ export default function MaintenancePartsScreen() {
   };
 
   const handleDelete = async (part: Part) => {
+    console.log('=== DELETE BUTTON PRESSED ===');
+    console.log('Part to delete:', JSON.stringify(part, null, 2));
+    
     // Vérification côté client
     if (part.source !== 'ocr') {
+      console.log('Part is not OCR, blocking delete');
       const message = 'Les pièces saisies manuellement ne peuvent pas être supprimées.';
       if (Platform.OS === 'web') {
         window.alert(message);
@@ -79,15 +83,17 @@ export default function MaintenancePartsScreen() {
     }
 
     const confirmDelete = async () => {
-      console.log('Starting delete for part:', part._id);
+      console.log('confirmDelete called, starting delete for part:', part._id);
       setDeletingId(part._id);
       try {
-        console.log('Calling API delete for:', `/api/parts/record/${part._id}`);
-        const response = await api.delete(`/api/parts/record/${part._id}`);
-        console.log('Delete response:', response);
+        const deleteUrl = `/api/parts/record/${part._id}`;
+        console.log('Calling API delete:', deleteUrl);
+        const response = await api.delete(deleteUrl);
+        console.log('Delete response:', response.status, response.data);
         
         // Mise à jour de l'état local
         setParts(prevParts => prevParts.filter(p => p._id !== part._id));
+        console.log('Local state updated');
         
         if (Platform.OS === 'web') {
           window.alert('Pièce supprimée avec succès');
@@ -111,10 +117,13 @@ export default function MaintenancePartsScreen() {
 
     // Exécuter directement sur web pour éviter les problèmes avec window.confirm
     if (Platform.OS === 'web') {
+      console.log('Web platform - showing confirm dialog');
       const confirmed = window.confirm(`Supprimer la pièce ${part.part_number} ?\n\nCette action est irréversible.`);
       console.log('Confirm result:', confirmed);
       if (confirmed) {
         await confirmDelete();
+      } else {
+        console.log('User cancelled deletion');
       }
     } else {
       Alert.alert(
