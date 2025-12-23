@@ -5,9 +5,8 @@ import {
   StyleSheet,
   TouchableOpacity,
   SafeAreaView,
-  ScrollView,
+  FlatList,
   ActivityIndicator,
-  RefreshControl,
   Alert,
   Platform,
 } from 'react-native';
@@ -43,8 +42,11 @@ export default function MaintenanceInvoicesScreen() {
 
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  
+  // Mode sélection
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (aircraftId) {
@@ -63,55 +65,6 @@ export default function MaintenanceInvoicesScreen() {
       }
     } finally {
       setLoading(false);
-      setRefreshing(false);
-    }
-  };
-
-  const onRefresh = () => {
-    setRefreshing(true);
-    fetchInvoices();
-  };
-
-  const handleDelete = async (invoice: Invoice) => {
-    const confirmDelete = async () => {
-      setDeletingId(invoice._id);
-      try {
-        console.log('Deleting invoice:', invoice._id);
-        await api.delete(`/api/invoices/${invoice._id}`);
-        console.log('Invoice deleted successfully');
-        setInvoices(invoices.filter(i => i._id !== invoice._id));
-        
-        if (Platform.OS === 'web') {
-          window.alert('Facture supprimée avec succès');
-        } else {
-          Alert.alert('Succès', 'Facture supprimée avec succès');
-        }
-      } catch (error: any) {
-        console.error('Delete error:', error);
-        const message = error.response?.data?.detail || 'Erreur lors de la suppression';
-        if (Platform.OS === 'web') {
-          window.alert('Erreur: ' + message);
-        } else {
-          Alert.alert('Erreur', message);
-        }
-      } finally {
-        setDeletingId(null);
-      }
-    };
-
-    if (Platform.OS === 'web') {
-      if (window.confirm(`Supprimer la facture ${invoice.invoice_number || 'sans numéro'} ?\n\nCette action est irréversible.`)) {
-        confirmDelete();
-      }
-    } else {
-      Alert.alert(
-        'Confirmer la suppression',
-        `Supprimer la facture ${invoice.invoice_number || 'sans numéro'} ?\n\nCette action est irréversible.`,
-        [
-          { text: 'Annuler', style: 'cancel' },
-          { text: 'Supprimer', style: 'destructive', onPress: confirmDelete }
-        ]
-      );
     }
   };
 
@@ -137,18 +90,258 @@ export default function MaintenanceInvoicesScreen() {
     }).format(amount);
   };
 
+  // Toggle mode sélection
+  const toggleSelectionMode = () => {
+    if (selectionMode) {
+      setSelectedIds(new Set());
+    }
+    setSelectionMode(!selectionMode);
+  };
+
+  // Toggle sélection d'un item
+  const toggleSelection = (id: string) => {
+    const newSelected = new Set(selectedIds);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedIds(newSelected);
+  };
+
+  // Sélectionner/désélectionner tous
+  const toggleSelectAll = () => {
+    if (selectedIds.size === invoices.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(invoices.map(i => i._id)));
+    }
+  };
+
+  // Suppression multiple
+  const handleDeleteSelected = async () => {
+    const count = selectedIds.size;
+    if (count === 0) return;
+
+    const confirmDelete = async () => {
+      setDeleting(true);
+      const idsToDelete = Array.from(selectedIds);
+      const errors: string[] = [];
+      const deleted: string[] = [];
+
+      for (const id of idsToDelete) {
+        try {
+          await api.delete(`/api/invoices/${id}`);
+          deleted.push(id);
+        } catch (error: any) {
+          const status = error.response?.status;
+          if (status === 401 || status === 403) {
+            errors.push(`Authentification requise`);
+            break;
+          } else if (status === 404) {
+            errors.push(`Facture introuvable: ${id}`);
+          } else {
+            errors.push(error.response?.data?.detail || `Erreur: ${id}`);
+          }
+        }
+      }
+
+      // Mettre à jour l'UI
+      if (deleted.length > 0) {
+        setInvoices(prev => prev.filter(i => !deleted.includes(i._id)));
+        setSelectedIds(new Set());
+      }
+
+      setDeleting(false);
+      setSelectionMode(false);
+
+      // Afficher le résultat
+      if (errors.length > 0) {
+        const message = `${deleted.length} supprimée(s)\n${errors.length} erreur(s):\n${errors.join('\n')}`;
+        if (Platform.OS === 'web') {
+          window.alert(message);
+        } else {
+          Alert.alert('Résultat', message);
+        }
+      } else {
+        const message = `${deleted.length} facture(s) supprimée(s)`;
+        if (Platform.OS === 'web') {
+          window.alert(message);
+        } else {
+          Alert.alert('Succès', message);
+        }
+      }
+    };
+
+    // Confirmation
+    const message = `Supprimer ${count} facture(s) ?\n\nCette action est irréversible.`;
+    if (Platform.OS === 'web') {
+      if (window.confirm(message)) {
+        await confirmDelete();
+      }
+    } else {
+      Alert.alert(
+        'Confirmer la suppression',
+        message,
+        [
+          { text: 'Annuler', style: 'cancel' },
+          { text: 'Supprimer', style: 'destructive', onPress: confirmDelete }
+        ]
+      );
+    }
+  };
+
+  const renderInvoice = ({ item }: { item: Invoice }) => {
+    const isSelected = selectedIds.has(item._id);
+    
+    return (
+      <TouchableOpacity 
+        style={[
+          styles.invoiceCard,
+          selectionMode && styles.selectableCard,
+          isSelected && styles.selectedCard
+        ]}
+        onPress={() => selectionMode && toggleSelection(item._id)}
+        activeOpacity={selectionMode ? 0.7 : 1}
+      >
+        {/* Checkbox en mode sélection */}
+        {selectionMode && (
+          <View style={styles.checkboxContainer}>
+            <View style={[styles.checkbox, isSelected && styles.checkboxSelected]}>
+              {isSelected && <Ionicons name="checkmark" size={16} color="#FFFFFF" />}
+            </View>
+          </View>
+        )}
+
+        <View style={styles.invoiceContent}>
+          <View style={styles.invoiceHeader}>
+            <View style={styles.invoiceIconContainer}>
+              <Ionicons name="receipt" size={24} color="#10B981" />
+            </View>
+            <View style={styles.invoiceHeaderContent}>
+              <Text style={styles.invoiceNumber}>
+                {item.invoice_number || 'Sans numéro'}
+              </Text>
+              <Text style={styles.invoiceDate}>
+                {formatDate(item.invoice_date)}
+              </Text>
+            </View>
+            <View style={styles.invoiceTotalContainer}>
+              <Text style={styles.invoiceTotal}>
+                {formatCurrency(item.total, item.currency)}
+              </Text>
+            </View>
+          </View>
+
+          {item.supplier && (
+            <View style={styles.supplierRow}>
+              <Ionicons name="business-outline" size={16} color="#64748B" />
+              <Text style={styles.supplierText}>{item.supplier}</Text>
+            </View>
+          )}
+
+          {item.parts && item.parts.length > 0 && (
+            <View style={styles.partsContainer}>
+              <Text style={styles.partsTitle}>
+                {item.parts.length} pièce{item.parts.length > 1 ? 's' : ''}
+              </Text>
+              {item.parts.slice(0, 3).map((part, index) => (
+                <View key={index} style={styles.partRow}>
+                  <Text style={styles.partNumber}>{part.part_number}</Text>
+                  <Text style={styles.partQty}>x{part.quantity}</Text>
+                  {part.total_price && (
+                    <Text style={styles.partPrice}>
+                      {formatCurrency(part.total_price, item.currency)}
+                    </Text>
+                  )}
+                </View>
+              ))}
+              {item.parts.length > 3 && (
+                <Text style={styles.moreParts}>
+                  +{item.parts.length - 3} autre{item.parts.length - 3 > 1 ? 's' : ''}
+                </Text>
+              )}
+            </View>
+          )}
+
+          <View style={styles.sourceRow}>
+            <View style={styles.sourceTag}>
+              <Ionicons 
+                name={item.source === 'ocr' ? 'scan' : 'create'} 
+                size={12} 
+                color="#94A3B8" 
+              />
+              <Text style={styles.sourceText}>
+                {item.source === 'ocr' ? 'OCR' : 'Manuel'}
+              </Text>
+            </View>
+          </View>
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.headerButton}>
           <Ionicons name="arrow-back" size={24} color="#1E3A8A" />
         </TouchableOpacity>
         <View style={styles.headerContent}>
           <Text style={styles.headerTitle}>Factures</Text>
           <Text style={styles.headerSubtitle}>{registration}</Text>
         </View>
-        <View style={{ width: 40 }} />
+        
+        {invoices.length > 0 && (
+          <TouchableOpacity 
+            onPress={toggleSelectionMode} 
+            style={styles.headerButton}
+          >
+            <Ionicons 
+              name={selectionMode ? "close" : "trash-outline"} 
+              size={24} 
+              color={selectionMode ? "#EF4444" : "#1E3A8A"} 
+            />
+          </TouchableOpacity>
+        )}
+        {invoices.length === 0 && <View style={{ width: 40 }} />}
       </View>
+
+      {/* Barre de sélection */}
+      {selectionMode && (
+        <View style={styles.selectionBar}>
+          <TouchableOpacity onPress={toggleSelectAll} style={styles.selectAllButton}>
+            <Ionicons 
+              name={selectedIds.size === invoices.length ? "checkbox" : "square-outline"} 
+              size={20} 
+              color="#1E3A8A" 
+            />
+            <Text style={styles.selectAllText}>
+              {selectedIds.size === invoices.length ? 'Tout désélectionner' : 'Tout sélectionner'}
+            </Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            onPress={handleDeleteSelected}
+            disabled={selectedIds.size === 0 || deleting}
+            style={[
+              styles.deleteSelectedButton,
+              selectedIds.size === 0 && styles.deleteSelectedButtonDisabled
+            ]}
+          >
+            {deleting ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <>
+                <Ionicons name="trash" size={18} color="#FFFFFF" />
+                <Text style={styles.deleteSelectedText}>
+                  Supprimer ({selectedIds.size})
+                </Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
+      )}
 
       {loading ? (
         <View style={styles.loadingContainer}>
@@ -173,100 +366,20 @@ export default function MaintenanceInvoicesScreen() {
           </TouchableOpacity>
         </View>
       ) : (
-        <ScrollView
-          style={styles.container}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        <FlatList
+          data={invoices}
+          renderItem={renderInvoice}
+          keyExtractor={(item) => item._id}
+          contentContainerStyle={styles.listContainer}
+          ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
+          ListHeaderComponent={
+            !selectionMode ? (
+              <View style={styles.listHeader}>
+                <Text style={styles.listTitle}>{invoices.length} facture{invoices.length > 1 ? 's' : ''}</Text>
+              </View>
+            ) : null
           }
-        >
-          <View style={styles.listHeader}>
-            <Text style={styles.listTitle}>{invoices.length} facture{invoices.length > 1 ? 's' : ''}</Text>
-          </View>
-
-          {invoices.map((invoice) => (
-            <View key={invoice._id} style={styles.invoiceCard}>
-              <View style={styles.invoiceHeader}>
-                <View style={styles.invoiceIconContainer}>
-                  <Ionicons name="receipt" size={24} color="#10B981" />
-                </View>
-                <View style={styles.invoiceHeaderContent}>
-                  <Text style={styles.invoiceNumber}>
-                    {invoice.invoice_number || 'Sans numéro'}
-                  </Text>
-                  <Text style={styles.invoiceDate}>
-                    {formatDate(invoice.invoice_date)}
-                  </Text>
-                </View>
-                <View style={styles.invoiceTotalContainer}>
-                  <Text style={styles.invoiceTotal}>
-                    {formatCurrency(invoice.total, invoice.currency)}
-                  </Text>
-                </View>
-              </View>
-
-              {invoice.supplier && (
-                <View style={styles.supplierRow}>
-                  <Ionicons name="business-outline" size={16} color="#64748B" />
-                  <Text style={styles.supplierText}>{invoice.supplier}</Text>
-                </View>
-              )}
-
-              {invoice.parts && invoice.parts.length > 0 && (
-                <View style={styles.partsContainer}>
-                  <Text style={styles.partsTitle}>
-                    {invoice.parts.length} pièce{invoice.parts.length > 1 ? 's' : ''}
-                  </Text>
-                  {invoice.parts.slice(0, 3).map((part, index) => (
-                    <View key={index} style={styles.partRow}>
-                      <Text style={styles.partNumber}>{part.part_number}</Text>
-                      <Text style={styles.partQty}>x{part.quantity}</Text>
-                      {part.total_price && (
-                        <Text style={styles.partPrice}>
-                          {formatCurrency(part.total_price, invoice.currency)}
-                        </Text>
-                      )}
-                    </View>
-                  ))}
-                  {invoice.parts.length > 3 && (
-                    <Text style={styles.moreParts}>
-                      +{invoice.parts.length - 3} autre{invoice.parts.length - 3 > 1 ? 's' : ''}
-                    </Text>
-                  )}
-                </View>
-              )}
-
-              <View style={styles.actionsRow}>
-                <View style={styles.sourceTag}>
-                  <Ionicons 
-                    name={invoice.source === 'ocr' ? 'scan' : 'create'} 
-                    size={12} 
-                    color="#94A3B8" 
-                  />
-                  <Text style={styles.sourceText}>
-                    {invoice.source === 'ocr' ? 'OCR' : 'Manuel'}
-                  </Text>
-                </View>
-                
-                <TouchableOpacity
-                  style={[styles.deleteButton, deletingId === invoice._id && styles.deleteButtonDisabled]}
-                  onPress={() => handleDelete(invoice)}
-                  disabled={deletingId === invoice._id}
-                >
-                  {deletingId === invoice._id ? (
-                    <ActivityIndicator size="small" color="#EF4444" />
-                  ) : (
-                    <>
-                      <Ionicons name="trash-outline" size={16} color="#EF4444" />
-                      <Text style={styles.deleteButtonText}>Supprimer</Text>
-                    </>
-                  )}
-                </TouchableOpacity>
-              </View>
-            </View>
-          ))}
-
-          <View style={{ height: 24 }} />
-        </ScrollView>
+        />
       )}
     </SafeAreaView>
   );
@@ -285,7 +398,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#E2E8F0',
   },
-  backButton: {
+  headerButton: {
     width: 40,
     height: 40,
     justifyContent: 'center',
@@ -304,18 +417,53 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#64748B',
   },
+  selectionBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#F1F5F9',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+  },
+  selectAllButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  selectAllText: {
+    fontSize: 14,
+    color: '#1E3A8A',
+    fontWeight: '500',
+  },
+  deleteSelectedButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#EF4444',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
+    gap: 6,
+  },
+  deleteSelectedButtonDisabled: {
+    backgroundColor: '#FDA4AF',
+  },
+  deleteSelectedText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  container: {
-    flex: 1,
-    backgroundColor: '#F1F5F9',
+  listContainer: {
+    padding: 16,
   },
   listHeader: {
-    padding: 16,
-    paddingBottom: 8,
+    marginBottom: 8,
   },
   listTitle: {
     fontSize: 14,
@@ -358,12 +506,41 @@ const styles = StyleSheet.create({
   },
   invoiceCard: {
     backgroundColor: '#FFFFFF',
-    marginHorizontal: 16,
-    marginBottom: 12,
     borderRadius: 12,
     padding: 16,
     borderWidth: 1,
     borderColor: '#E2E8F0',
+    flexDirection: 'row',
+  },
+  selectableCard: {
+    borderColor: '#CBD5E1',
+  },
+  selectedCard: {
+    borderColor: '#3B82F6',
+    backgroundColor: '#EFF6FF',
+  },
+  checkboxContainer: {
+    justifyContent: 'flex-start',
+    alignItems: 'center',
+    marginRight: 12,
+    paddingTop: 10,
+    width: 24,
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 4,
+    borderWidth: 2,
+    borderColor: '#CBD5E1',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  checkboxSelected: {
+    backgroundColor: '#3B82F6',
+    borderColor: '#3B82F6',
+  },
+  invoiceContent: {
+    flex: 1,
   },
   invoiceHeader: {
     flexDirection: 'row',
@@ -450,22 +627,6 @@ const styles = StyleSheet.create({
   },
   sourceRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 12,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
-    gap: 6,
-  },
-  sourceText: {
-    fontSize: 11,
-    color: '#94A3B8',
-    fontStyle: 'italic',
-  },
-  actionsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     marginTop: 12,
     paddingTop: 12,
     borderTopWidth: 1,
@@ -480,21 +641,9 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     gap: 4,
   },
-  deleteButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FEE2E2',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-    gap: 6,
-  },
-  deleteButtonDisabled: {
-    opacity: 0.5,
-  },
-  deleteButtonText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#EF4444',
+  sourceText: {
+    fontSize: 11,
+    color: '#94A3B8',
+    fontStyle: 'italic',
   },
 });
