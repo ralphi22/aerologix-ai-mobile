@@ -153,18 +153,36 @@ export default function ComponentSettingsScreen() {
         vacuum_pump_last_replacement_date: settings.vacuum_pump_last_replacement_date || null,
         airframe_last_annual_date: settings.airframe_last_annual_date || null,
         airframe_last_annual_hours: settings.airframe_last_annual_hours ? parseFloat(settings.airframe_last_annual_hours) : null,
+        // ELT intervals
+        elt_test_interval_months: parseInt(settings.elt_test_interval_months) || 12,
+        elt_battery_interval_months: parseInt(settings.elt_battery_interval_months) || 24,
       };
 
       console.log('[SETTINGS] Calling API PUT:', `/api/components/aircraft/${aircraftId}`);
       console.log('[SETTINGS] Payload:', JSON.stringify(payload));
       
-      const response = await Promise.race([
+      // Sauvegarder les paramètres des composants
+      const componentResponse = await Promise.race([
         api.put(`/api/components/aircraft/${aircraftId}`, payload),
         timeoutPromise
       ]) as any;
       
-      console.log('[SETTINGS] API response status:', response.status);
-      console.log('[SETTINGS] API response data:', JSON.stringify(response.data));
+      console.log('[SETTINGS] Component API response:', componentResponse.status);
+      
+      // Sauvegarder aussi les données ELT si modifiées
+      if (settings.elt_last_test_date || settings.elt_battery_install_date || settings.elt_battery_expiry_date) {
+        const eltPayload = {
+          aircraft_id: aircraftId,
+          last_test_date: settings.elt_last_test_date || null,
+          battery_install_date: settings.elt_battery_install_date || null,
+          battery_expiry_date: settings.elt_battery_expiry_date || null,
+          battery_interval_months: parseInt(settings.elt_battery_interval_months) || 24,
+        };
+        console.log('[SETTINGS] Updating ELT:', JSON.stringify(eltPayload));
+        await api.put(`/api/elt/aircraft/${aircraftId}`, eltPayload).catch(e => {
+          console.log('[SETTINGS] ELT update error (may not exist yet):', e.message);
+        });
+      }
       
       Alert.alert('Succès ✓', 'Paramètres sauvegardés. Les graphiques seront recalculés.', [
         { text: 'OK', onPress: () => router.back() }
