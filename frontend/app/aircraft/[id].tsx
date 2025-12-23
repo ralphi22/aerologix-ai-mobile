@@ -117,38 +117,53 @@ export default function AircraftDetailScreen() {
   }
 
   const handleDelete = async () => {
-    const confirmDelete = () => {
-      deleteAircraft(selectedAircraft._id)
-        .then(() => {
-          if (Platform.OS === 'web') {
-            window.alert('Aircraft deleted successfully');
-          } else {
-            Alert.alert('Success', 'Aircraft deleted successfully');
-          }
-          router.replace('/(tabs)');
-        })
-        .catch((error: any) => {
-          console.error('Delete error:', error);
-          const msg = 'Failed to delete aircraft: ' + (error.response?.data?.detail || error.message);
-          if (Platform.OS === 'web') {
-            window.alert(msg);
-          } else {
-            Alert.alert('Error', msg);
-          }
-        });
+    const performDelete = async () => {
+      try {
+        await deleteAircraft(selectedAircraft._id);
+        
+        // Succès - rediriger vers la liste
+        if (Platform.OS === 'web') {
+          window.alert('Aéronef supprimé avec succès');
+        } else {
+          Alert.alert('Succès', 'Aéronef supprimé avec succès');
+        }
+        router.replace('/(tabs)');
+      } catch (error: any) {
+        // Échec - afficher l'erreur et NE PAS naviguer
+        console.error('Delete aircraft error:', error);
+        const status = error.response?.status;
+        let message = 'Erreur lors de la suppression';
+        
+        if (status === 401 || status === 403) {
+          message = 'Authentification requise. Veuillez vous reconnecter.';
+        } else if (status === 404) {
+          message = 'Aéronef introuvable';
+        } else if (error.response?.data?.detail) {
+          message = error.response.data.detail;
+        }
+        
+        if (Platform.OS === 'web') {
+          window.alert('Erreur: ' + message);
+        } else {
+          Alert.alert('Erreur', message);
+        }
+      }
     };
 
+    // Confirmation renforcée
+    const confirmMessage = `Supprimer définitivement ${selectedAircraft.registration} et toutes ses données associées ?\n\nCette action est irréversible.`;
+    
     if (Platform.OS === 'web') {
-      if (window.confirm(`Are you sure you want to delete ${selectedAircraft.registration}?`)) {
-        confirmDelete();
+      if (window.confirm(confirmMessage)) {
+        await performDelete();
       }
     } else {
       Alert.alert(
-        'Confirm Delete',
-        `Are you sure you want to delete ${selectedAircraft.registration}?`,
+        'Supprimer l\'aéronef',
+        confirmMessage,
         [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Delete', style: 'destructive', onPress: confirmDelete }
+          { text: 'Annuler', style: 'cancel' },
+          { text: 'Supprimer', style: 'destructive', onPress: performDelete }
         ]
       );
     }
