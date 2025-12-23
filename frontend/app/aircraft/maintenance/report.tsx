@@ -47,9 +47,9 @@ interface ComponentSettings {
 
 interface ELTData {
   last_test_date: string | null;
-  battery_change_date: string | null;
-  test_interval_months: number;
-  battery_interval_months: number;
+  battery_install_date: string | null;
+  battery_expiry_date: string | null;
+  battery_interval_months: number | null;
 }
 
 interface ComponentStatus {
