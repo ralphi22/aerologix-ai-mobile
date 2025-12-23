@@ -340,6 +340,226 @@ export default function MaintenanceReportScreen() {
     }
 
     setComponents(comps);
+    
+    // Générer les alertes TC-SAFE basées sur les mêmes données que les graphiques
+    generateAlerts(ac, s, elt, comps);
+  };
+
+  // Génère les alertes TC-SAFE - lit les mêmes données que les graphiques
+  const generateAlerts = (ac: Aircraft, s: ComponentSettings, elt: ELTData | null, comps: ComponentStatus[]) => {
+    const newAlerts: Alert[] = [];
+    
+    // MOTEUR - basé sur heures moteur Aircraft (même calcul que graphique)
+    const enginePct = (ac.engine_hours / s.engine_tbo_hours) * 100;
+    if (enginePct > 100) {
+      newAlerts.push({
+        id: 'engine-critical',
+        component: 'Moteur',
+        icon: 'cog',
+        message: `TBO dépassé (${ac.engine_hours.toFixed(0)}h / ${s.engine_tbo_hours}h)`,
+        severity: 'critical',
+        color: '#EF4444'
+      });
+    } else if (enginePct >= 80) {
+      newAlerts.push({
+        id: 'engine-warning',
+        component: 'Moteur',
+        icon: 'cog',
+        message: `Approche TBO (${Math.round(enginePct)}%)`,
+        severity: 'warning',
+        color: '#F59E0B'
+      });
+    }
+    
+    // HÉLICE - basé sur le composant calculé (même données)
+    const propComp = comps.find(c => c.name === 'Hélice');
+    if (propComp && propComp.hasData) {
+      if (propComp.percentage > 100) {
+        newAlerts.push({
+          id: 'propeller-critical',
+          component: 'Hélice',
+          icon: 'sync-circle',
+          message: 'Inspection dépassée',
+          severity: 'critical',
+          color: '#EF4444'
+        });
+      } else if (propComp.percentage >= 80) {
+        newAlerts.push({
+          id: 'propeller-warning',
+          component: 'Hélice',
+          icon: 'sync-circle',
+          message: `Inspection à prévoir (${Math.round(propComp.percentage)}%)`,
+          severity: 'warning',
+          color: '#F59E0B'
+        });
+      }
+    }
+    
+    // AVIONIQUE - basé sur date certification (Jaune ≥ 20 mois, Rouge > 24 mois)
+    if (s.avionics_last_certification_date) {
+      const certDate = new Date(s.avionics_last_certification_date);
+      const now = new Date();
+      const monthsSince = (now.getTime() - certDate.getTime()) / (1000 * 60 * 60 * 24 * 30);
+      if (monthsSince > 24) {
+        newAlerts.push({
+          id: 'avionics-critical',
+          component: 'Avionique',
+          icon: 'radio',
+          message: 'Certification expirée',
+          severity: 'critical',
+          color: '#EF4444'
+        });
+      } else if (monthsSince >= 20) {
+        newAlerts.push({
+          id: 'avionics-warning',
+          component: 'Avionique',
+          icon: 'radio',
+          message: `Certification expire bientôt`,
+          severity: 'warning',
+          color: '#F59E0B'
+        });
+      }
+    }
+    
+    // MAGNETOS - Jaune ≥ 400h, Rouge ≥ 500h (depuis dernière inspection)
+    if (s.magnetos_last_inspection_hours !== null) {
+      const magnetosHoursSince = ac.engine_hours - s.magnetos_last_inspection_hours;
+      if (magnetosHoursSince >= 500) {
+        newAlerts.push({
+          id: 'magnetos-critical',
+          component: 'Magnétos',
+          icon: 'flash',
+          message: `Inspection requise (${magnetosHoursSince.toFixed(0)}h)`,
+          severity: 'critical',
+          color: '#EF4444'
+        });
+      } else if (magnetosHoursSince >= 400) {
+        newAlerts.push({
+          id: 'magnetos-warning',
+          component: 'Magnétos',
+          icon: 'flash',
+          message: `Inspection à prévoir (${magnetosHoursSince.toFixed(0)}h)`,
+          severity: 'warning',
+          color: '#F59E0B'
+        });
+      }
+    }
+    
+    // VACUUM PUMP - Jaune ≥ 320h, Rouge ≥ 400h (depuis dernier remplacement)
+    if (s.vacuum_pump_last_replacement_hours !== null) {
+      const vacuumHoursSince = ac.engine_hours - s.vacuum_pump_last_replacement_hours;
+      if (vacuumHoursSince >= 400) {
+        newAlerts.push({
+          id: 'vacuum-critical',
+          component: 'Pompe à vide',
+          icon: 'speedometer',
+          message: `Remplacement requis (${vacuumHoursSince.toFixed(0)}h)`,
+          severity: 'critical',
+          color: '#EF4444'
+        });
+      } else if (vacuumHoursSince >= 320) {
+        newAlerts.push({
+          id: 'vacuum-warning',
+          component: 'Pompe à vide',
+          icon: 'speedometer',
+          message: `Remplacement à prévoir (${vacuumHoursSince.toFixed(0)}h)`,
+          severity: 'warning',
+          color: '#F59E0B'
+        });
+      }
+    }
+    
+    // ELT - Jaune ≤ 15 jours avant échéance, Rouge dépassé
+    if (elt) {
+      // Test ELT
+      if (elt.last_test_date) {
+        const testDate = new Date(elt.last_test_date);
+        const testInterval = s.elt_test_interval_months || 12;
+        const nextTest = new Date(testDate.getTime() + testInterval * 30 * 24 * 60 * 60 * 1000);
+        const now = new Date();
+        const daysUntilTest = (nextTest.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
+        
+        if (daysUntilTest < 0) {
+          newAlerts.push({
+            id: 'elt-test-critical',
+            component: 'ELT',
+            icon: 'locate',
+            message: 'Test opérationnel dépassé',
+            severity: 'critical',
+            color: '#EF4444'
+          });
+        } else if (daysUntilTest <= 15) {
+          newAlerts.push({
+            id: 'elt-test-warning',
+            component: 'ELT',
+            icon: 'locate',
+            message: `Test dans ${Math.round(daysUntilTest)} jours`,
+            severity: 'warning',
+            color: '#F59E0B'
+          });
+        }
+      }
+      
+      // Batterie ELT
+      if (elt.battery_expiry_date) {
+        const expiryDate = new Date(elt.battery_expiry_date);
+        const now = new Date();
+        const daysUntilExpiry = (expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
+        
+        if (daysUntilExpiry < 0) {
+          newAlerts.push({
+            id: 'elt-battery-critical',
+            component: 'ELT',
+            icon: 'locate',
+            message: 'Batterie expirée',
+            severity: 'critical',
+            color: '#EF4444'
+          });
+        } else if (daysUntilExpiry <= 15) {
+          newAlerts.push({
+            id: 'elt-battery-warning',
+            component: 'ELT',
+            icon: 'locate',
+            message: `Batterie expire dans ${Math.round(daysUntilExpiry)} jours`,
+            severity: 'warning',
+            color: '#F59E0B'
+          });
+        }
+      }
+    }
+    
+    // CELLULE (Annuelle) - basé sur le composant calculé
+    const airframeComp = comps.find(c => c.name === 'Cellule');
+    if (airframeComp && airframeComp.hasData) {
+      if (airframeComp.percentage > 100) {
+        newAlerts.push({
+          id: 'airframe-critical',
+          component: 'Cellule',
+          icon: 'airplane',
+          message: 'Inspection annuelle dépassée',
+          severity: 'critical',
+          color: '#EF4444'
+        });
+      } else if (airframeComp.percentage >= 80) {
+        newAlerts.push({
+          id: 'airframe-warning',
+          component: 'Cellule',
+          icon: 'airplane',
+          message: `Annuelle à prévoir (${Math.round(airframeComp.percentage)}%)`,
+          severity: 'warning',
+          color: '#F59E0B'
+        });
+      }
+    }
+    
+    // Trier: critiques d'abord, puis warnings
+    newAlerts.sort((a, b) => {
+      if (a.severity === 'critical' && b.severity === 'warning') return -1;
+      if (a.severity === 'warning' && b.severity === 'critical') return 1;
+      return 0;
+    });
+    
+    setAlerts(newAlerts);
   };
 
   const renderProgressBar = (comp: ComponentStatus) => {
