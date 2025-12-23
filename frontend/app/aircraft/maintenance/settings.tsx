@@ -111,6 +111,11 @@ export default function ComponentSettingsScreen() {
     console.log('[SETTINGS] Save button pressed - aircraftId:', aircraftId);
     setSaving(true);
     
+    // Timeout de 15 secondes
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Délai dépassé - vérifiez votre connexion')), 15000)
+    );
+    
     try {
       const payload = {
         engine_model: settings.engine_model || null,
@@ -136,21 +141,37 @@ export default function ComponentSettingsScreen() {
       };
 
       console.log('[SETTINGS] Calling API PUT:', `/api/components/aircraft/${aircraftId}`);
-      console.log('[SETTINGS] Payload:', JSON.stringify(payload, null, 2));
+      console.log('[SETTINGS] Payload:', JSON.stringify(payload));
       
-      const response = await api.put(`/api/components/aircraft/${aircraftId}`, payload);
+      const response = await Promise.race([
+        api.put(`/api/components/aircraft/${aircraftId}`, payload),
+        timeoutPromise
+      ]) as any;
+      
       console.log('[SETTINGS] API response status:', response.status);
       console.log('[SETTINGS] API response data:', JSON.stringify(response.data));
       
-      Alert.alert('Succès', 'Paramètres sauvegardés. Les graphiques seront recalculés.', [
+      Alert.alert('Succès ✓', 'Paramètres sauvegardés. Les graphiques seront recalculés.', [
         { text: 'OK', onPress: () => router.back() }
       ]);
     } catch (error: any) {
       console.error('[SETTINGS] Save error:', error);
+      console.error('[SETTINGS] Error message:', error.message);
       console.error('[SETTINGS] Error response:', error.response?.data);
       console.error('[SETTINGS] Error status:', error.response?.status);
-      const errorMsg = error.response?.data?.detail || error.message || 'Impossible de sauvegarder';
-      Alert.alert('Erreur', `${errorMsg}\n\nVérifiez votre connexion et réessayez.`);
+      
+      let errorMsg = 'Erreur inconnue';
+      if (error.message === 'Network Error') {
+        errorMsg = 'Erreur réseau - Le serveur est inaccessible.\n\nVotre build TestFlight utilise peut-être une ancienne URL. Un nouveau build est nécessaire.';
+      } else if (error.message?.includes('Délai dépassé')) {
+        errorMsg = error.message;
+      } else if (error.response?.data?.detail) {
+        errorMsg = error.response.data.detail;
+      } else if (error.message) {
+        errorMsg = error.message;
+      }
+      
+      Alert.alert('Erreur ❌', errorMsg);
     } finally {
       setSaving(false);
     }
