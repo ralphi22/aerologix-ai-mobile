@@ -172,19 +172,20 @@ export default function MaintenanceReportScreen() {
     
     const comps: ComponentStatus[] = [];
     
-    // 1. MOTEUR - Source: Aircraft.engine_hours - Settings.engine_last_overhaul_hours
-    const engineCalc = calculateHoursPercentage(ac.engine_hours, s.engine_last_overhaul_hours, s.engine_tbo_hours);
-    console.log('[REPORT] Engine calc result:', engineCalc);
-    const engineStatus = getStatusColor(engineCalc.pct, engineCalc.hasData);
+    // 1. MOTEUR - Calcul simple: heures actuelles / TBO
+    // La date de révision est juste une info, pas utilisée dans le calcul
+    const enginePct = Math.min((ac.engine_hours / s.engine_tbo_hours) * 100, 150);
+    const engineStatus = getStatusColor(enginePct, ac.engine_hours > 0);
+    console.log('[CALC] Engine: hours=', ac.engine_hours, 'TBO=', s.engine_tbo_hours, 'pct=', enginePct);
     comps.push({
       name: 'Moteur',
       icon: 'cog',
-      percentage: engineCalc.pct,
-      current: engineCalc.hasData ? `${engineCalc.hoursSince.toFixed(1)} h depuis révision` : 'Données non disponibles',
+      percentage: enginePct,
+      current: `${ac.engine_hours.toFixed(1)} h`,
       limit: `TBO: ${s.engine_tbo_hours} h`,
       ...engineStatus,
       type: 'hours',
-      hasData: engineCalc.hasData
+      hasData: ac.engine_hours > 0
     });
 
     // 2. HÉLICE - Source: Aircraft.propeller_hours ou date selon type
