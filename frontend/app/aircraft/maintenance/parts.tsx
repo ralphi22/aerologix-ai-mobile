@@ -117,7 +117,13 @@ export default function MaintenancePartsScreen() {
       `${part.part_number}\n\nAction irréversible.`,
       [
         { text: 'Annuler', style: 'cancel' },
-        { text: 'Supprimer', style: 'destructive', onPress: performDelete }
+        { 
+          text: 'Supprimer', 
+          style: 'destructive', 
+          onPress: () => {
+            performDelete();
+          }
+        }
       ]
     );
   };
