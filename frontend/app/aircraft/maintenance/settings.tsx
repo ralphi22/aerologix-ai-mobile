@@ -56,16 +56,21 @@ export default function ComponentSettingsScreen() {
   });
 
   useEffect(() => {
+    console.log('[SETTINGS] Component mounted - aircraftId:', aircraftId);
     fetchData();
   }, []);
 
   const fetchData = async () => {
+    console.log('[SETTINGS] Fetching data for aircraft:', aircraftId);
     try {
       // Récupérer les heures actuelles de l'avion ET les paramètres
       const [aircraftRes, settingsRes] = await Promise.all([
         api.get(`/api/aircraft/${aircraftId}`),
         api.get(`/api/components/aircraft/${aircraftId}`)
       ]);
+      
+      console.log('[SETTINGS] Aircraft loaded:', JSON.stringify(aircraftRes.data));
+      console.log('[SETTINGS] Settings loaded:', JSON.stringify(settingsRes.data));
       
       setAircraft(aircraftRes.data);
       const data = settingsRes.data;
