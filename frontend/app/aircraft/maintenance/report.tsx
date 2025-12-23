@@ -803,4 +803,61 @@ const styles = StyleSheet.create({
   footerValueGrey: { color: '#9CA3AF', fontStyle: 'italic' },
   footerSection: { alignItems: 'center', paddingVertical: 20 },
   footerNote: { fontSize: 11, color: '#94A3B8', fontStyle: 'italic' },
+  // Styles pour les alertes TC-SAFE
+  alertsContainer: {
+    backgroundColor: '#FFFFFF',
+    marginHorizontal: 16,
+    marginTop: 8,
+    marginBottom: 8,
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  alertsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+    gap: 6,
+  },
+  alertsTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1E3A8A',
+  },
+  alertItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 10,
+    borderRadius: 8,
+    marginBottom: 6,
+    borderLeftWidth: 3,
+  },
+  alertIconContainer: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  alertContent: {
+    flex: 1,
+    marginLeft: 10,
+  },
+  alertComponent: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  alertMessage: {
+    fontSize: 12,
+    color: '#475569',
+    marginTop: 1,
+  },
+  alertBadge: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
 });
