@@ -347,6 +347,11 @@ class OCRService:
         if not isinstance(elt_data, dict):
             elt_data = {}
         
+        # Handle component work data
+        component_work = data.get("component_work", {})
+        if not isinstance(component_work, dict):
+            component_work = {}
+        
         return {
             "date": data.get("date"),
             "ame_name": data.get("ame_name"),
@@ -361,6 +366,46 @@ class OCRService:
             "labor_cost": self._safe_float(data.get("labor_cost")),
             "parts_cost": self._safe_float(data.get("parts_cost")),
             "total_cost": self._safe_float(data.get("total_cost")),
+            "component_work": {
+                "propeller": {
+                    "detected": component_work.get("propeller", {}).get("detected", False),
+                    "type": component_work.get("propeller", {}).get("type"),
+                    "manufacturer": component_work.get("propeller", {}).get("manufacturer"),
+                    "model": component_work.get("propeller", {}).get("model"),
+                    "work_type": component_work.get("propeller", {}).get("work_type"),
+                    "hours_since_work": self._safe_float(component_work.get("propeller", {}).get("hours_since_work")),
+                    "work_date": component_work.get("propeller", {}).get("work_date")
+                },
+                "magnetos": {
+                    "detected": component_work.get("magnetos", {}).get("detected", False),
+                    "manufacturer": component_work.get("magnetos", {}).get("manufacturer"),
+                    "model": component_work.get("magnetos", {}).get("model"),
+                    "work_type": component_work.get("magnetos", {}).get("work_type"),
+                    "hours_since_work": self._safe_float(component_work.get("magnetos", {}).get("hours_since_work")),
+                    "work_date": component_work.get("magnetos", {}).get("work_date")
+                },
+                "avionics_certification": {
+                    "detected": component_work.get("avionics_certification", {}).get("detected", False),
+                    "type": component_work.get("avionics_certification", {}).get("type"),
+                    "certification_date": component_work.get("avionics_certification", {}).get("certification_date"),
+                    "next_due_date": component_work.get("avionics_certification", {}).get("next_due_date")
+                },
+                "vacuum_pump": {
+                    "detected": component_work.get("vacuum_pump", {}).get("detected", False),
+                    "manufacturer": component_work.get("vacuum_pump", {}).get("manufacturer"),
+                    "model": component_work.get("vacuum_pump", {}).get("model"),
+                    "work_type": component_work.get("vacuum_pump", {}).get("work_type"),
+                    "hours_since_work": self._safe_float(component_work.get("vacuum_pump", {}).get("hours_since_work")),
+                    "work_date": component_work.get("vacuum_pump", {}).get("work_date")
+                },
+                "engine": {
+                    "detected": component_work.get("engine", {}).get("detected", False),
+                    "model": component_work.get("engine", {}).get("model"),
+                    "work_type": component_work.get("engine", {}).get("work_type"),
+                    "hours_since_work": self._safe_float(component_work.get("engine", {}).get("hours_since_work")),
+                    "work_date": component_work.get("engine", {}).get("work_date")
+                }
+            },
             "ad_sb_references": [
                 {
                     "adsb_type": ref.get("adsb_type", "AD"),
