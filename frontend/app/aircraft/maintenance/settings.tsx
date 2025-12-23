@@ -97,8 +97,11 @@ export default function ComponentSettingsScreen() {
         airframe_last_annual_date: data.airframe_last_annual_date || '',
         airframe_last_annual_hours: data.airframe_last_annual_hours != null ? String(data.airframe_last_annual_hours) : '',
       });
-    } catch (error) {
-      console.error('Error fetching data:', error);
+      console.log('[SETTINGS] Settings state updated');
+    } catch (error: any) {
+      console.error('[SETTINGS] Error fetching data:', error);
+      console.error('[SETTINGS] Error response:', error.response?.data);
+      console.error('[SETTINGS] Error status:', error.response?.status);
     } finally {
       setLoading(false);
     }
