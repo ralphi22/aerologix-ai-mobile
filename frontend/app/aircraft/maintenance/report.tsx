@@ -43,6 +43,9 @@ interface ComponentSettings {
   vacuum_pump_last_replacement_date: string | null;
   airframe_last_annual_date: string | null;
   airframe_last_annual_hours: number | null;
+  // ELT intervals
+  elt_test_interval_months?: number;
+  elt_battery_interval_months?: number;
 }
 
 interface ELTData {
