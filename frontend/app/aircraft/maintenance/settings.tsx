@@ -100,7 +100,7 @@ export default function ComponentSettingsScreen() {
   };
 
   const handleSave = async () => {
-    console.log('[SETTINGS] Save button pressed');
+    console.log('[SETTINGS] Save button pressed - aircraftId:', aircraftId);
     setSaving(true);
     
     try {
@@ -127,16 +127,22 @@ export default function ComponentSettingsScreen() {
         airframe_last_annual_hours: settings.airframe_last_annual_hours ? parseFloat(settings.airframe_last_annual_hours) : null,
       };
 
-      console.log('[SETTINGS] Calling API PUT with payload:', JSON.stringify(payload));
-      const response = await api.put(`/api/components/aircraft/${aircraftId}`, payload);
-      console.log('[SETTINGS] API response:', response.status, response.data);
+      console.log('[SETTINGS] Calling API PUT:', `/api/components/aircraft/${aircraftId}`);
+      console.log('[SETTINGS] Payload:', JSON.stringify(payload, null, 2));
       
-      Alert.alert('Succès', 'Paramètres sauvegardés', [
+      const response = await api.put(`/api/components/aircraft/${aircraftId}`, payload);
+      console.log('[SETTINGS] API response status:', response.status);
+      console.log('[SETTINGS] API response data:', JSON.stringify(response.data));
+      
+      Alert.alert('Succès', 'Paramètres sauvegardés. Les graphiques seront recalculés.', [
         { text: 'OK', onPress: () => router.back() }
       ]);
     } catch (error: any) {
       console.error('[SETTINGS] Save error:', error);
-      Alert.alert('Erreur', error.response?.data?.detail || 'Impossible de sauvegarder');
+      console.error('[SETTINGS] Error response:', error.response?.data);
+      console.error('[SETTINGS] Error status:', error.response?.status);
+      const errorMsg = error.response?.data?.detail || error.message || 'Impossible de sauvegarder';
+      Alert.alert('Erreur', `${errorMsg}\n\nVérifiez votre connexion et réessayez.`);
     } finally {
       setSaving(false);
     }
