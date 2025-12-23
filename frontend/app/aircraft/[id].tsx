@@ -117,41 +117,42 @@ export default function AircraftDetailScreen() {
   }
 
   const handleDelete = async () => {
-    const confirmDelete = () => {
-      deleteAircraft(selectedAircraft._id)
-        .then(() => {
-          if (Platform.OS === 'web') {
-            window.alert('Aircraft deleted successfully');
-          } else {
-            Alert.alert('Success', 'Aircraft deleted successfully');
-          }
-          router.replace('/(tabs)');
-        })
-        .catch((error: any) => {
-          console.error('Delete error:', error);
-          const msg = 'Failed to delete aircraft: ' + (error.response?.data?.detail || error.message);
-          if (Platform.OS === 'web') {
-            window.alert(msg);
-          } else {
-            Alert.alert('Error', msg);
-          }
-        });
+    console.log('[ACTION] delete aircraft pressed', { screen: 'Aircraft', aircraftId: selectedAircraft._id });
+    
+    const performDelete = async () => {
+      console.log('[ACTION] performDelete called for aircraft:', selectedAircraft._id);
+      try {
+        console.log('[ACTION] calling deleteAircraft...');
+        await deleteAircraft(selectedAircraft._id);
+        console.log('[ACTION] delete result', { ok: true });
+        
+        Alert.alert('Succès', 'Aéronef supprimé avec succès', [
+          { text: 'OK', onPress: () => router.replace('/(tabs)') }
+        ]);
+      } catch (error: any) {
+        console.log('[ACTION] delete result', { ok: false, status: error.response?.status, error: error.message });
+        
+        let message = 'Erreur lors de la suppression';
+        if (error.response?.status === 401 || error.response?.status === 403) {
+          message = 'Authentification requise. Reconnectez-vous.';
+        } else if (error.response?.status === 404) {
+          message = 'Aéronef introuvable';
+        } else if (error.response?.data?.detail) {
+          message = error.response.data.detail;
+        }
+        
+        Alert.alert('Erreur', message);
+      }
     };
 
-    if (Platform.OS === 'web') {
-      if (window.confirm(`Are you sure you want to delete ${selectedAircraft.registration}?`)) {
-        confirmDelete();
-      }
-    } else {
-      Alert.alert(
-        'Confirm Delete',
-        `Are you sure you want to delete ${selectedAircraft.registration}?`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Delete', style: 'destructive', onPress: confirmDelete }
-        ]
-      );
-    }
+    Alert.alert(
+      'Supprimer l\'aéronef',
+      `Supprimer définitivement ${selectedAircraft.registration} et toutes ses données ?\n\nAction irréversible.`,
+      [
+        { text: 'Annuler', style: 'cancel' },
+        { text: 'Supprimer', style: 'destructive', onPress: () => { performDelete(); } }
+      ]
+    );
   };
 
   const handleEdit = () => {

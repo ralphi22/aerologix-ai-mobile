@@ -45,10 +45,12 @@ export default function MaintenancePartsScreen() {
 
   const fetchParts = async () => {
     try {
+      console.log('[PARTS] Fetching parts for aircraft:', aircraftId);
       const response = await api.get(`/api/parts/aircraft/${aircraftId}`);
+      console.log('[PARTS] Fetched', response.data?.length || 0, 'parts');
       setParts(response.data || []);
     } catch (error) {
-      console.error('Error fetching parts:', error);
+      console.error('[PARTS] Fetch error:', error);
     } finally {
       setLoading(false);
     }
@@ -59,70 +61,76 @@ export default function MaintenancePartsScreen() {
     return new Date(dateString).toLocaleDateString('fr-CA');
   };
 
-  // Vérifie si une pièce peut être supprimée
-  // Règle simplifiée: les pièces OCR peuvent être supprimées (avec confirmation)
-  // Les pièces manuelles ne peuvent pas être supprimées
-  const canDelete = (part: Part): boolean => {
-    return part.source === 'ocr';
-  };
-
-  const handleDelete = async (part: Part) => {
-    // Vérification côté client
+  // SUPPRESSION DIRECTE D'UNE PIÈCE
+  const handleDeletePart = (part: Part) => {
+    console.log('[ACTION] delete pressed', { screen: 'Parts', partId: part._id, partNumber: part.part_number });
+    
+    // Vérifier si OCR
     if (part.source !== 'ocr') {
-      const message = 'Les pièces saisies manuellement ne peuvent pas être supprimées.';
-      if (Platform.OS === 'web') {
-        window.alert(message);
-      } else {
-        Alert.alert('Suppression interdite', message);
-      }
+      console.log('[ACTION] blocked - not OCR source');
+      Alert.alert('Suppression interdite', 'Seules les pièces OCR peuvent être supprimées.');
       return;
     }
 
-    const confirmDelete = async () => {
+    const performDelete = async () => {
+      console.log('[ACTION] performDelete called for:', part._id);
       setDeletingId(part._id);
+      
       try {
-        console.log('Deleting part:', part._id);
-        await api.delete(`/api/parts/record/${part._id}`);
-        console.log('Part deleted successfully');
-        setParts(parts.filter(p => p._id !== part._id));
+        const url = `/api/parts/record/${part._id}`;
+        console.log('[ACTION] calling API DELETE:', url);
         
-        if (Platform.OS === 'web') {
-          window.alert('Pièce supprimée avec succès');
-        } else {
-          Alert.alert('Succès', 'Pièce supprimée avec succès');
-        }
+        const response = await api.delete(url);
+        console.log('[ACTION] delete result', { ok: true, status: response.status });
+        
+        // Succès - mettre à jour la liste
+        setParts(prev => {
+          const newList = prev.filter(p => p._id !== part._id);
+          console.log('[ACTION] list updated, remaining:', newList.length);
+          return newList;
+        });
+        
+        Alert.alert('Succès', 'Pièce supprimée');
       } catch (error: any) {
-        console.error('Delete error:', error);
-        console.error('Error response:', error.response?.data);
-        const message = error.response?.data?.detail || 'Erreur lors de la suppression';
-        if (Platform.OS === 'web') {
-          window.alert('Erreur: ' + message);
-        } else {
-          Alert.alert('Erreur', message);
+        console.log('[ACTION] delete result', { ok: false, status: error.response?.status, error: error.message });
+        
+        let message = 'Erreur lors de la suppression';
+        if (error.response?.status === 401) {
+          message = 'Session expirée. Reconnectez-vous.';
+        } else if (error.response?.status === 403) {
+          message = 'Action non autorisée';
+        } else if (error.response?.status === 404) {
+          message = 'Pièce introuvable';
+        } else if (error.response?.data?.detail) {
+          message = error.response.data.detail;
         }
+        
+        Alert.alert('Erreur', message);
       } finally {
         setDeletingId(null);
       }
     };
 
-    if (Platform.OS === 'web') {
-      if (window.confirm(`Supprimer la pièce ${part.part_number} ?\n\nCette action est irréversible.`)) {
-        confirmDelete();
-      }
-    } else {
-      Alert.alert(
-        'Confirmer la suppression',
-        `Supprimer la pièce ${part.part_number} ?\n\nCette action est irréversible.`,
-        [
-          { text: 'Annuler', style: 'cancel' },
-          { text: 'Supprimer', style: 'destructive', onPress: confirmDelete }
-        ]
-      );
-    }
+    // Confirmation
+    Alert.alert(
+      'Supprimer cette pièce ?',
+      `${part.part_number}\n\nAction irréversible.`,
+      [
+        { text: 'Annuler', style: 'cancel' },
+        { 
+          text: 'Supprimer', 
+          style: 'destructive', 
+          onPress: () => {
+            performDelete();
+          }
+        }
+      ]
+    );
   };
 
   const renderPart = ({ item }: { item: Part }) => {
     const isOCR = item.source === 'ocr';
+    const isDeleting = deletingId === item._id;
     
     return (
       <View style={styles.partCard}>
@@ -157,53 +165,36 @@ export default function MaintenancePartsScreen() {
               <Text style={styles.detailValue}>{item.installation_airframe_hours} h</Text>
             </View>
           )}
-          {item.purchase_price && (
-            <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Prix:</Text>
-              <Text style={styles.detailValue}>${item.purchase_price.toFixed(2)}</Text>
-            </View>
-          )}
         </View>
 
-        {/* Actions row with source tag and delete button */}
-        <View style={styles.actionsRow}>
-          <View style={[styles.sourceTag, isOCR ? styles.sourceTagOCR : styles.sourceTagManual]}>
-            <Ionicons 
-              name={isOCR ? "scan" : "create"} 
-              size={12} 
-              color={isOCR ? "#3B82F6" : "#10B981"} 
-            />
-            <Text style={[
-              styles.sourceText,
-              { color: isOCR ? "#3B82F6" : "#10B981" }
-            ]}>
+        {/* Footer avec source et bouton delete */}
+        <View style={styles.footer}>
+          <View style={[styles.sourceTag, isOCR ? styles.sourceOCR : styles.sourceManual]}>
+            <Ionicons name={isOCR ? "scan" : "create"} size={12} color={isOCR ? "#3B82F6" : "#10B981"} />
+            <Text style={[styles.sourceText, { color: isOCR ? "#3B82F6" : "#10B981" }]}>
               {isOCR ? "OCR" : "Manuel"}
             </Text>
           </View>
           
-          {/* Delete button - only for OCR parts */}
-          {isOCR && (
+          {isOCR ? (
             <TouchableOpacity
-              style={[styles.deleteButton, deletingId === item._id && styles.deleteButtonDisabled]}
-              onPress={() => handleDelete(item)}
-              disabled={deletingId === item._id}
+              style={[styles.deleteBtn, isDeleting && styles.deleteBtnDisabled]}
+              onPress={() => handleDeletePart(item)}
+              disabled={isDeleting}
             >
-              {deletingId === item._id ? (
+              {isDeleting ? (
                 <ActivityIndicator size="small" color="#EF4444" />
               ) : (
                 <>
-                  <Ionicons name="trash-outline" size={16} color="#EF4444" />
-                  <Text style={styles.deleteButtonText}>Supprimer</Text>
+                  <Ionicons name="trash-outline" size={18} color="#EF4444" />
+                  <Text style={styles.deleteBtnText}>Supprimer</Text>
                 </>
               )}
             </TouchableOpacity>
-          )}
-          
-          {/* Info message for manual parts */}
-          {!isOCR && (
-            <View style={styles.protectedNote}>
+          ) : (
+            <View style={styles.protectedBadge}>
               <Ionicons name="lock-closed" size={12} color="#94A3B8" />
-              <Text style={styles.protectedNoteText}>Protégé</Text>
+              <Text style={styles.protectedText}>Protégé</Text>
             </View>
           )}
         </View>
@@ -214,36 +205,34 @@ export default function MaintenancePartsScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.headerBtn}>
           <Ionicons name="arrow-back" size={24} color="#1E3A8A" />
         </TouchableOpacity>
         <View style={styles.headerContent}>
           <Text style={styles.headerTitle}>Pièces</Text>
           <Text style={styles.headerSubtitle}>{registration}</Text>
         </View>
-        <TouchableOpacity onPress={fetchParts} style={styles.refreshButton}>
+        <TouchableOpacity onPress={fetchParts} style={styles.headerBtn}>
           <Ionicons name="refresh" size={24} color="#1E3A8A" />
         </TouchableOpacity>
       </View>
 
       {loading ? (
-        <View style={styles.loadingContainer}>
+        <View style={styles.centered}>
           <ActivityIndicator size="large" color="#8B5CF6" />
         </View>
       ) : parts.length === 0 ? (
-        <View style={styles.emptyContainer}>
+        <View style={styles.centered}>
           <Ionicons name="hardware-chip-outline" size={64} color="#CBD5E1" />
           <Text style={styles.emptyTitle}>Aucune pièce</Text>
-          <Text style={styles.emptyText}>
-            Les pièces identifiées par OCR apparaîtront ici
-          </Text>
+          <Text style={styles.emptyText}>Les pièces OCR apparaîtront ici</Text>
         </View>
       ) : (
         <FlatList
           data={parts}
           renderItem={renderPart}
           keyExtractor={(item) => item._id}
-          contentContainerStyle={styles.listContainer}
+          contentContainerStyle={styles.list}
           ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
         />
       )}
@@ -252,10 +241,7 @@ export default function MaintenancePartsScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-  },
+  safeArea: { flex: 1, backgroundColor: '#FFFFFF' },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -264,57 +250,14 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#E2E8F0',
   },
-  backButton: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  refreshButton: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerContent: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1E293B',
-  },
-  headerSubtitle: {
-    fontSize: 14,
-    color: '#64748B',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 32,
-  },
-  emptyTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#1E293B',
-    marginTop: 16,
-  },
-  emptyText: {
-    fontSize: 14,
-    color: '#64748B',
-    marginTop: 8,
-    textAlign: 'center',
-  },
-  listContainer: {
-    padding: 16,
-  },
+  headerBtn: { width: 44, height: 44, justifyContent: 'center', alignItems: 'center' },
+  headerContent: { flex: 1, alignItems: 'center' },
+  headerTitle: { fontSize: 18, fontWeight: '600', color: '#1E293B' },
+  headerSubtitle: { fontSize: 14, color: '#64748B' },
+  centered: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 },
+  emptyTitle: { fontSize: 20, fontWeight: '600', color: '#1E293B', marginTop: 16 },
+  emptyText: { fontSize: 14, color: '#64748B', marginTop: 8 },
+  list: { padding: 16 },
   partCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
@@ -322,92 +265,28 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E2E8F0',
   },
-  partHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
+  partHeader: { flexDirection: 'row', alignItems: 'center' },
   partIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 40, height: 40, borderRadius: 20,
     backgroundColor: '#F3E8FF',
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: 'center', alignItems: 'center',
   },
-  partInfo: {
-    flex: 1,
-    marginLeft: 12,
-  },
-  partName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1E293B',
-  },
-  partNumber: {
-    fontSize: 13,
-    color: '#64748B',
-    marginTop: 2,
-  },
+  partInfo: { flex: 1, marginLeft: 12 },
+  partName: { fontSize: 16, fontWeight: '600', color: '#1E293B' },
+  partNumber: { fontSize: 13, color: '#64748B', marginTop: 2 },
   partQty: {
     alignItems: 'center',
     backgroundColor: '#F1F5F9',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: 12, paddingVertical: 6,
     borderRadius: 8,
   },
-  qtyValue: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1E293B',
-  },
-  qtyLabel: {
-    fontSize: 10,
-    color: '#64748B',
-  },
-  partDetails: {
-    marginTop: 12,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
-  },
-  detailRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 6,
-  },
-  detailLabel: {
-    fontSize: 13,
-    color: '#64748B',
-  },
-  detailValue: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: '#1E293B',
-  },
-  statusRow: {
-    flexDirection: 'row',
-    marginTop: 12,
-  },
-  sourceTag: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#EFF6FF',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
-    gap: 4,
-  },
-  sourceTagOCR: {
-    backgroundColor: '#EFF6FF',
-  },
-  sourceTagManual: {
-    backgroundColor: '#D1FAE5',
-  },
-  sourceText: {
-    fontSize: 11,
-    fontWeight: '500',
-  },
-  actionsRow: {
+  qtyValue: { fontSize: 18, fontWeight: 'bold', color: '#1E293B' },
+  qtyLabel: { fontSize: 10, color: '#64748B' },
+  partDetails: { marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#F1F5F9' },
+  detailRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
+  detailLabel: { fontSize: 13, color: '#64748B' },
+  detailValue: { fontSize: 13, fontWeight: '500', color: '#1E293B' },
+  footer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -416,31 +295,19 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#F1F5F9',
   },
-  deleteButton: {
+  sourceTag: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4, gap: 4 },
+  sourceOCR: { backgroundColor: '#EFF6FF' },
+  sourceManual: { backgroundColor: '#D1FAE5' },
+  sourceText: { fontSize: 11, fontWeight: '500' },
+  deleteBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FEE2E2',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-    gap: 6,
+    paddingHorizontal: 14, paddingVertical: 8,
+    borderRadius: 8, gap: 6,
   },
-  deleteButtonDisabled: {
-    opacity: 0.5,
-  },
-  deleteButtonText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#EF4444',
-  },
-  protectedNote: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  protectedNoteText: {
-    fontSize: 11,
-    color: '#94A3B8',
-    fontStyle: 'italic',
-  },
+  deleteBtnDisabled: { opacity: 0.5 },
+  deleteBtnText: { fontSize: 14, fontWeight: '600', color: '#EF4444' },
+  protectedBadge: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  protectedText: { fontSize: 11, color: '#94A3B8', fontStyle: 'italic' },
 });

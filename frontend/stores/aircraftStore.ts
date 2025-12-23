@@ -6,6 +6,7 @@ interface AircraftState {
   selectedAircraft: Aircraft | null;
   isLoading: boolean;
   fetchAircraft: () => Promise<void>;
+  refreshAircraftById: (id: string) => Promise<void>;
   selectAircraft: (aircraft: Aircraft | null) => void;
   addAircraft: (aircraft: any) => Promise<Aircraft>;
   updateAircraft: (id: string, aircraft: any) => Promise<void>;
@@ -24,6 +25,20 @@ export const useAircraftStore = create<AircraftState>((set, get) => ({
       set({ aircraft, isLoading: false });
     } catch (error) {
       set({ isLoading: false });
+      throw error;
+    }
+  },
+
+  // Rafraîchir un avion spécifique et mettre à jour le store
+  refreshAircraftById: async (id: string) => {
+    try {
+      const updated = await aircraftService.getById(id);
+      set({
+        aircraft: get().aircraft.map((a) => (a._id === id ? updated : a)),
+        selectedAircraft: get().selectedAircraft?._id === id ? updated : get().selectedAircraft,
+      });
+    } catch (error) {
+      console.error('Error refreshing aircraft:', error);
       throw error;
     }
   },

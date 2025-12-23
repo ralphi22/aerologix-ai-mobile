@@ -149,15 +149,14 @@ async def delete_invoice(
     from bson import ObjectId
     
     try:
-        result = await db.invoices.delete_one({
-            "_id": ObjectId(invoice_id),
-            "user_id": current_user.id
-        })
-    except:
-        result = await db.invoices.delete_one({
-            "_id": invoice_id,
-            "user_id": current_user.id
-        })
+        query_id = ObjectId(invoice_id)
+    except Exception:
+        query_id = invoice_id
+    
+    result = await db.invoices.delete_one({
+        "_id": query_id,
+        "user_id": current_user.id
+    })
     
     if result.deleted_count == 0:
         raise HTTPException(

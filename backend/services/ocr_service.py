@@ -26,88 +26,135 @@ client = OpenAI(
 )
 
 # Prompts spécialisés par type de document
-MAINTENANCE_REPORT_PROMPT = """Tu es un expert en maintenance aéronautique. Analyse cette image d'un rapport de maintenance d'avion et extrait TOUTES les informations structurées.
+MAINTENANCE_REPORT_PROMPT = """You are an aviation maintenance expert. Analyze this maintenance report image and extract ALL structured information.
 
-IMPORTANT: Réponds UNIQUEMENT avec un JSON valide, sans texte avant ou après.
+IMPORTANT: Respond ONLY with valid JSON, no text before or after.
 
-RÈGLES CRITIQUES POUR LES NOMBRES:
-- Les espaces ou virgules peuvent être des séparateurs de milliers (ex: "6 344.6" = 6344.6, "6,344.6" = 6344.6)
-- Le point décimal est toujours "." (ex: 6344.6)
-- Fais très attention à ne pas inverser les chiffres
-- En cas de doute sur un nombre, lis-le plusieurs fois attentivement
+CRITICAL RULES FOR NUMBERS:
+- Spaces or commas may be thousands separators (e.g., "6 344.6" = 6344.6, "6,344.6" = 6344.6)
+- Decimal point is always "." (e.g., 6344.6)
+- Be very careful not to reverse digits
+- If uncertain about a number, read it multiple times carefully
 
-Structure JSON attendue:
+COMPONENT KEYWORDS TO DETECT (ENGLISH):
+- PROPELLER/PROP: PROPELLER, PROP, HARTZELL, MCCAULEY, SENSENICH, FIXED PITCH, VARIABLE PITCH, CONSTANT SPEED
+- MAGNETO: MAGNETO, MAGNETOS, SLICK, BENDIX, IMPULSE COUPLING
+- AVIONICS 24 MONTHS: 24 MONTH, ALTIMETER, PITOT, STATIC, PITOT-STATIC, TRANSPONDER, ENCODER, IFR CERTIFICATION
+- VACUUM PUMP: VACUUM PUMP, DRY AIR PUMP, GYRO INSTRUMENTS
+
+Expected JSON structure:
 {
-    "date": "YYYY-MM-DD ou null",
-    "ame_name": "Nom du mécanicien/AME ou null",
-    "amo_name": "Nom de l'organisme de maintenance/AMO ou null",
-    "ame_license": "Numéro de licence AME ou null",
-    "work_order_number": "Numéro de Work Order ou null",
-    "description": "Description complète des travaux effectués",
-    "airframe_hours": nombre décimal ou null,
-    "engine_hours": nombre décimal ou null,
-    "propeller_hours": nombre décimal ou null,
-    "remarks": "Remarques additionnelles ou null",
-    "labor_cost": nombre ou null,
-    "parts_cost": nombre ou null,
-    "total_cost": nombre ou null,
+    "date": "YYYY-MM-DD or null",
+    "ame_name": "Mechanic/AME name or null",
+    "amo_name": "Maintenance organization/AMO name or null",
+    "ame_license": "AME license number or null",
+    "work_order_number": "Work Order number or null",
+    "description": "Complete description of work performed",
+    "airframe_hours": decimal number or null,
+    "engine_hours": decimal number or null,
+    "propeller_hours": decimal number or null,
+    "remarks": "Additional remarks or null",
+    "labor_cost": number or null,
+    "parts_cost": number or null,
+    "total_cost": number or null,
+    "component_work": {
+        "propeller": {
+            "detected": true/false,
+            "type": "fixed or variable or null",
+            "manufacturer": "HARTZELL, MCCAULEY, SENSENICH, etc. or null",
+            "model": "model or null",
+            "work_type": "INSPECTION, OVERHAUL, REPAIR or null",
+            "hours_since_work": number or null,
+            "work_date": "YYYY-MM-DD or null"
+        },
+        "magnetos": {
+            "detected": true/false,
+            "manufacturer": "SLICK, BENDIX, etc. or null",
+            "model": "model or null",
+            "work_type": "500H INSPECTION, OVERHAUL, TIMING or null",
+            "hours_since_work": number or null,
+            "work_date": "YYYY-MM-DD or null"
+        },
+        "avionics_certification": {
+            "detected": true/false,
+            "type": "ALTIMETER, PITOT-STATIC, TRANSPONDER or null",
+            "certification_date": "YYYY-MM-DD or null",
+            "next_due_date": "YYYY-MM-DD or null",
+            "status": "CURRENT, DUE, PAST_DUE or null (detect from text: PAST DUE, DUE, OVERDUE)"
+        },
+        "vacuum_pump": {
+            "detected": true/false,
+            "manufacturer": "manufacturer or null",
+            "model": "model or null",
+            "work_type": "REPLACEMENT, INSPECTION or null",
+            "hours_since_work": number or null,
+            "work_date": "YYYY-MM-DD or null"
+        },
+        "engine": {
+            "detected": true/false,
+            "model": "engine model or null",
+            "work_type": "OVERHAUL, TOP OVERHAUL, INSPECTION or null",
+            "hours_since_work": number or null,
+            "work_date": "YYYY-MM-DD or null"
+        }
+    },
     "ad_sb_references": [
         {
-            "adsb_type": "AD ou SB",
-            "reference_number": "ex: AD 2024-05-12",
-            "status": "COMPLIED, PENDING ou UNKNOWN",
-            "compliance_date": "YYYY-MM-DD ou null",
-            "airframe_hours": nombre ou null,
-            "engine_hours": nombre ou null,
-            "propeller_hours": nombre ou null,
-            "description": "Description ou null"
+            "adsb_type": "AD or SB",
+            "reference_number": "e.g., AD 2024-05-12",
+            "status": "COMPLIED, PENDING or UNKNOWN",
+            "compliance_date": "YYYY-MM-DD or null",
+            "airframe_hours": number or null,
+            "engine_hours": number or null,
+            "propeller_hours": number or null,
+            "description": "Description or null"
         }
     ],
     "parts_replaced": [
         {
             "part_number": "P/N",
-            "name": "Nom de la pièce",
-            "serial_number": "S/N ou null",
-            "quantity": nombre,
-            "price": nombre ou null,
-            "supplier": "Fournisseur ou null"
+            "name": "Part name",
+            "serial_number": "S/N or null",
+            "quantity": integer,
+            "price": number or null,
+            "supplier": "Supplier or null"
         }
     ],
     "stc_references": [
         {
-            "stc_number": "Numéro STC",
-            "title": "Titre ou null",
-            "description": "Description ou null",
-            "installation_date": "YYYY-MM-DD ou null"
+            "stc_number": "STC number",
+            "title": "Title or null",
+            "description": "Description or null",
+            "installation_date": "YYYY-MM-DD or null"
         }
     ],
     "elt_data": {
         "detected": true/false,
-        "brand": "Artex, Kannad, ACK, etc. ou null",
-        "model": "Modèle ELT ou null",
-        "serial_number": "Numéro de série ELT ou null",
-        "installation_date": "YYYY-MM-DD ou null",
-        "certification_date": "YYYY-MM-DD ou null",
-        "battery_expiry_date": "YYYY-MM-DD ou null",
-        "battery_install_date": "YYYY-MM-DD ou null",
-        "battery_interval_months": nombre ou null,
-        "beacon_hex_id": "ID hexadécimal de la balise ou null"
+        "brand": "Artex, Kannad, ACK, etc. or null",
+        "model": "ELT model or null",
+        "serial_number": "ELT serial number or null",
+        "installation_date": "YYYY-MM-DD or null",
+        "certification_date": "YYYY-MM-DD or null",
+        "battery_expiry_date": "YYYY-MM-DD or null",
+        "battery_install_date": "YYYY-MM-DD or null",
+        "battery_interval_months": number or null,
+        "beacon_hex_id": "Beacon hex ID or null"
     }
 }
 
-RÈGLES IMPORTANTES:
-1. Détecte TOUTES les références AD (Airworthiness Directive) - format typique: AD XXXX-XX-XX
-2. Détecte TOUTES les références SB (Service Bulletin) - format typique: SB XX-XXXX
-3. Pour chaque AD/SB, détermine le statut: COMPLIED si clairement indiqué comme fait, PENDING si à faire, UNKNOWN sinon
-4. Extrait les heures cellule (airframe), moteur (engine) et hélice (propeller) si mentionnées
-5. Identifie toutes les pièces remplacées avec leurs P/N
-6. Si une information n'est pas trouvée, utilise null
-7. DÉTECTION ELT: Cherche toute mention de "ELT", "Emergency Locator Transmitter", "balise de détresse"
-   - Marques courantes: Artex, Kannad, ACK, Ameri-King, ACR
-   - Si tu détectes des informations ELT, mets detected=true et remplis les champs
-   - Si aucune info ELT, mets detected=false et tous les autres champs à null
+IMPORTANT RULES:
+1. Detect ALL AD (Airworthiness Directive) references - typical format: AD XXXX-XX-XX
+2. Detect ALL SB (Service Bulletin) references - typical format: SB XX-XXXX
+3. For each AD/SB, determine status: COMPLIED if clearly indicated as done, PENDING if to be done, UNKNOWN otherwise
+4. Extract airframe (airframe), engine (engine) and propeller (propeller) hours if mentioned
+5. Identify all replaced parts with their P/N
+6. If information is not found, use null
+7. ELT DETECTION: Look for any mention of "ELT", "Emergency Locator Transmitter"
+   - Common brands: Artex, Kannad, ACK, Ameri-King, ACR
+8. COMPONENT WORK: Actively look for work on propeller, magnetos, avionics, vacuum pump, engine
+   - Set detected=true only if clearly mentioned in the document
 
-Analyse l'image maintenant:"""
+Analyze the image now:"""
 
 STC_PROMPT = """Tu es un expert en certification aéronautique. Analyse cette image d'un document STC (Supplemental Type Certificate) et extrait les informations structurées.
 
@@ -301,6 +348,11 @@ class OCRService:
         if not isinstance(elt_data, dict):
             elt_data = {}
         
+        # Handle component work data
+        component_work = data.get("component_work", {})
+        if not isinstance(component_work, dict):
+            component_work = {}
+        
         return {
             "date": data.get("date"),
             "ame_name": data.get("ame_name"),
@@ -315,6 +367,46 @@ class OCRService:
             "labor_cost": self._safe_float(data.get("labor_cost")),
             "parts_cost": self._safe_float(data.get("parts_cost")),
             "total_cost": self._safe_float(data.get("total_cost")),
+            "component_work": {
+                "propeller": {
+                    "detected": component_work.get("propeller", {}).get("detected", False),
+                    "type": component_work.get("propeller", {}).get("type"),
+                    "manufacturer": component_work.get("propeller", {}).get("manufacturer"),
+                    "model": component_work.get("propeller", {}).get("model"),
+                    "work_type": component_work.get("propeller", {}).get("work_type"),
+                    "hours_since_work": self._safe_float(component_work.get("propeller", {}).get("hours_since_work")),
+                    "work_date": component_work.get("propeller", {}).get("work_date")
+                },
+                "magnetos": {
+                    "detected": component_work.get("magnetos", {}).get("detected", False),
+                    "manufacturer": component_work.get("magnetos", {}).get("manufacturer"),
+                    "model": component_work.get("magnetos", {}).get("model"),
+                    "work_type": component_work.get("magnetos", {}).get("work_type"),
+                    "hours_since_work": self._safe_float(component_work.get("magnetos", {}).get("hours_since_work")),
+                    "work_date": component_work.get("magnetos", {}).get("work_date")
+                },
+                "avionics_certification": {
+                    "detected": component_work.get("avionics_certification", {}).get("detected", False),
+                    "type": component_work.get("avionics_certification", {}).get("type"),
+                    "certification_date": component_work.get("avionics_certification", {}).get("certification_date"),
+                    "next_due_date": component_work.get("avionics_certification", {}).get("next_due_date")
+                },
+                "vacuum_pump": {
+                    "detected": component_work.get("vacuum_pump", {}).get("detected", False),
+                    "manufacturer": component_work.get("vacuum_pump", {}).get("manufacturer"),
+                    "model": component_work.get("vacuum_pump", {}).get("model"),
+                    "work_type": component_work.get("vacuum_pump", {}).get("work_type"),
+                    "hours_since_work": self._safe_float(component_work.get("vacuum_pump", {}).get("hours_since_work")),
+                    "work_date": component_work.get("vacuum_pump", {}).get("work_date")
+                },
+                "engine": {
+                    "detected": component_work.get("engine", {}).get("detected", False),
+                    "model": component_work.get("engine", {}).get("model"),
+                    "work_type": component_work.get("engine", {}).get("work_type"),
+                    "hours_since_work": self._safe_float(component_work.get("engine", {}).get("hours_since_work")),
+                    "work_date": component_work.get("engine", {}).get("work_date")
+                }
+            },
             "ad_sb_references": [
                 {
                     "adsb_type": ref.get("adsb_type", "AD"),

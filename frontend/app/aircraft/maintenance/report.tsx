@@ -4,82 +4,65 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  ScrollView,
   SafeAreaView,
+  ScrollView,
   ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { useAircraftStore } from '../../../stores/aircraftStore';
 import api from '../../../services/api';
 
-interface MaintenanceRecord {
+interface Aircraft {
   _id: string;
-  maintenance_type: string;
-  description: string;
-  date_performed: string;
-  hours_at_maintenance: number;
+  registration: string;
+  engine_hours: number;
+  propeller_hours: number;
+  airframe_hours: number;
 }
 
-interface PartRecord {
-  _id: string;
-  part_name: string;
-  part_number: string;
+interface ComponentSettings {
+  engine_model: string | null;
+  engine_tbo_hours: number;
+  engine_last_overhaul_hours: number | null;
+  engine_last_overhaul_date: string | null;
+  propeller_type: 'fixed' | 'variable';
+  propeller_model: string | null;
+  propeller_manufacturer_interval_years: number | null;
+  propeller_last_inspection_hours: number | null;
+  propeller_last_inspection_date: string | null;
+  avionics_last_certification_date: string | null;
+  avionics_certification_interval_months: number;
+  magnetos_model: string | null;
+  magnetos_interval_hours: number;
+  magnetos_last_inspection_hours: number | null;
+  magnetos_last_inspection_date: string | null;
+  vacuum_pump_model: string | null;
+  vacuum_pump_interval_hours: number;
+  vacuum_pump_last_replacement_hours: number | null;
+  vacuum_pump_last_replacement_date: string | null;
+  airframe_last_annual_date: string | null;
+  airframe_last_annual_hours: number | null;
 }
 
-// Simple progress bar gauge component
-const SimpleGauge = ({
-  value,
-  maxValue,
-  label,
-  unit,
-  color,
-  icon,
-  available = true,
-}: {
-  value: number | null;
-  maxValue: number;
-  label: string;
-  unit: string;
-  color: string;
+interface ELTData {
+  last_test_date: string | null;
+  battery_change_date: string | null;
+  test_interval_months: number;
+  battery_interval_months: number;
+}
+
+interface ComponentStatus {
+  name: string;
   icon: string;
-  available?: boolean;
-}) => {
-  const displayValue = value !== null ? value : null;
-  const percentage = displayValue !== null ? Math.min((displayValue / maxValue) * 100, 100) : 0;
-
-  return (
-    <View style={styles.simpleGaugeContainer}>
-      <View style={styles.simpleGaugeHeader}>
-        <View style={[styles.simpleGaugeIcon, { backgroundColor: color + '20' }]}>
-          <Ionicons name={icon as any} size={20} color={color} />
-        </View>
-        <Text style={styles.simpleGaugeLabel}>{label}</Text>
-      </View>
-      <View style={styles.simpleGaugeBar}>
-        <View 
-          style={[
-            styles.simpleGaugeProgress, 
-            { 
-              width: available && displayValue !== null ? `${percentage}%` : '0%', 
-              backgroundColor: color 
-            }
-          ]} 
-        />
-      </View>
-      <View style={styles.simpleGaugeValues}>
-        {available && displayValue !== null ? (
-          <>
-            <Text style={[styles.simpleGaugeValue, { color }]}>{displayValue.toFixed(1)} {unit}</Text>
-            <Text style={styles.simpleGaugeMax}>/ {maxValue} {unit}</Text>
-          </>
-        ) : (
-          <Text style={styles.simpleGaugeNA}>Donnée non disponible</Text>
-        )}
-      </View>
-    </View>
-  );
-};
+  percentage: number;
+  current: string;
+  limit: string;
+  color: string;
+  status: 'green' | 'yellow' | 'red' | 'grey';
+  type: 'hours' | 'date' | 'both';
+  hasData: boolean;
+}
 
 export default function MaintenanceReportScreen() {
   const router = useRouter();
@@ -87,503 +70,413 @@ export default function MaintenanceReportScreen() {
     aircraftId: string;
     registration: string;
   }>();
-  const { selectedAircraft, fetchAircraftById } = useAircraftStore();
-  
+
   const [loading, setLoading] = useState(true);
-  const [maintenanceRecords, setMaintenanceRecords] = useState<MaintenanceRecord[]>([]);
-  const [partsCount, setPartsCount] = useState<number | null>(null);
-  const [adsbCount, setAdsbCount] = useState<number | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [aircraft, setAircraft] = useState<Aircraft | null>(null);
+  const [settings, setSettings] = useState<ComponentSettings | null>(null);
+  const [eltData, setEltData] = useState<ELTData | null>(null);
+  const [components, setComponents] = useState<ComponentStatus[]>([]);
 
   useEffect(() => {
-    loadData();
-  }, [aircraftId]);
+    fetchData();
+  }, []);
 
-  const loadData = async () => {
-    setLoading(true);
-    setError(null);
-    
+  const fetchData = async () => {
     try {
-      // Refresh aircraft data
-      if (aircraftId) {
-        await fetchAircraftById(aircraftId);
-      }
-
-      // Load maintenance records (read-only)
-      try {
-        const maintenanceRes = await api.get(`/api/maintenance/${aircraftId}`);
-        setMaintenanceRecords(maintenanceRes.data || []);
-      } catch (e: any) {
-        if (e.response?.status !== 404) {
-          console.log('Maintenance data not available');
-        }
-        setMaintenanceRecords([]);
-      }
-
-      // Load parts count (read-only)
-      try {
-        const partsRes = await api.get(`/api/parts/aircraft/${aircraftId}`);
-        setPartsCount(partsRes.data?.length || 0);
-      } catch (e: any) {
-        if (e.response?.status !== 404) {
-          console.log('Parts data not available');
-        }
-        setPartsCount(null);
-      }
-
-      // Load AD/SB count (read-only)
-      try {
-        const adsbRes = await api.get(`/api/adsb/${aircraftId}`);
-        setAdsbCount(adsbRes.data?.length || 0);
-      } catch (e: any) {
-        if (e.response?.status !== 404) {
-          console.log('AD/SB data not available');
-        }
-        setAdsbCount(null);
-      }
-
-    } catch (e: any) {
-      console.error('Error loading data:', e);
-      setError('Données non disponibles pour cet avion');
+      // Récupérer Aircraft (source de vérité pour les heures) + Settings + ELT
+      const [aircraftRes, settingsRes, eltRes] = await Promise.all([
+        api.get(`/api/aircraft/${aircraftId}`),
+        api.get(`/api/components/aircraft/${aircraftId}`),
+        api.get(`/api/elt/aircraft/${aircraftId}`).catch(() => ({ data: null }))
+      ]);
+      
+      setAircraft(aircraftRes.data);
+      setSettings(settingsRes.data);
+      setEltData(eltRes.data);
+      
+      calculateComponents(aircraftRes.data, settingsRes.data, eltRes.data);
+    } catch (error) {
+      console.error('Error fetching report data:', error);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
-  // Get values from aircraft data (read-only)
-  const airframeHours = selectedAircraft?.airframe_hours ?? null;
-  const engineHours = selectedAircraft?.engine_hours ?? null;
-  const propellerHours = selectedAircraft?.propeller_hours ?? null;
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchData();
+  };
 
-  // Default TBO values (industry standards)
-  const engineTBO = 2000;
-  const propellerTBO = 2400;
-  const airframeInspection = 100; // 100h inspection cycle
+  const getStatusColor = (percentage: number, hasData: boolean): { color: string; status: 'green' | 'yellow' | 'red' | 'grey' } => {
+    if (!hasData) return { color: '#9CA3AF', status: 'grey' };
+    if (percentage >= 100) return { color: '#EF4444', status: 'red' };
+    if (percentage >= 80) return { color: '#F59E0B', status: 'yellow' };
+    return { color: '#10B981', status: 'green' };
+  };
 
-  if (loading) {
+  const calculateDatePercentage = (lastDate: string | null, intervalMonths: number): { pct: number; hasData: boolean } => {
+    if (!lastDate) return { pct: 0, hasData: false };
+    const last = new Date(lastDate);
+    const now = new Date();
+    const monthsElapsed = (now.getTime() - last.getTime()) / (1000 * 60 * 60 * 24 * 30);
+    return { pct: Math.min((monthsElapsed / intervalMonths) * 100, 150), hasData: true };
+  };
+
+  const calculateHoursPercentage = (currentHours: number, lastWorkHours: number | null, interval: number): { pct: number; hoursSince: number; hasData: boolean } => {
+    // Si on a les heures au moment du dernier travail, on calcule la différence
+    if (lastWorkHours !== null && currentHours > 0) {
+      const hoursSince = currentHours - lastWorkHours;
+      return { pct: Math.min((hoursSince / interval) * 100, 150), hoursSince, hasData: true };
+    }
+    return { pct: 0, hoursSince: 0, hasData: false };
+  };
+
+  const formatDate = (dateStr: string | null): string => {
+    if (!dateStr) return 'Non défini';
+    return new Date(dateStr).toLocaleDateString('fr-CA');
+  };
+
+  const calculateComponents = (ac: Aircraft, s: ComponentSettings, elt: ELTData | null) => {
+    const comps: ComponentStatus[] = [];
+    
+    // 1. MOTEUR - Source: Aircraft.engine_hours - Settings.engine_last_overhaul_hours
+    const engineCalc = calculateHoursPercentage(ac.engine_hours, s.engine_last_overhaul_hours, s.engine_tbo_hours);
+    const engineStatus = getStatusColor(engineCalc.pct, engineCalc.hasData);
+    comps.push({
+      name: 'Moteur',
+      icon: 'cog',
+      percentage: engineCalc.pct,
+      current: engineCalc.hasData ? `${engineCalc.hoursSince.toFixed(1)} h depuis révision` : 'Données non disponibles',
+      limit: `TBO: ${s.engine_tbo_hours} h`,
+      ...engineStatus,
+      type: 'hours',
+      hasData: engineCalc.hasData
+    });
+
+    // 2. HÉLICE - Source: Aircraft.propeller_hours ou date selon type
+    let propCalc: { pct: number; hasData: boolean };
+    let propCurrent: string;
+    let propLimit: string;
+    
+    if (s.propeller_type === 'fixed') {
+      // Hélice fixe: basé sur DATE (5 ans max)
+      propCalc = calculateDatePercentage(s.propeller_last_inspection_date, 5 * 12);
+      propCurrent = propCalc.hasData ? `Dernière: ${formatDate(s.propeller_last_inspection_date)}` : 'Données non disponibles';
+      propLimit = '5 ans max';
+    } else {
+      // Hélice variable: basé sur DATE (fabricant ou 10 ans)
+      const intervalYears = s.propeller_manufacturer_interval_years || 10;
+      propCalc = calculateDatePercentage(s.propeller_last_inspection_date, intervalYears * 12);
+      propCurrent = propCalc.hasData ? `Dernière: ${formatDate(s.propeller_last_inspection_date)}` : 'Données non disponibles';
+      propLimit = `${intervalYears} ans`;
+    }
+    const propStatus = getStatusColor(propCalc.pct, propCalc.hasData);
+    comps.push({
+      name: 'Hélice',
+      icon: 'sync-circle',
+      percentage: propCalc.pct,
+      current: propCurrent,
+      limit: propLimit,
+      ...propStatus,
+      type: 'date',
+      hasData: propCalc.hasData
+    });
+
+    // 3. CELLULE - Source: date de la dernière annuelle (12 mois)
+    const airframeCalc = calculateDatePercentage(s.airframe_last_annual_date, 12);
+    const airframeStatus = getStatusColor(airframeCalc.pct, airframeCalc.hasData);
+    comps.push({
+      name: 'Cellule (Annuelle)',
+      icon: 'airplane',
+      percentage: airframeCalc.pct,
+      current: airframeCalc.hasData ? `Dernière: ${formatDate(s.airframe_last_annual_date)}` : 'Données non disponibles',
+      limit: '12 mois',
+      ...airframeStatus,
+      type: 'date',
+      hasData: airframeCalc.hasData
+    });
+
+    // 4. AVIONIQUE 24 MOIS - Source: date certification
+    const avionicsCalc = calculateDatePercentage(s.avionics_last_certification_date, s.avionics_certification_interval_months);
+    const avionicsStatus = getStatusColor(avionicsCalc.pct, avionicsCalc.hasData);
+    comps.push({
+      name: 'Avionique (24 mois)',
+      icon: 'radio',
+      percentage: avionicsCalc.pct,
+      current: avionicsCalc.hasData ? `Certifié: ${formatDate(s.avionics_last_certification_date)}` : 'Données non disponibles',
+      limit: '24 mois',
+      ...avionicsStatus,
+      type: 'date',
+      hasData: avionicsCalc.hasData
+    });
+
+    // 5. MAGNÉTOS - Source: Aircraft.engine_hours - Settings.magnetos_last_inspection_hours
+    const magnetosCalc = calculateHoursPercentage(ac.engine_hours, s.magnetos_last_inspection_hours, s.magnetos_interval_hours);
+    const magnetosStatus = getStatusColor(magnetosCalc.pct, magnetosCalc.hasData);
+    comps.push({
+      name: 'Magnétos',
+      icon: 'flash',
+      percentage: magnetosCalc.pct,
+      current: magnetosCalc.hasData ? `${magnetosCalc.hoursSince.toFixed(1)} h depuis inspection` : 'Données non disponibles',
+      limit: `${s.magnetos_interval_hours} h`,
+      ...magnetosStatus,
+      type: 'hours',
+      hasData: magnetosCalc.hasData
+    });
+
+    // 6. POMPE À VIDE - Source: Aircraft.engine_hours - Settings.vacuum_pump_last_replacement_hours
+    const vacuumCalc = calculateHoursPercentage(ac.engine_hours, s.vacuum_pump_last_replacement_hours, s.vacuum_pump_interval_hours);
+    const vacuumStatus = getStatusColor(vacuumCalc.pct, vacuumCalc.hasData);
+    comps.push({
+      name: 'Pompe à vide',
+      icon: 'speedometer',
+      percentage: vacuumCalc.pct,
+      current: vacuumCalc.hasData ? `${vacuumCalc.hoursSince.toFixed(1)} h depuis remplacement` : 'Données non disponibles',
+      limit: `${s.vacuum_pump_interval_hours} h`,
+      ...vacuumStatus,
+      type: 'hours',
+      hasData: vacuumCalc.hasData
+    });
+
+    // 7. ELT (optionnel) - Source: ELT record
+    if (elt) {
+      const eltTestCalc = calculateDatePercentage(elt.last_test_date, elt.test_interval_months || 12);
+      const eltBatteryCalc = calculateDatePercentage(elt.battery_change_date, elt.battery_interval_months || 72);
+      const hasEltData = eltTestCalc.hasData || eltBatteryCalc.hasData;
+      const maxEltPct = Math.max(eltTestCalc.pct, eltBatteryCalc.pct);
+      const eltStatus = getStatusColor(maxEltPct, hasEltData);
+      
+      let eltCurrent = 'Données non disponibles';
+      if (eltTestCalc.hasData && eltBatteryCalc.hasData) {
+        eltCurrent = `Test: ${formatDate(elt.last_test_date)} | Batt: ${formatDate(elt.battery_change_date)}`;
+      } else if (eltTestCalc.hasData) {
+        eltCurrent = `Test: ${formatDate(elt.last_test_date)}`;
+      } else if (eltBatteryCalc.hasData) {
+        eltCurrent = `Batterie: ${formatDate(elt.battery_change_date)}`;
+      }
+      
+      comps.push({
+        name: 'ELT',
+        icon: 'locate',
+        percentage: maxEltPct,
+        current: eltCurrent,
+        limit: 'Test 12m / Batt 72m',
+        ...eltStatus,
+        type: 'date',
+        hasData: hasEltData
+      });
+    }
+
+    setComponents(comps);
+  };
+
+  const renderProgressBar = (comp: ComponentStatus) => {
+    const width = Math.min(comp.percentage, 100);
     return (
-      <SafeAreaView style={styles.safeArea}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={24} color="#1E3A8A" />
-          </TouchableOpacity>
-          <View style={styles.headerContent}>
-            <Text style={styles.headerTitle}>Rapport Maintenance</Text>
-            <Text style={styles.headerSubtitle}>{registration}</Text>
+      <View style={styles.card} key={comp.name}>
+        <View style={styles.cardHeader}>
+          <View style={[styles.iconContainer, { backgroundColor: comp.color + '20' }]}>
+            <Ionicons name={comp.icon as any} size={24} color={comp.color} />
           </View>
-          <View style={{ width: 40 }} />
+          <View style={styles.cardInfo}>
+            <Text style={styles.cardTitle}>{comp.name}</Text>
+            <Text style={styles.cardSubtitle}>{comp.type === 'hours' ? 'Heures' : 'Date'}</Text>
+          </View>
+          <View style={[styles.statusBadge, { backgroundColor: comp.color + '20' }]}>
+            <View style={[styles.statusDot, { backgroundColor: comp.color }]} />
+            <Text style={[styles.statusText, { color: comp.color }]}>
+              {!comp.hasData ? 'N/D' : comp.status === 'green' ? 'OK' : comp.status === 'yellow' ? 'Bientôt' : 'Dépassé'}
+            </Text>
+          </View>
         </View>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#3B82F6" />
-          <Text style={styles.loadingText}>Chargement des données...</Text>
+        
+        <View style={styles.progressContainer}>
+          <View style={styles.progressBar}>
+            {comp.hasData && (
+              <View style={[styles.progressFill, { width: `${width}%`, backgroundColor: comp.color }]} />
+            )}
+            {comp.hasData && width >= 80 && width < 100 && <View style={[styles.warningLine, { left: '80%' }]} />}
+          </View>
+          <Text style={styles.progressText}>{comp.hasData ? `${Math.round(comp.percentage)}%` : '—'}</Text>
         </View>
-      </SafeAreaView>
+        
+        <View style={styles.cardFooter}>
+          <View style={styles.footerItem}>
+            <Text style={styles.footerLabel}>État</Text>
+            <Text style={[styles.footerValue, !comp.hasData && styles.footerValueGrey]} numberOfLines={1}>
+              {comp.current}
+            </Text>
+          </View>
+          <View style={styles.footerItem}>
+            <Text style={styles.footerLabel}>Limite</Text>
+            <Text style={styles.footerValue}>{comp.limit}</Text>
+          </View>
+        </View>
+      </View>
     );
-  }
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.headerBtn}>
           <Ionicons name="arrow-back" size={24} color="#1E3A8A" />
         </TouchableOpacity>
         <View style={styles.headerContent}>
-          <Text style={styles.headerTitle}>Rapport Maintenance</Text>
+          <Text style={styles.headerTitle}>Rapport</Text>
           <Text style={styles.headerSubtitle}>{registration}</Text>
         </View>
-        <TouchableOpacity onPress={loadData} style={styles.refreshButton}>
-          <Ionicons name="refresh" size={24} color="#1E3A8A" />
+        <TouchableOpacity 
+          onPress={() => router.push({
+            pathname: '/aircraft/maintenance/settings',
+            params: { aircraftId, registration }
+          })} 
+          style={styles.headerBtn}
+        >
+          <Ionicons name="settings-outline" size={24} color="#1E3A8A" />
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
-        {error && (
-          <View style={styles.errorBanner}>
-            <Ionicons name="information-circle" size={20} color="#F59E0B" />
-            <Text style={styles.errorText}>{error}</Text>
-          </View>
-        )}
+      <View style={styles.disclaimer}>
+        <Ionicons name="information-circle" size={16} color="#64748B" />
+        <Text style={styles.disclaimerText}>
+          Informatif uniquement — Consultez un AME certifié
+        </Text>
+      </View>
 
-        {/* Dashboard Title */}
-        <View style={styles.dashboardHeader}>
-          <Ionicons name="speedometer" size={24} color="#1E3A8A" />
-          <Text style={styles.dashboardTitle}>Tableau de bord</Text>
+      {loading ? (
+        <View style={styles.centered}>
+          <ActivityIndicator size="large" color="#1E3A8A" />
         </View>
-
-        {/* Gauges Grid - 6 cadrans */}
-        <View style={styles.gaugesGrid}>
-          <SimpleGauge
-            value={engineHours}
-            maxValue={engineTBO}
-            label="Moteur"
-            unit="h"
-            color="#3B82F6"
-            icon="cog"
-            available={engineHours !== null}
-          />
-          <SimpleGauge
-            value={propellerHours}
-            maxValue={propellerTBO}
-            label="Hélice"
-            unit="h"
-            color="#10B981"
-            icon="sync"
-            available={propellerHours !== null}
-          />
-          <SimpleGauge
-            value={airframeHours !== null ? airframeHours % airframeInspection : null}
-            maxValue={airframeInspection}
-            label="Cellule (prochain 100h)"
-            unit="h"
-            color="#8B5CF6"
-            icon="airplane"
-            available={airframeHours !== null}
-          />
-          <SimpleGauge
-            value={null}
-            maxValue={100}
-            label="Avionique"
-            unit="%"
-            color="#F59E0B"
-            icon="radio"
-            available={false}
-          />
-          <SimpleGauge
-            value={null}
-            maxValue={100}
-            label="Train/Freins"
-            unit="%"
-            color="#EF4444"
-            icon="disc"
-            available={false}
-          />
-          <SimpleGauge
-            value={null}
-            maxValue={100}
-            label="Divers"
-            unit="%"
-            color="#6366F1"
-            icon="build"
-            available={false}
-          />
-        </View>
-
-        {/* Hours Summary */}
-        {(airframeHours !== null || engineHours !== null) && (
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Ionicons name="time-outline" size={20} color="#1E3A8A" />
-              <Text style={styles.sectionTitle}>Heures actuelles</Text>
-            </View>
-            <View style={styles.hoursCard}>
-              <View style={styles.hoursRow}>
-                <Text style={styles.hoursLabel}>Cellule (Airframe)</Text>
-                <Text style={styles.hoursValue}>
-                  {airframeHours !== null ? `${airframeHours.toFixed(1)} h` : '—'}
-                </Text>
+      ) : (
+        <ScrollView 
+          contentContainerStyle={styles.scrollContent}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        >
+          {aircraft && (
+            <View style={styles.hoursBar}>
+              <View style={styles.hoursItem}>
+                <Text style={styles.hoursValue}>{aircraft.engine_hours?.toFixed(1) || '0'}</Text>
+                <Text style={styles.hoursLabel}>Heures moteur</Text>
               </View>
-              <View style={styles.hoursRow}>
-                <Text style={styles.hoursLabel}>Moteur</Text>
-                <Text style={styles.hoursValue}>
-                  {engineHours !== null ? `${engineHours.toFixed(1)} h` : '—'}
-                </Text>
+              <View style={styles.hoursDivider} />
+              <View style={styles.hoursItem}>
+                <Text style={styles.hoursValue}>{aircraft.propeller_hours?.toFixed(1) || '0'}</Text>
+                <Text style={styles.hoursLabel}>Heures hélice</Text>
               </View>
-              <View style={[styles.hoursRow, { borderBottomWidth: 0 }]}>
-                <Text style={styles.hoursLabel}>Hélice</Text>
-                <Text style={styles.hoursValue}>
-                  {propellerHours !== null ? `${propellerHours.toFixed(1)} h` : '—'}
-                </Text>
+              <View style={styles.hoursDivider} />
+              <View style={styles.hoursItem}>
+                <Text style={styles.hoursValue}>{aircraft.airframe_hours?.toFixed(1) || '0'}</Text>
+                <Text style={styles.hoursLabel}>Heures cellule</Text>
               </View>
             </View>
-          </View>
-        )}
+          )}
 
-        {/* Cost Section */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Ionicons name="cash-outline" size={20} color="#1E3A8A" />
-            <Text style={styles.sectionTitle}>Coût horaire (estimations)</Text>
-          </View>
-          <View style={styles.costCard}>
-            <View style={styles.costRow}>
-              <Text style={styles.costLabel}>Coût horaire actuel</Text>
-              <Text style={styles.costValue}>—,— $/h</Text>
+          <View style={styles.legend}>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendDot, { backgroundColor: '#10B981' }]} />
+              <Text style={styles.legendText}>&lt; 80%</Text>
             </View>
-            <View style={[styles.costRow, styles.costRowLast]}>
-              <Text style={styles.costLabel}>Projection 12 mois</Text>
-              <Text style={styles.costValueProjection}>—,— $/h</Text>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendDot, { backgroundColor: '#F59E0B' }]} />
+              <Text style={styles.legendText}>≥ 80%</Text>
+            </View>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendDot, { backgroundColor: '#EF4444' }]} />
+              <Text style={styles.legendText}>Dépassé</Text>
+            </View>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendDot, { backgroundColor: '#9CA3AF' }]} />
+              <Text style={styles.legendText}>N/D</Text>
             </View>
           </View>
-          <Text style={styles.costNote}>
-            Les estimations de coût seront disponibles après l'ajout de données de maintenance.
-          </Text>
-        </View>
 
-        {/* Quick Stats */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Ionicons name="stats-chart" size={20} color="#1E3A8A" />
-            <Text style={styles.sectionTitle}>Statistiques</Text>
+          {components.map(renderProgressBar)}
+          
+          <View style={styles.footerSection}>
+            <Text style={styles.footerNote}>
+              Réf: Transport Canada RAC 605 / Standard 625
+            </Text>
           </View>
-          <View style={styles.statsGrid}>
-            <View style={styles.statCard}>
-              <Ionicons name="construct" size={24} color="#3B82F6" />
-              <Text style={styles.statValue}>
-                {maintenanceRecords.length > 0 ? maintenanceRecords.length : '—'}
-              </Text>
-              <Text style={styles.statLabel}>Maintenances</Text>
-            </View>
-            <View style={styles.statCard}>
-              <Ionicons name="alert-circle" size={24} color="#EF4444" />
-              <Text style={styles.statValue}>
-                {adsbCount !== null ? adsbCount : '—'}
-              </Text>
-              <Text style={styles.statLabel}>AD/SB</Text>
-            </View>
-            <View style={styles.statCard}>
-              <Ionicons name="hardware-chip" size={24} color="#10B981" />
-              <Text style={styles.statValue}>
-                {partsCount !== null ? partsCount : '—'}
-              </Text>
-              <Text style={styles.statLabel}>Pièces</Text>
-            </View>
-          </View>
-        </View>
-      </ScrollView>
+        </ScrollView>
+      )}
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-  },
+  safeArea: { flex: 1, backgroundColor: '#F8FAFC' },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 16, paddingVertical: 12,
     backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
+    borderBottomWidth: 1, borderBottomColor: '#E2E8F0',
   },
-  backButton: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
+  headerBtn: { width: 44, height: 44, justifyContent: 'center', alignItems: 'center' },
+  headerContent: { flex: 1, alignItems: 'center' },
+  headerTitle: { fontSize: 18, fontWeight: '600', color: '#1E293B' },
+  headerSubtitle: { fontSize: 14, color: '#64748B' },
+  disclaimer: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#FEF3C7', paddingVertical: 8, gap: 6,
   },
-  refreshButton: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
+  disclaimerText: { fontSize: 12, color: '#92400E' },
+  centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  scrollContent: { padding: 16 },
+  hoursBar: {
+    flexDirection: 'row', backgroundColor: '#FFFFFF',
+    borderRadius: 12, padding: 16, marginBottom: 16,
+    borderWidth: 1, borderColor: '#E2E8F0',
   },
-  headerContent: {
-    flex: 1,
-    alignItems: 'center',
+  hoursItem: { flex: 1, alignItems: 'center' },
+  hoursValue: { fontSize: 20, fontWeight: 'bold', color: '#1E3A8A' },
+  hoursLabel: { fontSize: 11, color: '#64748B', marginTop: 2 },
+  hoursDivider: { width: 1, backgroundColor: '#E2E8F0', marginHorizontal: 8 },
+  legend: {
+    flexDirection: 'row', justifyContent: 'center',
+    marginBottom: 16, gap: 16,
   },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1E293B',
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  legendDot: { width: 10, height: 10, borderRadius: 5 },
+  legendText: { fontSize: 11, color: '#64748B' },
+  card: {
+    backgroundColor: '#FFFFFF', borderRadius: 12, padding: 16,
+    marginBottom: 12, borderWidth: 1, borderColor: '#E2E8F0',
   },
-  headerSubtitle: {
-    fontSize: 14,
-    color: '#64748B',
+  cardHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
+  iconContainer: {
+    width: 44, height: 44, borderRadius: 22,
+    justifyContent: 'center', alignItems: 'center',
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+  cardInfo: { flex: 1, marginLeft: 12 },
+  cardTitle: { fontSize: 16, fontWeight: '600', color: '#1E293B' },
+  cardSubtitle: { fontSize: 12, color: '#94A3B8' },
+  statusBadge: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20, gap: 4,
   },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 14,
-    color: '#64748B',
+  statusDot: { width: 8, height: 8, borderRadius: 4 },
+  statusText: { fontSize: 12, fontWeight: '600' },
+  progressContainer: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  progressBar: {
+    flex: 1, height: 10, backgroundColor: '#E2E8F0',
+    borderRadius: 5, overflow: 'hidden', position: 'relative',
   },
-  container: {
-    flex: 1,
-    backgroundColor: '#F1F5F9',
+  progressFill: { height: '100%', borderRadius: 5 },
+  warningLine: {
+    position: 'absolute', top: 0, bottom: 0, width: 2, backgroundColor: '#F59E0B',
   },
-  contentContainer: {
-    padding: 16,
+  progressText: { fontSize: 14, fontWeight: '600', color: '#1E293B', width: 40, textAlign: 'right' },
+  cardFooter: {
+    flexDirection: 'row', justifyContent: 'space-between',
+    marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#F1F5F9',
   },
-  errorBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FEF3C7',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 16,
-    gap: 8,
-  },
-  errorText: {
-    flex: 1,
-    fontSize: 13,
-    color: '#92400E',
-  },
-  dashboardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-    gap: 8,
-  },
-  dashboardTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#1E293B',
-  },
-  gaugesGrid: {
-    gap: 12,
-    marginBottom: 24,
-  },
-  simpleGaugeContainer: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-  },
-  simpleGaugeHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-    gap: 10,
-  },
-  simpleGaugeIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  simpleGaugeLabel: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#1E293B',
-  },
-  simpleGaugeBar: {
-    height: 8,
-    backgroundColor: '#E2E8F0',
-    borderRadius: 4,
-    overflow: 'hidden',
-  },
-  simpleGaugeProgress: {
-    height: '100%',
-    borderRadius: 4,
-  },
-  simpleGaugeValues: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 8,
-  },
-  simpleGaugeValue: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  simpleGaugeMax: {
-    fontSize: 14,
-    color: '#94A3B8',
-  },
-  simpleGaugeNA: {
-    fontSize: 13,
-    color: '#94A3B8',
-    fontStyle: 'italic',
-  },
-  section: {
-    marginBottom: 24,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-    gap: 8,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1E293B',
-  },
-  hoursCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  hoursRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
-  },
-  hoursLabel: {
-    fontSize: 14,
-    color: '#64748B',
-  },
-  hoursValue: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1E293B',
-  },
-  costCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  costRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
-  },
-  costRowLast: {
-    borderBottomWidth: 0,
-  },
-  costLabel: {
-    fontSize: 14,
-    color: '#64748B',
-  },
-  costValue: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1E293B',
-  },
-  costValueProjection: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#3B82F6',
-  },
-  costNote: {
-    fontSize: 12,
-    color: '#94A3B8',
-    fontStyle: 'italic',
-    marginTop: 8,
-    textAlign: 'center',
-  },
-  statsGrid: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  statCard: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
-  },
-  statValue: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#1E293B',
-    marginTop: 8,
-  },
-  statLabel: {
-    fontSize: 11,
-    color: '#64748B',
-    marginTop: 4,
-    textAlign: 'center',
-  },
+  footerItem: { flex: 1 },
+  footerLabel: { fontSize: 11, color: '#94A3B8' },
+  footerValue: { fontSize: 13, fontWeight: '500', color: '#1E293B', marginTop: 2 },
+  footerValueGrey: { color: '#9CA3AF', fontStyle: 'italic' },
+  footerSection: { alignItems: 'center', paddingVertical: 20 },
+  footerNote: { fontSize: 11, color: '#94A3B8', fontStyle: 'italic' },
 });

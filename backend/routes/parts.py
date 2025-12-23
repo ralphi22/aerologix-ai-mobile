@@ -203,9 +203,15 @@ async def delete_part_record(
 ):
     """Delete a part record - AVIATION SAFE: only OCR parts can be deleted"""
     
+    # Try to convert to ObjectId if it's a valid format, otherwise use string
+    try:
+        query_id = ObjectId(record_id)
+    except Exception:
+        query_id = record_id
+    
     # First, get the record to check if it can be deleted
     record = await db.part_records.find_one({
-        "_id": record_id,
+        "_id": query_id,
         "user_id": current_user.id
     })
     
@@ -226,7 +232,7 @@ async def delete_part_record(
     
     # Safe to delete - OCR source
     result = await db.part_records.delete_one({
-        "_id": record_id,
+        "_id": query_id,
         "user_id": current_user.id
     })
     

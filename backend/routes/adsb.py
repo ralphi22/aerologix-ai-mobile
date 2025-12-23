@@ -165,8 +165,14 @@ async def delete_adsb_record(
 ):
     """Delete an AD/SB record"""
     
+    # Try to convert to ObjectId if it's a valid format, otherwise use string
+    try:
+        query_id = ObjectId(record_id)
+    except Exception:
+        query_id = record_id
+    
     result = await db.adsb_records.delete_one({
-        "_id": record_id,
+        "_id": query_id,
         "user_id": current_user.id
     })
     
@@ -219,10 +225,10 @@ async def get_adsb_summary(
     
     async for item in cursor:
         adsb_type = item["_id"]["type"]
-        status = item["_id"]["status"]
+        record_status = item["_id"]["status"]
         count = item["count"]
         
-        if adsb_type in summary and status in summary[adsb_type]:
-            summary[adsb_type][status] = count
+        if adsb_type in summary and record_status in summary[adsb_type]:
+            summary[adsb_type][record_status] = count
     
     return summary

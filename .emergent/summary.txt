@@ -1,309 +1,225 @@
 <analysis>
-<original_problem_statement>
-The user wants to build a productivity mobile application for iOS and Android for aviation pilots and owners, named **AeroLogix AI**.
 
-**PRODUCT REQUIREMENTS:**
-- **User Management:** Account creation and subscription-based access.
-- **Subscription Tiers:** Four plans (BASIC, PILOT, MAINTENANCE PRO, FLEET AI) with different feature limits.
-- **Aircraft Management:** Users can add, view, edit, and delete their aircraft.
-- **Core Modules:**
-    - **OCR:** Use a device camera and AI (OpenAI Vision) to read and process maintenance/logbook reports, automatically detecting ADs/SBs.
-    - **Logbook:** Automated and manual logbook entries.
-    - **Maintenance Tracking:** Track maintenance records, ADs/SBs, and Time Between Overhaul (TBO).
-    - **ELT Monitoring:** Track ELT expiration dates.
-    - **Predictive AI:** Generate predictive reports on costs and maintenance.
-    - **Notifications:** Push notifications for key events.
-- **Navigation:** A three-tab layout: Aircraft, AI Assistant, and Profile.
-- **Workflow:** The user wants a professional workflow to build native iOS apps for TestFlight via Expo Application Services (EAS).
+<original_problem_statement>
+The user wants to build and maintain a mobile application for aeronautical maintenance management called AeroLogix AI.
+
+The initial high-level user requests were:
+1.  **Feature:** Implement an ELT (Emergency Locator Transmitter) data pipeline, driven by OCR data from maintenance documents.
+2.  **Bug:** OCR sometimes misreads numbers.
+3.  **Bug:** The Appliquer au système button on the OCR results screen does not correctly update all data sections in the UI.
+4.  **Bug:** The delete button in the OCR history does not work.
+
+These evolved into more specific business logic requirements based on testing and feedback:
+- **Data Segregation:** OCR scans of Facture (Invoice) documents must ONLY create invoice/cost data and MUST NOT create maintenance records (parts, ADs, etc.) to prevent data duplication. OCR scans of Rapport (Report) documents are the source of truth for maintenance data.
+- **Controlled Deletion:** Items created via OCR (like Parts and ADs/SBs) must be deletable from their respective maintenance pages to allow users to correct OCR errors.
+- **Data Persistence:** Data entered or modified in the ELT module must be correctly saved to the backend.
+- **UI State:** The UI must correctly reflect backend data, including showing updated flight hours after an OCR scan is applied and displaying a correct color-coded status for the ELT module.
 </original_problem_statement>
-**User's preferred language**: French (fr-FR). The next agent MUST continue the conversation in French.
+
+**User's preferred language**: fr-FR
 
 **what currently exists?**
-The project has a functional FastAPI backend and an Expo (React Native) frontend.
+The application has a functional backend with user authentication, aircraft management, and a complex OCR pipeline. The backend has been significantly refactored to support new business logic:
+- OCR endpoint () now differentiates between 'invoice' and 'maintenance_report' document types to prevent data duplication.
+- New backend modules for ELT () and Invoices () have been created and are functional, proven via  tests.
+- Backend routes for deleting parts () and ADs/SBs () exist. The parts deletion logic was relaxed to allow deletion of any part with .
 
-- **Backend:**
-    - User authentication (signup/login) and aircraft CRUD are operational.
-    - A complete OCR module has been implemented and tested. This includes API endpoints (, , , etc.) and data models (, , etc.) for processing scanned documents and extracting structured data like Airworthiness Directives (ADs) and Service Bulletins (SBs). An architectural improvement was made by creating  to resolve circular dependencies.
-
-- **Frontend:**
-    - The authentication flow and main 3-tab navigation are in place.
-    - The Subscription Management screen is now fully implemented and functional, displaying all plans fetched from the backend, with UI translated to French.
-    - A basic UI for the OCR feature has been created (), accessible from the aircraft detail page.
-    - The web preview, which was broken due to dependency issues, has been successfully restored and is now functional.
+The frontend has corresponding pages for all features, but suffers from several UI/UX bugs related to data persistence and state management.
 
 **Last working item**:
-- Last item agent was working: The agent was in a deep and complex debugging session to resolve a series of cascading failures preventing the user from successfully building the iOS app using Expo Application Services (EAS). The final error was  due to a missing  dependency and an invalid  modification caused by a custom plugin () the agent had created. The agent added the missing dependency and was in the process of removing the faulty plugin when the session ended.
-- Status: BLOCKED
-- Agent Testing Done: N
-- Which testing method agent to use? Manual testing by the user (running An Expo user account is required to proceed.
-
-Log in to EAS with email or username (exit and run eas login --help to see other login options)
-Input is required, but stdin is not readable. Failed to display prompt: Email or username). The agent's task is to provide the correct file configuration.
-- User Testing Done: N
+    - Last item agent was working: The agent was performing a wide-ranging bug-fixing pass based on user feedback (message #267). The core issues being addressed were: ELT data not saving, delete buttons not working on maintenance pages (Parts, AD/SB), and flight hours not updating in the UI after applying an OCR scan. The agent correctly identified that the flight hours issue was likely a frontend state refresh problem and that the ELT/delete issues were related to frontend implementation, uid=0(root) gid=0(root) groups=0(root) vs  mapping, and backend rules. The agent was modifying frontend maintenance pages and backend deletion rules.
+    - Status: IN PROGRESS
+    - Agent Testing Done: N
+    - Which testing method agent to use? both
+    - User Testing Done: N
 
 **All Pending/In progress Issue list**:
-- Issue 1: iOS build using EAS is failing. (P0)
-- Issue 2: Aircraft details cannot be edited after creation. (P1)
-- Issue 3: The Delete Aircraft button is not functional. (P1)
-- Issue 4: The full OCR workflow is not complete on the frontend. (P2)
-- Issue 5: Subscription plan does not update on selection. (P3)
+  - Issue 1: ELT module data is not saving from the frontend. (P0)
+  - Issue 2: Delete buttons on maintenance pages (Parts, AD/SB) do not work. (P0)
+  - Issue 3: Aircraft flight hours are not updating in the UI after applying an OCR scan. (P1)
+  - Issue 4: ELT status indicator in the aircraft menu does not have correct logic (defaults to green). (P2)
+  - Issue 5: OCR number parsing is inaccurate (e.g., reads 3444.6 instead of 6,344.6). (P3)
+  
+  Issues Detail:
+  - Issue 1: 
+     - Attempted fixes: The agent proved the backend ELT endpoints ( and ) work correctly via . It then identified a frontend issue where it was expecting an uid=0(root) gid=0(root) groups=0(root) field, but the backend was returning . The agent updated the frontend  file to handle this mapping (), but the user reports it is still not working. This indicates the  function in  still has a logic or data formatting error.
+     - Next debug checklist: 
+        1. In , add  inside the  function to inspect the  being sent to the API.
+        2. Verify the correct HTTP method ( vs ) is being used based on whether  exists.
+        3. Check the browser's network tab (or add logging) to see the exact API response when the save button is pressed.
+     - Why fix this issue and what will be achieved with the fix? This is critical for managing ELT data, a key safety feature.
+     - Status:  IN PROGRESS
+     - Is recurring issue? Y
+     - Should Test frontend/backend/both after fix? frontend
+     - Blocked on other issue: None
 
-Issues Detail:
-- **Issue 1: iOS build using EAS is failing**
-    - **Attempted fixes:** A long series of fixes were attempted, including: changing Node.js versions in  (22.x, 20.x), downgrading/upgrading  and other dependencies between different Expo SDK 54 patch versions, adding/removing  in , creating a custom Expo plugin () to patch the , and multiple attempts to resolve  vs.  conflicts.
-    - **Next debug checklist:**
-        1.  The agent has already added the missing  dev dependency.
-        2.  The next immediate step is to **delete the faulty custom plugin** located at  and remove its reference from . The agent was interrupted before completing this.
-        3.  To resolve the persistent lockfile issues, the agent should ensure no  or  is committed to the repository. The  should be updated to ignore them.
-        4.  Advise the user to delete  and any local lockfiles before running 
-changed 9 packages, and audited 969 packages in 2s
+  - Issue 2: 
+     - Attempted fixes: The agent verified backend  endpoints exist for parts and AD/SBs. It implemented delete buttons and  functions in  and . It relaxed the backend deletion rule for parts to only require . The user reports the buttons are visible but do not delete the items.
+     - Next debug checklist:
+        1. In  and , add  to the  functions to ensure they are called with the correct item .
+        2. Check the API response after the  call.
+        3. Ensure the local state (e.g., , ) is being updated correctly using  after a successful deletion to trigger a UI re-render.
+     - Why fix this issue and what will be achieved with the fix? Allows users to correct errors from the OCR scanner, which is a critical part of the workflow.
+     - Status:  IN PROGRESS
+     - Is recurring issue? Y
+     - Should Test frontend/backend/both after fix? frontend
+     - Blocked on other issue: None
 
-106 packages are looking for funding
-  run `npm fund` for details
+  - Issue 3: 
+     - Attempted fixes: The agent checked backend logs and confirmed the database is being updated with the new hours. It correctly hypothesized that the frontend Zustand store () is not being invalidated or refreshed after the OCR  call is made from . No fix was implemented yet.
+     - Next debug checklist:
+        1. In , after the  call succeeds, call the function responsible for re-fetching the specific aircraft's data.
+        2. Check  to see if there is a  function. This function needs to be triggered.
+        3. Alternatively, upon successful OCR apply, navigate the user back to the aircraft list, which would force a reload when they re-enter the detail page.
+     - Why fix this issue and what will be achieved with the fix? Provides immediate visual confirmation to the user that the OCR process worked, which is crucial for user confidence.
+     - Status:  NOT STARTED
+     - Is recurring issue? N
+     - Should Test frontend/backend/both after fix? frontend
+     - Blocked on other issue: None
 
-found 0 vulnerabilities and then the build command.
-        5.  If errors persist, the most stable path forward would be to downgrade the project to a known stable Expo SDK version like 52 or 53, as SDK 54 has proven to be highly unstable for this project's configuration.
-    - **Why fix this issue and what will be achieved with the fix?** This is the user's top priority. A successful build is required to deploy the app to TestFlight for testing.
-    - **Status:** IN PROGRESS
-    - **Is recurring issue?** Y
-    - **Should Test frontend/backend/both after fix?** N/A (User will test by running An Expo user account is required to proceed.
+  - Issue 4: 
+     - Attempted fixes: The agent rewrote  to include logic for calculating the ELT status. However, the user reported the logic is still incorrect. The default state should be Grey (no data), not Green.
+     - Next debug checklist:
+        1. Review the  function in .
+        2. The initial state for  should be  (Grey) or similar.
+        3. The logic should only return Green if valid  and  exist and are not approaching their due dates.
+     - Why fix this issue and what will be achieved with the fix? Provides an accurate at-a-glance safety indicator for the user.
+     - Status:  IN PROGRESS
+     - Is recurring issue? N
+     - Should Test frontend/backend/both after fix? frontend
+     - Blocked on other issue: None
 
-Log in to EAS with email or username (exit and run eas login --help to see other login options)
-Input is required, but stdin is not readable. Failed to display prompt: Email or username)
-    - **Blocked on other issue:** None. This issue is blocking other work.
-
-- **Issue 2: Edit Aircraft Feature**
-    - **Attempted fixes:** None in this session. A placeholder file was created previously.
-    - **Next debug checklist:** Implement the backend  endpoint and build the frontend form in .
-    - **Why fix this issue and what will be achieved with the fix?** Core CRUD functionality for managing aircraft.
-    - **Status:** NOT STARTED
-    - **Is recurring issue?** N
-    - **Should Test frontend/backend/both after fix?** both
-    - **Blocked on other issue:** Issue 1
-
-- **Issue 3: Delete Aircraft Function**
-    - **Attempted fixes:** None in this session.
-    - **Next debug checklist:** Test the button, check network requests, and debug the  handler in .
-    - **Why fix this issue and what will be achieved with the fix?** Core CRUD functionality for managing aircraft.
-    - **Status:** NOT STARTED
-    - **Is recurring issue?** N
-    - **Should Test frontend/backend/both after fix?** frontend
-    - **Blocked on other issue:** Issue 1
-
-- **Issue 4: Full OCR Frontend Workflow**
-    - **Attempted fixes:** A basic scan screen was created.
-    - **Next debug checklist:** Implement the OCR results screen (), the history screen (), and the logic to call the  endpoint to save extracted data.
-    - **Why fix this issue and what will be achieved with the fix?** To complete the powerful OCR feature requested by the user.
-    - **Status:** IN PROGRESS
-    - **Is recurring issue?** N
-    - **Should Test frontend/backend/both after fix?** both
-    - **Blocked on other issue:** Issue 1
-
-- **Issue 5: Subscription plan doesn't update**
-    - **Attempted fixes:** None. The agent correctly identified this is expected as Stripe is not integrated.
-    - **Why fix this issue and what will be achieved with the fix?** Allows users to change subscription tiers.
-    - **Status:** BLOCKED
-    - **Is recurring issue?** N
-    - **Should Test frontend/backend/both after fix?** both
-    - **Blocked on other issue:** Stripe integration (Future Task).
+  - Issue 5: 
+     - Attempted fixes: The agent updated the OCR prompt in  with instructions to better handle numbers with commas/spaces as thousands separators. This has not been tested or validated by the user.
+     - Next debug checklist: Perform an OCR scan with a document containing numbers like  and check the extracted JSON.
+     - Why fix this issue and what will be achieved with the fix? Ensures accuracy of critical data like flight hours.
+     - Status:  IN PROGRESS
+     - Is recurring issue? Y
+     - Should Test frontend/backend/both after fix? backend
+     - Blocked on other issue: None
 
 **In progress Task List**:
-There are no active feature development tasks in progress. All effort is focused on fixing the blocking iOS build issue.
+- None. All current work is classified as bug fixing.
 
 **Upcoming and Future Tasks**
-- **Upcoming Tasks (P0):**
-    - Complete the OCR Frontend UI (Results, History, Apply Logic).
-- **Upcoming Tasks (P1):**
-    - Implement UI for Maintenance and AD/SB modules to display data extracted by OCR.
-- **Future Tasks (P2):**
-    - Implement Logbook module (CRUD and UI).
-    - Implement ELT tracking and notifications.
-    - Implement Predictive AI features.
-    - Full Stripe integration for payments.
+    Upcoming Tasks:
+    - **P1:** Implement the Maintenance Book page.
+    - **P4:** Implement the W/B (Weight & Balance) page.
+    - **P5:** Implement the Assistant IA page.
+    
+    Future Tasks:
+    - **P0:** Migrate the backend to a permanent hosting solution.
+    - **P1:** Integrate Stripe for real subscription payments.
+    - **P2:** Develop a notification system for maintenance alerts.
 
 **Completed work in this session**
-- **Subscription Management Screen:**
-  - Implemented the full frontend UI in .
-  - Fixed API calls to use environment variables.
-  - Translated all UI elements to French.
-  - Verified functionality with screenshots.
-- **OCR Module (Backend):**
-  - Created all data models (, , , , ).
-  - Implemented the core OCR service using OpenAI Vision.
-  - Created all required API routers and endpoints (, , etc.).
-  - Successfully debugged and passed all tests using the backend testing agent.
-- **OCR Module (Frontend - Basic UI):**
-  - Created the initial scan screen ().
-  - Added a button to the aircraft detail page to navigate to the scan screen.
-- **Web Preview Restoration:**
-  - After numerous dependency changes for EAS build attempts broke the web preview, the agent successfully diagnosed the / version mismatch and restored  to a working state, making the preview functional again.
+- **Backend Refactoring (OCR Logic):**
+  - Modified  to separate business logic for invoice and maintenance_report scans. Invoices now only create cost-related entries, preventing data duplication.
+- **Backend Module Creation:**
+  - Created a full backend module for ELT (, ) with CRUD operations.
+  - Created a full backend module for Invoices (, ) with CRUD operations.
+- **Backend Model Updates:**
+  - Added  and  fields to the  model () to support controlled deletion.
+- **Backend Bug Fixes:**
+  - Corrected date parsing in ELT routes to accept string formats from the frontend.
+  - Fixed a logic bug in  that incorrectly threw an already applied error.
+  - Relaxed the part deletion rule in  to allow deletion of any part with .
+- **Frontend Implementation:**
+  - Created/Updated UI for the ELT module (), OCR results (), Invoices list (), Parts list (), and AD/SB list ().
+  - Added delete buttons to the Parts and AD/SB pages.
+  - Added a status indicator dot for the ELT module in the aircraft menu page ().
+- **Environment Maintenance:**
+  - Repeatedly fixed the Expo SDK version in  to the required  after it was auto-updated by the environment.
 
 **Earlier issues found/mentioned but not fixed**
-None.
+- All issues mentioned by the user have been acknowledged and are being worked on, though not all are resolved.
 
 **Known issue recurrence from previous fork**
-- **Issue recurrence in previous fork:** The fragile routing logic mentioned in the initial summary did not recur, but a new, more severe and recurring issue with EAS builds has emerged and dominated this session.
-- **Recurrence count:** The EAS build has failed over 10 times with different errors.
-- **Status:** IN PROGRESS
+  - Not applicable.
 
 **Code Architecture**
 
 
 **Key Technical Concepts**
-- **Frontend:** Expo (React Native), Expo Router, Zustand, Axios, TypeScript.
-- **Backend:** FastAPI (Python), Motor (async MongoDB), Pydantic, python-jose (JWT).
-- **Database:** MongoDB.
-- **Build/Deployment:** Expo Application Services (EAS).
-- **AI:** OpenAI Vision (via Emergent LLM Key).
-- **Build Configuration:** Expo Plugins, , .
+- **Frontend:** React Native, Expo (SDK 52), Expo Router, TypeScript, Zustand.
+- **Backend:** FastAPI, Python, Pydantic, MongoDB.
+- **AI:** OpenAI's GPT-4 Vision via Emergent LLM Key.
 
 **key DB schema**
-- **maintenance_records:** , , , Sun Dec 14 00:13:36 UTC 2025, , , etc.
-- **adsb_records:** , , ,  (AD/SB), ,  (COMPLIED/PENDING), , .
-- **stc_records:** , , , , .
-- **part_records:** , , , , , , .
-- **ocr_scans:** , , , , , .
+  - : {..., source: Optional[str], confirmed: Optional[bool]}
+  - : (New table) {aircraft_id, brand, model, battery_change_date, etc.}
+  - : (New table) {aircraft_id, invoice_number, total_amount, date, etc.}
 
 **changes in tech stack**
-None.
+  - No changes to the core tech stack.
 
 **All files of reference**
-- : Critical file. Its state determines if the preview works and if the iOS build succeeds. The last working version for the preview uses React 19.
-- : Critical for build configuration. Contains references to splash screen images, plugins, and the EAS .
-- : Critical for build configuration. Specifies Node.js version and environment variables for the EAS build server.
-- : A custom plugin created to patch a Podfile bug. It introduced another bug and was in the process of being deleted.
-- : New file created to solve a circular dependency issue with .
-- All new files under  and  related to the OCR feature.
+- **Primary Bug Locations (Frontend):**
+  - : ELT save logic.
+  - : Parts delete logic.
+  - : AD/SB delete logic.
+  - : Needs to trigger a state refresh on success.
+  - : ELT status indicator logic.
+- **Primary Logic Locations (Backend):**
+  - : Core business logic for separating invoice/report data.
+  - : Part deletion logic.
+  - : ELT CRUD logic.
 
 **Areas that need refactoring**:
-- The dependency management is fragile. A stable set of dependencies for Expo SDK 54 that works for both web preview and EAS iOS build needs to be established. The conflict between  and  also needs a definitive solution (e.g., standardizing on npm <command>
-
-Usage:
-
-npm install        install all the dependencies in your project
-npm install <foo>  add the <foo> dependency to your project
-npm test           run this project's tests
-npm run <foo>      run the script named <foo>
-npm <command> -h   quick help on <command>
-npm -l             display usage info for all commands
-npm help <term>    search for help on <term>
-npm help npm       more involved overview
-
-All commands:
-
-    access, adduser, audit, bugs, cache, ci, completion,
-    config, dedupe, deprecate, diff, dist-tag, docs, doctor,
-    edit, exec, explain, explore, find-dupes, fund, get, help,
-    help-search, hook, init, install, install-ci-test,
-    install-test, link, ll, login, logout, ls, org, outdated,
-    owner, pack, ping, pkg, prefix, profile, prune, publish,
-    query, rebuild, repo, restart, root, run-script, sbom,
-    search, set, shrinkwrap, star, stars, start, stop, team,
-    test, token, uninstall, unpublish, unstar, update, version,
-    view, whoami
-
-Specify configs in the ini-formatted file:
-    /root/.npmrc
-or on the command line via: npm <command> --key=value
-
-More configuration info: npm help config
-Configuration fields: npm help 7 config
-
-npm@10.8.2 /usr/lib/node_modules/npm and committing ).
+- **Frontend State Management:** The application urgently needs a robust pattern for refreshing data after API mutations. Calls made in one screen (e.g., ) must trigger data re-fetching for other screens (e.g., ). This should be implemented via the existing Zustand store.
+- **Frontend/Backend Data Mapping:** The  vs uid=0(root) gid=0(root) groups=0(root) issue is a recurring problem. A transformer in the  service could be used to automatically map  to uid=0(root) gid=0(root) groups=0(root) on all incoming responses to make frontend components more consistent.
 
 **key api endpoints**
-- : Accepts an image and returns extracted text and structured data.
-- : Returns OCR scan history for an aircraft.
-- : Applies the results of a scan to the system (updates aircraft hours, creates records).
-- CRUD endpoints for , , , .
+- : Applies OCR data. Critical logic depends on .
+- , : Create/Update ELT records.
+- : Get invoices for an aircraft.
+- : Deletes a part record.
+- : Deletes an AD/SB record.
 
 **Critical Info for New Agent**
-- **Primary Goal:** Fix the iOS EAS build. This is a blocker for the user. Do not proceed with feature work until this is resolved.
-- **The EAS Build Hell:** The session was a long battle with EAS build errors. The root causes are a combination of an unstable Expo SDK 54 version, user's local environment being out of sync, and conflicts between different package managers (yarn install v1.22.22
-[1/4] Resolving packages...
-[2/4] Fetching packages...
-[3/4] Linking dependencies...
-[4/4] Building fresh packages...
-success Saved lockfile.
-Done in 20.44s. vs npm <command>
-
-Usage:
-
-npm install        install all the dependencies in your project
-npm install <foo>  add the <foo> dependency to your project
-npm test           run this project's tests
-npm run <foo>      run the script named <foo>
-npm <command> -h   quick help on <command>
-npm -l             display usage info for all commands
-npm help <term>    search for help on <term>
-npm help npm       more involved overview
-
-All commands:
-
-    access, adduser, audit, bugs, cache, ci, completion,
-    config, dedupe, deprecate, diff, dist-tag, docs, doctor,
-    edit, exec, explain, explore, find-dupes, fund, get, help,
-    help-search, hook, init, install, install-ci-test,
-    install-test, link, ll, login, logout, ls, org, outdated,
-    owner, pack, ping, pkg, prefix, profile, prune, publish,
-    query, rebuild, repo, restart, root, run-script, sbom,
-    search, set, shrinkwrap, star, stars, start, stop, team,
-    test, token, uninstall, unpublish, unstar, update, version,
-    view, whoami
-
-Specify configs in the ini-formatted file:
-    /root/.npmrc
-or on the command line via: npm <command> --key=value
-
-More configuration info: npm help config
-Configuration fields: npm help 7 config
-
-npm@10.8.2 /usr/lib/node_modules/npm).
-- **Last Action:** The agent was about to delete the faulty plugin at . **This action must be completed first.**
-- **Web Preview vs. EAS Build:** Be aware that fixing the EAS build can break the web preview, and vice-versa. The last working  for the preview involved React 19, while many user-suggested fixes for the build involved React 18. This is a key conflict to manage.
-- **User Interaction:** The user is highly involved, provides detailed terminal logs, and sometimes suggests specific (but not always correct) technical solutions. The agent must analyze the user's input critically and explain its own reasoning clearly. Always respond in French.
-
-**documents created in this job**
-None.
-
-**Last 10 User Messages and any pending user messages**
-- **User:** Asks for an explanation of the final build error ().
-- **User:** Acknowledges the agent's expertise and asks for a clear plan to fix both the build and preview issues.
-- **User:** Approves the agent's plan to restore the preview first, then fix the build.
-- **User:** Asks if React 19 was the source of the problem.
-- **User:** Asks for a clear explanation of what happened with the versions.
-- **User:** After the preview is fixed, provides a new build log showing a Node version error.
-- **User:** Provides a new build log showing a missing  file.
-- **User:** Provides the same build log again after the agent claims to have fixed it, indicating a sync issue.
-- **User:** Reports a  error after re-cloning the project.
-- **User:** Provides yet another  error log.
-**Pending User Message:** The user is waiting for a solution to the final yarn install v1.22.22
+- **SDK Lock:** The project MUST remain on **Expo SDK ~52.0.0**. The environment automatically upgrades it. You MUST check  and revert it with yarn install v1.22.22
 [1/4] Resolving packages...
 success Already up-to-date.
-Done in 0.33s. error on the EAS build server.
+Done in 0.51s. before any new work or build.
+- **UI Refresh is Broken:** The biggest issue is that the UI does not refresh after backend data changes (e.g., updating flight hours). The solution is to use the Zustand  to re-fetch data after a successful API mutation, particularly after the  call.
+- **ID vs _ID Mismatch:** The frontend often expects an uid=0(root) gid=0(root) groups=0(root) field, but the MongoDB backend provides . This was a root cause for the ELT bug and is likely present elsewhere. Be mindful of this mapping in all frontend components that handle backend data.
+- **Backend is Mostly Correct:** The agent did extensive  testing and fixed most backend issues. The remaining problems are almost all on the frontend (handling API calls, updating state, and data mapping). Focus your efforts on the frontend code.
+
+**documents created in this job**
+  - None.
+
+**Last 10 User Messages and any pending user messages**
+- **User (Msg 209):** Provided definitive business rules to stop data duplication from OCR and allow controlled deletion of parts. (Partially Implemented, but bugs remain)
+- **User (Msg 267):** Reported that ELT still doesn't save, delete buttons don't work, delete is needed everywhere (AD/SB), and flight hours don't update on the UI. This is the **current active bug list**. (In Progress)
 
 **Project Health Check:**
 - **Broken:**
-    - The entire iOS build pipeline via EAS.
+  - ELT saving mechanism.
+  - Delete functionality on Parts and AD/SB pages.
+  - Live UI update for flight hours after OCR apply.
+  - ELT status color logic.
 - **Mocked:**
-    - Stripe payments.
-    - Applying OCR results to the system (backend endpoint exists, but frontend UI to trigger it does not).
+  -  page.
+  -  page.
+  -  page.
+  -  page.
 
 **3rd Party Integrations**
-- **OpenAI GPT-4o (Vision):** Uses Emergent LLM Key. Integrated and functional in the backend OCR service.
-- **Stripe (Payments):** Requires User API Key. Package is installed, but no logic is implemented.
+	 •	OpenAI GPT-4 Vision — uses Emergent LLM Key for OCR processing.
 
 **Testing status**
-- **Testing agent used after significant changes:** YES (Backend testing agent was used successfully for the OCR module).
-- **Troubleshoot agent used after agent stuck in loop:** NO
-- **Test files created:** None.
-- **Known regressions:** The web preview was broken during the session but has since been fixed.
+  - Testing agent used after significant changes: NO
+  - Troubleshoot agent used after agent stuck in loop: NO
+  - Test files created: []
+  - Known regressions:
+    - The Expo SDK version in  reverts to  automatically.
+    - Flight hours update was working but is now broken (on the UI side).
 
 **Credentials to test flow:**
-- **Email:** 
-- **Password:** 
+The agent has been creating test users dynamically (e.g., , ) with password  to test API endpoints. This method can be reused.
 
 **What agent forgot to execute**
-The agent was in the middle of a two-step fix when the session ended. It had added  to  but had not yet deleted the faulty plugin file at  and removed its entry from . This is the immediate next step.
-
+- The agent correctly identified the need to refresh the Zustand store to fix the flight hours UI bug but did not implement the fix.
+- The agent has patched the button not working issues multiple times but hasn't implemented a robust solution that includes proper API response handling and state updates, which is the root cause of why the user keeps reporting the same problems.
+- The original bug of OCR number parsing has not been fully resolved or verified.
 </analysis>
