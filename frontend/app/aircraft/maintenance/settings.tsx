@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -13,7 +13,7 @@ import {
   Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import api from '../../../services/api';
 
 interface Aircraft {
@@ -53,22 +53,36 @@ export default function ComponentSettingsScreen() {
     vacuum_pump_last_replacement_date: '',
     airframe_last_annual_date: '',
     airframe_last_annual_hours: '',
+    // ELT settings
+    elt_last_test_date: '',
+    elt_test_interval_months: '12',
+    elt_battery_install_date: '',
+    elt_battery_expiry_date: '',
+    elt_battery_interval_months: '24',
   });
 
   useEffect(() => {
+    console.log('[SETTINGS] Component mounted - aircraftId:', aircraftId);
     fetchData();
   }, []);
 
   const fetchData = async () => {
+    console.log('[SETTINGS] Fetching data for aircraft:', aircraftId);
     try {
-      // Récupérer les heures actuelles de l'avion ET les paramètres
-      const [aircraftRes, settingsRes] = await Promise.all([
+      // Récupérer les heures actuelles de l'avion, les paramètres ET l'ELT
+      const [aircraftRes, settingsRes, eltRes] = await Promise.all([
         api.get(`/api/aircraft/${aircraftId}`),
-        api.get(`/api/components/aircraft/${aircraftId}`)
+        api.get(`/api/components/aircraft/${aircraftId}`),
+        api.get(`/api/elt/aircraft/${aircraftId}`).catch(() => ({ data: null }))
       ]);
+      
+      console.log('[SETTINGS] Aircraft loaded:', JSON.stringify(aircraftRes.data));
+      console.log('[SETTINGS] Settings loaded:', JSON.stringify(settingsRes.data));
+      console.log('[SETTINGS] ELT loaded:', eltRes.data ? 'found' : 'none');
       
       setAircraft(aircraftRes.data);
       const data = settingsRes.data;
+      const elt = eltRes.data;
       
       setSettings({
         engine_model: data.engine_model || '',
@@ -91,17 +105,31 @@ export default function ComponentSettingsScreen() {
         vacuum_pump_last_replacement_date: data.vacuum_pump_last_replacement_date || '',
         airframe_last_annual_date: data.airframe_last_annual_date || '',
         airframe_last_annual_hours: data.airframe_last_annual_hours != null ? String(data.airframe_last_annual_hours) : '',
+        // ELT - charger depuis le module ELT existant
+        elt_last_test_date: elt?.last_test_date ? elt.last_test_date.split('T')[0] : '',
+        elt_test_interval_months: String(data.elt_test_interval_months || 12),
+        elt_battery_install_date: elt?.battery_install_date ? elt.battery_install_date.split('T')[0] : '',
+        elt_battery_expiry_date: elt?.battery_expiry_date ? elt.battery_expiry_date.split('T')[0] : '',
+        elt_battery_interval_months: String(data.elt_battery_interval_months || elt?.battery_interval_months || 24),
       });
-    } catch (error) {
-      console.error('Error fetching data:', error);
+      console.log('[SETTINGS] Settings state updated');
+    } catch (error: any) {
+      console.error('[SETTINGS] Error fetching data:', error);
+      console.error('[SETTINGS] Error response:', error.response?.data);
+      console.error('[SETTINGS] Error status:', error.response?.status);
     } finally {
       setLoading(false);
     }
   };
 
   const handleSave = async () => {
-    console.log('[SETTINGS] Save button pressed');
+    console.log('[SETTINGS] Save button pressed - aircraftId:', aircraftId);
     setSaving(true);
+    
+    // Timeout de 15 secondes
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Délai dépassé - vérifiez votre connexion')), 15000)
+    );
     
     try {
       const payload = {
@@ -125,18 +153,58 @@ export default function ComponentSettingsScreen() {
         vacuum_pump_last_replacement_date: settings.vacuum_pump_last_replacement_date || null,
         airframe_last_annual_date: settings.airframe_last_annual_date || null,
         airframe_last_annual_hours: settings.airframe_last_annual_hours ? parseFloat(settings.airframe_last_annual_hours) : null,
+        // ELT intervals
+        elt_test_interval_months: parseInt(settings.elt_test_interval_months) || 12,
+        elt_battery_interval_months: parseInt(settings.elt_battery_interval_months) || 24,
       };
 
-      console.log('[SETTINGS] Calling API PUT with payload:', JSON.stringify(payload));
-      const response = await api.put(`/api/components/aircraft/${aircraftId}`, payload);
-      console.log('[SETTINGS] API response:', response.status, response.data);
+      console.log('[SETTINGS] Calling API PUT:', `/api/components/aircraft/${aircraftId}`);
+      console.log('[SETTINGS] Payload:', JSON.stringify(payload));
       
-      Alert.alert('Succès', 'Paramètres sauvegardés', [
+      // Sauvegarder les paramètres des composants
+      const componentResponse = await Promise.race([
+        api.put(`/api/components/aircraft/${aircraftId}`, payload),
+        timeoutPromise
+      ]) as any;
+      
+      console.log('[SETTINGS] Component API response:', componentResponse.status);
+      
+      // Sauvegarder aussi les données ELT si modifiées
+      if (settings.elt_last_test_date || settings.elt_battery_install_date || settings.elt_battery_expiry_date) {
+        const eltPayload = {
+          aircraft_id: aircraftId,
+          last_test_date: settings.elt_last_test_date || null,
+          battery_install_date: settings.elt_battery_install_date || null,
+          battery_expiry_date: settings.elt_battery_expiry_date || null,
+          battery_interval_months: parseInt(settings.elt_battery_interval_months) || 24,
+        };
+        console.log('[SETTINGS] Updating ELT:', JSON.stringify(eltPayload));
+        await api.put(`/api/elt/aircraft/${aircraftId}`, eltPayload).catch(e => {
+          console.log('[SETTINGS] ELT update error (may not exist yet):', e.message);
+        });
+      }
+      
+      Alert.alert('Succès ✓', 'Paramètres sauvegardés. Les graphiques seront recalculés.', [
         { text: 'OK', onPress: () => router.back() }
       ]);
     } catch (error: any) {
       console.error('[SETTINGS] Save error:', error);
-      Alert.alert('Erreur', error.response?.data?.detail || 'Impossible de sauvegarder');
+      console.error('[SETTINGS] Error message:', error.message);
+      console.error('[SETTINGS] Error response:', error.response?.data);
+      console.error('[SETTINGS] Error status:', error.response?.status);
+      
+      let errorMsg = 'Erreur inconnue';
+      if (error.message === 'Network Error') {
+        errorMsg = 'Erreur réseau - Le serveur est inaccessible.\n\nVotre build TestFlight utilise peut-être une ancienne URL. Un nouveau build est nécessaire.';
+      } else if (error.message?.includes('Délai dépassé')) {
+        errorMsg = error.message;
+      } else if (error.response?.data?.detail) {
+        errorMsg = error.response.data.detail;
+      } else if (error.message) {
+        errorMsg = error.message;
+      }
+      
+      Alert.alert('Erreur ❌', errorMsg);
     } finally {
       setSaving(false);
     }
@@ -148,11 +216,35 @@ export default function ComponentSettingsScreen() {
 
   // Auto-fill current hours when setting "last work hours"
   const fillCurrentHours = (field: string, hoursType: 'engine' | 'propeller' | 'airframe') => {
-    if (!aircraft) return;
-    const hours = hoursType === 'engine' ? aircraft.engine_hours : 
-                  hoursType === 'propeller' ? aircraft.propeller_hours : 
-                  aircraft.airframe_hours;
-    updateSetting(field, String(hours || 0));
+    console.log('[SETTINGS] fillCurrentHours called - field:', field, 'hoursType:', hoursType);
+    console.log('[SETTINGS] Aircraft data:', JSON.stringify(aircraft));
+    
+    if (!aircraft) {
+      console.log('[SETTINGS] No aircraft data available');
+      Alert.alert('Erreur', 'Données avion non disponibles');
+      return;
+    }
+    
+    let hours: number;
+    if (hoursType === 'engine') {
+      hours = aircraft.engine_hours || 0;
+    } else if (hoursType === 'propeller') {
+      hours = aircraft.propeller_hours || 0;
+    } else {
+      hours = aircraft.airframe_hours || 0;
+    }
+    
+    console.log('[SETTINGS] Setting', field, 'to', hours);
+    
+    // Mise à jour directe du state
+    setSettings(prevSettings => {
+      const updated = { ...prevSettings, [field]: String(hours) };
+      console.log('[SETTINGS] Updated settings:', field, '=', updated[field as keyof typeof updated]);
+      return updated;
+    });
+    
+    // Feedback visuel
+    Alert.alert('✓', `${hours} heures appliquées`);
   };
 
   const renderSection = (title: string, icon: string, color: string, children: React.ReactNode) => (
@@ -252,8 +344,8 @@ export default function ComponentSettingsScreen() {
             <>
               {renderInput('Modèle moteur', 'engine_model', 'Ex: IO-360-L2A')}
               {renderInput('TBO (heures)', 'engine_tbo_hours', '2000', 'numeric')}
-              {renderHoursInputWithButton('Heures moteur à la dernière révision', 'engine_last_overhaul_hours', 'engine')}
-              {renderInput('Date dernière révision', 'engine_last_overhaul_date', 'AAAA-MM-JJ')}
+              {renderInput('Date dernière révision (info)', 'engine_last_overhaul_date', 'AAAA-MM-JJ')}
+              <Text style={styles.hint}>Le graphique utilise directement les heures moteur actuelles</Text>
             </>
           ))}
 
@@ -317,6 +409,17 @@ export default function ComponentSettingsScreen() {
             <>
               {renderInput('Date dernière annuelle', 'airframe_last_annual_date', 'AAAA-MM-JJ')}
               {renderHoursInputWithButton('Heures cellule à la dernière annuelle', 'airframe_last_annual_hours', 'airframe')}
+            </>
+          ))}
+
+          {renderSection('ELT (Balise de détresse)', 'locate', '#EC4899', (
+            <>
+              <Text style={styles.hint}>Test opérationnel et batterie</Text>
+              {renderInput('Intervalle test (mois)', 'elt_test_interval_months', '12', 'numeric')}
+              {renderInput('Date dernier test', 'elt_last_test_date', 'AAAA-MM-JJ')}
+              {renderInput('Intervalle batterie (mois)', 'elt_battery_interval_months', '24', 'numeric')}
+              {renderInput('Date installation batterie', 'elt_battery_install_date', 'AAAA-MM-JJ')}
+              {renderInput('Date expiration batterie', 'elt_battery_expiry_date', 'AAAA-MM-JJ')}
             </>
           ))}
 

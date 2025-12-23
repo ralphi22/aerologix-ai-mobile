@@ -1,208 +1,157 @@
 <analysis>
 
 <original_problem_statement>
-The user wants to build and maintain a mobile application for aeronautical maintenance management called AeroLogix AI.
+The user is building AeroLogix AI, a mobile application for aeronautical maintenance management.
 
-The initial high-level user requests were:
-1.  **Feature:** Implement an ELT (Emergency Locator Transmitter) data pipeline, driven by OCR data from maintenance documents.
-2.  **Bug:** OCR sometimes misreads numbers.
-3.  **Bug:** The Appliquer au système button on the OCR results screen does not correctly update all data sections in the UI.
-4.  **Bug:** The delete button in the OCR history does not work.
+The current development focuses on two main areas:
+1.  **New Feature:** Implement a Rapport (Report) dashboard based on Canadian airworthiness regulations. This involves creating UI graphs for six key components (Engine, Propeller, Airframe, Avionics, Magnetos, Vacuum Pump), updating the backend to store and manage settings for these components, and enhancing the OCR service to recognize relevant English maintenance terms from documents.
+2.  **Critical Bug Fixes:**
+    *   **Data Persistence:** Data entered or updated for the new Rapport components is not being saved correctly, and the graphs do not use the correct source of truth (i.e., the main aircraft's engine/propeller hours).
+    *   **Core Actions:** All  actions (for Parts, Invoices, AD/SBs, and the Aircraft itself) and the  function are reported as non-functional by the user on the iOS TestFlight build.
 
-These evolved into more specific business logic requirements based on testing and feedback:
-- **Data Segregation:** OCR scans of Facture (Invoice) documents must ONLY create invoice/cost data and MUST NOT create maintenance records (parts, ADs, etc.) to prevent data duplication. OCR scans of Rapport (Report) documents are the source of truth for maintenance data.
-- **Controlled Deletion:** Items created via OCR (like Parts and ADs/SBs) must be deletable from their respective maintenance pages to allow users to correct OCR errors.
-- **Data Persistence:** Data entered or modified in the ELT module must be correctly saved to the backend.
-- **UI State:** The UI must correctly reflect backend data, including showing updated flight hours after an OCR scan is applied and displaying a correct color-coded status for the ELT module.
+PRODUCT REQUIREMENTS:
+- The Rapport dashboard must be purely informational and never declare an aircraft as non-navigable.
+- The UI must use a Green/Yellow/Red color code to indicate component status (<80%, ≥80%, overdue).
+- The OCR should assist in data entry for the dashboard but all data must be user-validated.
+- The  and  functions must be robust, provide clear user feedback, and correctly update the application state.
 </original_problem_statement>
 
 **User's preferred language**: fr-FR
 
 **what currently exists?**
-The application has a functional backend with user authentication, aircraft management, and a complex OCR pipeline. The backend has been significantly refactored to support new business logic:
-- OCR endpoint () now differentiates between 'invoice' and 'maintenance_report' document types to prevent data duplication.
-- New backend modules for ELT () and Invoices () have been created and are functional, proven via  tests.
-- Backend routes for deleting parts () and ADs/SBs () exist. The parts deletion logic was relaxed to allow deletion of any part with .
+The application is a full-stack Expo (React Native) and FastAPI (Python/MongoDB) project. It includes user authentication, aircraft management, and an OCR pipeline.
 
-The frontend has corresponding pages for all features, but suffers from several UI/UX bugs related to data persistence and state management.
+A new feature for a Rapport dashboard has been partially implemented:
+- **Backend:** New models () and API routes () exist to manage maintenance data for aircraft components. The OCR service () prompt has been updated to recognize new English keywords.
+- **Frontend:** New pages for the dashboard () and its settings () have been created.
+
+The core  and  functionalities have existing code on both frontend and backend, but are reportedly not working in the user's testing environment.
 
 **Last working item**:
-    - Last item agent was working: The agent was performing a wide-ranging bug-fixing pass based on user feedback (message #267). The core issues being addressed were: ELT data not saving, delete buttons not working on maintenance pages (Parts, AD/SB), and flight hours not updating in the UI after applying an OCR scan. The agent correctly identified that the flight hours issue was likely a frontend state refresh problem and that the ELT/delete issues were related to frontend implementation, uid=0(root) gid=0(root) groups=0(root) vs  mapping, and backend rules. The agent was modifying frontend maintenance pages and backend deletion rules.
+    - Last item agent was working: The agent was fixing the data persistence logic for the new Rapport dashboard feature. The user reported that the component settings were not saving, and the graphs were not using the main aircraft data as the source of truth. The agent rewrote the frontend pages (, ) and backend logic (, ) to address this. However, this work was blocked by a persistent  error from the new  backend endpoint, which prevented the frontend from loading any data. The agent was actively debugging this 404 error by adding logs to the backend.
     - Status: IN PROGRESS
     - Agent Testing Done: N
     - Which testing method agent to use? both
     - User Testing Done: N
 
 **All Pending/In progress Issue list**:
-  - Issue 1: ELT module data is not saving from the frontend. (P0)
-  - Issue 2: Delete buttons on maintenance pages (Parts, AD/SB) do not work. (P0)
-  - Issue 3: Aircraft flight hours are not updating in the UI after applying an OCR scan. (P1)
-  - Issue 4: ELT status indicator in the aircraft menu does not have correct logic (defaults to green). (P2)
-  - Issue 5: OCR number parsing is inaccurate (e.g., reads 3444.6 instead of 6,344.6). (P3)
+  - Issue 1: The new backend endpoint  consistently returns a 404 error, blocking all work on the Rapport feature. (P0)
+  - Issue 2:  buttons (Parts, Invoices, AD/SB, Aircraft) and the  button are non-functional on the iOS TestFlight build. This is a recurring critical bug. (P0)
+  - Issue 3: Data entered on the Rapport settings page () is not saved, and the validation button (✔️) is ineffective. (P1, Blocked by Issue 1)
+  - Issue 4: The Rapport dashboard graphs do not use the main  document's hours as their source of truth. (P1, Blocked by Issue 1)
+  - Issue 5: OCR inaccuracy for numbers (e.g., thousands separators) is a known, but lower-priority, issue. (P3)
   
   Issues Detail:
   - Issue 1: 
-     - Attempted fixes: The agent proved the backend ELT endpoints ( and ) work correctly via . It then identified a frontend issue where it was expecting an uid=0(root) gid=0(root) groups=0(root) field, but the backend was returning . The agent updated the frontend  file to handle this mapping (), but the user reports it is still not working. This indicates the  function in  still has a logic or data formatting error.
+     - Attempted fixes: The agent verified that the aircraft and user exist in the database and that other endpoints for the same aircraft (e.g., ) work correctly with the same user token. It was hypothesized that the database query within the  route was failing due to a user ID mismatch. The agent added logging to the backend route to inspect  and the  being queried, but the session ended before the logs could be analyzed.
      - Next debug checklist: 
-        1. In , add  inside the  function to inspect the  being sent to the API.
-        2. Verify the correct HTTP method ( vs ) is being used based on whether  exists.
-        3. Check the browser's network tab (or add logging) to see the exact API response when the save button is pressed.
-     - Why fix this issue and what will be achieved with the fix? This is critical for managing ELT data, a key safety feature.
-     - Status:  IN PROGRESS
-     - Is recurring issue? Y
-     - Should Test frontend/backend/both after fix? frontend
-     - Blocked on other issue: None
-
-  - Issue 2: 
-     - Attempted fixes: The agent verified backend  endpoints exist for parts and AD/SBs. It implemented delete buttons and  functions in  and . It relaxed the backend deletion rule for parts to only require . The user reports the buttons are visible but do not delete the items.
-     - Next debug checklist:
-        1. In  and , add  to the  functions to ensure they are called with the correct item .
-        2. Check the API response after the  call.
-        3. Ensure the local state (e.g., , ) is being updated correctly using  after a successful deletion to trigger a UI re-render.
-     - Why fix this issue and what will be achieved with the fix? Allows users to correct errors from the OCR scanner, which is a critical part of the workflow.
-     - Status:  IN PROGRESS
-     - Is recurring issue? Y
-     - Should Test frontend/backend/both after fix? frontend
-     - Blocked on other issue: None
-
-  - Issue 3: 
-     - Attempted fixes: The agent checked backend logs and confirmed the database is being updated with the new hours. It correctly hypothesized that the frontend Zustand store () is not being invalidated or refreshed after the OCR  call is made from . No fix was implemented yet.
-     - Next debug checklist:
-        1. In , after the  call succeeds, call the function responsible for re-fetching the specific aircraft's data.
-        2. Check  to see if there is a  function. This function needs to be triggered.
-        3. Alternatively, upon successful OCR apply, navigate the user back to the aircraft list, which would force a reload when they re-enter the detail page.
-     - Why fix this issue and what will be achieved with the fix? Provides immediate visual confirmation to the user that the OCR process worked, which is crucial for user confidence.
-     - Status:  NOT STARTED
-     - Is recurring issue? N
-     - Should Test frontend/backend/both after fix? frontend
-     - Blocked on other issue: None
-
-  - Issue 4: 
-     - Attempted fixes: The agent rewrote  to include logic for calculating the ELT status. However, the user reported the logic is still incorrect. The default state should be Grey (no data), not Green.
-     - Next debug checklist:
-        1. Review the  function in .
-        2. The initial state for  should be  (Grey) or similar.
-        3. The logic should only return Green if valid  and  exist and are not approaching their due dates.
-     - Why fix this issue and what will be achieved with the fix? Provides an accurate at-a-glance safety indicator for the user.
+        1. Restart the backend service to ensure the latest code with logging is active.
+        2. Trigger the API call from the frontend and inspect the backend logs for the new debug output.
+        3. Verify if the  from the token matches the  stored on the aircraft document in the database.
+        4. In , temporarily modify the  query to search by  only, removing the  check, to isolate whether the issue is with authentication or the record lookup itself.
+     - Why fix this issue and what will be achieved with the fix? This is the primary blocker for the entire Rapport feature implementation. Fixing it will allow the frontend to fetch and display maintenance data.
      - Status:  IN PROGRESS
      - Is recurring issue? N
-     - Should Test frontend/backend/both after fix? frontend
-     - Blocked on other issue: None
-
-  - Issue 5: 
-     - Attempted fixes: The agent updated the OCR prompt in  with instructions to better handle numbers with commas/spaces as thousands separators. This has not been tested or validated by the user.
-     - Next debug checklist: Perform an OCR scan with a document containing numbers like  and check the extracted JSON.
-     - Why fix this issue and what will be achieved with the fix? Ensures accuracy of critical data like flight hours.
-     - Status:  IN PROGRESS
-     - Is recurring issue? Y
      - Should Test frontend/backend/both after fix? backend
      - Blocked on other issue: None
 
+  - Issue 2: 
+     - Attempted fixes: The agent proved the backend  endpoints work correctly via . The issue was isolated to the frontend. The last attempted fix involved changing how the async  function is called from the  confirmation dialog. The call was wrapped in an anonymous function () to prevent potential scope or execution issues with async callbacks on native iOS. This fix has not been verified by the user.
+     - Next debug checklist:
+        1. Ask the user to test the  and  functions again on their TestFlight app.
+        2. Instruct the user on how to view the device console logs to check for the  logs the agent added for debugging.
+        3. If no logs appear, the  event is still not firing correctly.
+        4. If logs appear but the action fails, inspect the console for API error messages.
+     - Why fix this issue and what will be achieved with the fix? This is a critical data management and security feature. Its failure severely degrades the application's usability.
+     - Status:  USER VERIFICATION PENDING
+     - Is recurring issue? Y
+     - Should Test frontend/backend/both after fix? frontend
+     - Blocked on other issue: None
+
 **In progress Task List**:
-- None. All current work is classified as bug fixing.
+  - Task 1:  Implement Canadian Airworthiness Rules in Rapport Dashboard (P0)
+     - Where to resume: Debug and fix the  error on the  endpoint. Once the API is functional, ensure the  and  frontend components correctly fetch, display, and save data, and that graphs update in real-time.
+     - What will be achieved with this? A functional, data-driven maintenance report dashboard that provides valuable insights to the user.
+     - Status:  IN PROGRESS
+     - Should Test frontend/backend/both after fix? both
+     - Blocked on something: Issue 1
 
 **Upcoming and Future Tasks**
     Upcoming Tasks:
-    - **P1:** Implement the Maintenance Book page.
-    - **P4:** Implement the W/B (Weight & Balance) page.
-    - **P5:** Implement the Assistant IA page.
+    - P1: Implement the Maintenance Book page.
+    - P3: Implement the W/B (Weight & Balance) page.
+    - P4: Implement the Assistant IA page.
     
     Future Tasks:
-    - **P0:** Migrate the backend to a permanent hosting solution.
-    - **P1:** Integrate Stripe for real subscription payments.
-    - **P2:** Develop a notification system for maintenance alerts.
+    - P0: Migrate the backend to a permanent hosting solution.
+    - P1: Integrate Stripe for real subscription payments.
+    - P2: Develop a notification system for maintenance alerts.
 
 **Completed work in this session**
-- **Backend Refactoring (OCR Logic):**
-  - Modified  to separate business logic for invoice and maintenance_report scans. Invoices now only create cost-related entries, preventing data duplication.
-- **Backend Module Creation:**
-  - Created a full backend module for ELT (, ) with CRUD operations.
-  - Created a full backend module for Invoices (, ) with CRUD operations.
-- **Backend Model Updates:**
-  - Added  and  fields to the  model () to support controlled deletion.
-- **Backend Bug Fixes:**
-  - Corrected date parsing in ELT routes to accept string formats from the frontend.
-  - Fixed a logic bug in  that incorrectly threw an already applied error.
-  - Relaxed the part deletion rule in  to allow deletion of any part with .
-- **Frontend Implementation:**
-  - Created/Updated UI for the ELT module (), OCR results (), Invoices list (), Parts list (), and AD/SB list ().
-  - Added delete buttons to the Parts and AD/SB pages.
-  - Added a status indicator dot for the ELT module in the aircraft menu page ().
-- **Environment Maintenance:**
-  - Repeatedly fixed the Expo SDK version in  to the required  after it was auto-updated by the environment.
+- **Backend  Logic:** Fixed  and  to correctly handle string IDs passed from the frontend by converting them to MongoDB  before database queries.
+- **Frontend State Management:** Added a  method to the Zustand  to facilitate targeted data updates.
+- **UI Bug Fix (Flight Hours):** Modified  to call the new store method after applying an OCR scan, ensuring the aircraft's flight hours update correctly in the UI.
+- **Frontend / Refactor:** Re-implemented the  handlers for all delete and logout actions to use a confirmation . The latest version wraps the async API call in an anonymous function to improve reliability on native iOS.
+- **Rapport Feature Backend:** Created the initial data model () and API routes () to support the new dashboard.
+- **Rapport Feature Frontend:** Created the initial UI pages for the dashboard () and its settings ().
+- **OCR Enhancement:** Updated the  prompt to recognize English keywords and statuses (e.g., PAST DUE) related to the new Rapport components.
 
 **Earlier issues found/mentioned but not fixed**
-- All issues mentioned by the user have been acknowledged and are being worked on, though not all are resolved.
+- All known issues are captured in the **All Pending/In progress Issue list**.
 
 **Known issue recurrence from previous fork**
-  - Not applicable.
+  - The non-functional  buttons are a significant recurring issue. The problem has persisted across multiple sessions and frontend fix attempts, indicating a tricky underlying cause related to the native environment.
 
 **Code Architecture**
 
 
 **Key Technical Concepts**
-- **Frontend:** React Native, Expo (SDK 52), Expo Router, TypeScript, Zustand.
-- **Backend:** FastAPI, Python, Pydantic, MongoDB.
-- **AI:** OpenAI's GPT-4 Vision via Emergent LLM Key.
+- **Frontend:** React Native, Expo (SDK 52), TypeScript, Zustand for state management.
+- **Backend:** FastAPI, Python, Pydantic, MongoDB (with  async driver).
+- **Key Challenge:** Debugging frontend behavior specific to the native iOS TestFlight environment (e.g.,  callbacks, event handlers) from within a remote container.
+- **Key Challenge:** Ensuring correct data types ( vs. ) are used between the frontend and the MongoDB backend.
 
 **key DB schema**
-  - : {..., source: Optional[str], confirmed: Optional[bool]}
-  - : (New table) {aircraft_id, brand, model, battery_change_date, etc.}
-  - : (New table) {aircraft_id, invoice_number, total_amount, date, etc.}
+  - : { , , : { , ,  }, : { ... }, ... }
 
 **changes in tech stack**
-  - No changes to the core tech stack.
+  - None.
 
 **All files of reference**
-- **Primary Bug Locations (Frontend):**
-  - : ELT save logic.
-  - : Parts delete logic.
-  - : AD/SB delete logic.
-  - : Needs to trigger a state refresh on success.
-  - : ELT status indicator logic.
-- **Primary Logic Locations (Backend):**
-  - : Core business logic for separating invoice/report data.
-  - : Part deletion logic.
-  - : ELT CRUD logic.
+- **Primary Blocker (Backend):**  - This file contains the API logic for the Rapport feature and is the source of the critical 404 error.
+- **Recurring Issue (Frontend):**  (and , , , ) - These files contain the / handlers that are reportedly failing.
+- **New Feature Files:** , .
 
 **Areas that need refactoring**:
-- **Frontend State Management:** The application urgently needs a robust pattern for refreshing data after API mutations. Calls made in one screen (e.g., ) must trigger data re-fetching for other screens (e.g., ). This should be implemented via the existing Zustand store.
-- **Frontend/Backend Data Mapping:** The  vs uid=0(root) gid=0(root) groups=0(root) issue is a recurring problem. A transformer in the  service could be used to automatically map  to uid=0(root) gid=0(root) groups=0(root) on all incoming responses to make frontend components more consistent.
+- **Data Flow for Rapport:** The logic for fetching, combining, and persisting data for the report dashboard is incomplete and broken. A clear pattern is needed where  uses the main  record as the base and layers the  data on top, with  correctly updating both records in the backend.
 
 **key api endpoints**
-- : Applies OCR data. Critical logic depends on .
-- , : Create/Update ELT records.
-- : Get invoices for an aircraft.
-- : Deletes a part record.
-- : Deletes an AD/SB record.
+- 
+- 
+-  **(New & Broken - returns 404)**
+-  **(New)**
 
 **Critical Info for New Agent**
-- **SDK Lock:** The project MUST remain on **Expo SDK ~52.0.0**. The environment automatically upgrades it. You MUST check  and revert it with yarn install v1.22.22
-[1/4] Resolving packages...
-success Already up-to-date.
-Done in 0.51s. before any new work or build.
-- **UI Refresh is Broken:** The biggest issue is that the UI does not refresh after backend data changes (e.g., updating flight hours). The solution is to use the Zustand  to re-fetch data after a successful API mutation, particularly after the  call.
-- **ID vs _ID Mismatch:** The frontend often expects an uid=0(root) gid=0(root) groups=0(root) field, but the MongoDB backend provides . This was a root cause for the ELT bug and is likely present elsewhere. Be mindful of this mapping in all frontend components that handle backend data.
-- **Backend is Mostly Correct:** The agent did extensive  testing and fixed most backend issues. The remaining problems are almost all on the frontend (handling API calls, updating state, and data mapping). Focus your efforts on the frontend code.
+- **Priority 1 is the 404 Error:** You cannot proceed with the feature request until you fix the  error on the  endpoint. The previous agent added logging to ; your first action should be to analyze those logs.
+- **Priority 2 is the DELETE/Logout Bug:** This is a highly frustrating recurring issue for the user. The latest attempted fix () has not been validated. You must coordinate with the user to test this on their device and get feedback. Do not assume it is fixed. The backend is confirmed to be working, so focus entirely on the frontend code for these actions.
+- **Follow User Instructions:** The user provides very detailed, technical requirements (e.g., messages #270, #397, #434). Adhere to them strictly and do not modify UX or add dependencies without permission.
 
 **documents created in this job**
   - None.
 
 **Last 10 User Messages and any pending user messages**
-- **User (Msg 209):** Provided definitive business rules to stop data duplication from OCR and allow controlled deletion of parts. (Partially Implemented, but bugs remain)
-- **User (Msg 267):** Reported that ELT still doesn't save, delete buttons don't work, delete is needed everywhere (AD/SB), and flight hours don't update on the UI. This is the **current active bug list**. (In Progress)
+- **User (Msg #397):** Requested implementation of Canadian maintenance rules for a new Rapport dashboard. (IN PROGRESS)
+- **User (Msg #434):** Reported critical bugs with the new Rapport feature: data not saving and graphs not using the correct source data. (IN PROGRESS, BLOCKED)
+- **User (Msg #346):** Rejected a previous fix for the DELETE issue because it violated the constraints (no new dependencies). (RESOLVED - Agent reverted changes)
+- **User (Msg #270 & #243):** Reported the critical bug that  and  buttons are completely inactive. (USER VERIFICATION PENDING on latest fix)
 
 **Project Health Check:**
 - **Broken:**
-  - ELT saving mechanism.
-  - Delete functionality on Parts and AD/SB pages.
-  - Live UI update for flight hours after OCR apply.
-  - ELT status color logic.
+  - The entire Rapport dashboard feature is non-functional due to a backend API error.
+  - All  functionality is reportedly broken.
+  -  functionality is reportedly broken.
 - **Mocked:**
-  -  page.
-  -  page.
-  -  page.
-  -  page.
+  - , , ,  pages.
 
 **3rd Party Integrations**
 	 •	OpenAI GPT-4 Vision — uses Emergent LLM Key for OCR processing.
@@ -211,15 +160,12 @@ Done in 0.51s. before any new work or build.
   - Testing agent used after significant changes: NO
   - Troubleshoot agent used after agent stuck in loop: NO
   - Test files created: []
-  - Known regressions:
-    - The Expo SDK version in  reverts to  automatically.
-    - Flight hours update was working but is now broken (on the UI side).
+  - Known regressions:  and  functionality has regressed or was never fully fixed.
 
 **Credentials to test flow:**
-The agent has been creating test users dynamically (e.g., , ) with password  to test API endpoints. This method can be reused.
+- Use existing test users like  or  with password . You may need to create new users and aircraft to test specific data ownership scenarios related to the 404 bug.
 
 **What agent forgot to execute**
-- The agent correctly identified the need to refresh the Zustand store to fix the flight hours UI bug but did not implement the fix.
-- The agent has patched the button not working issues multiple times but hasn't implemented a robust solution that includes proper API response handling and state updates, which is the root cause of why the user keeps reporting the same problems.
-- The original bug of OCR number parsing has not been fully resolved or verified.
+- The agent did not get user validation for the latest fix applied to the  and  buttons before moving on to the new feature request. This critical bug remains in an unknown state.
+
 </analysis>

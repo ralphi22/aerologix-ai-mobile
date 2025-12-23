@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,7 +10,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import api from '../../../services/api';
 
 interface Aircraft {
@@ -43,13 +43,16 @@ interface ComponentSettings {
   vacuum_pump_last_replacement_date: string | null;
   airframe_last_annual_date: string | null;
   airframe_last_annual_hours: number | null;
+  // ELT intervals
+  elt_test_interval_months?: number;
+  elt_battery_interval_months?: number;
 }
 
 interface ELTData {
   last_test_date: string | null;
-  battery_change_date: string | null;
-  test_interval_months: number;
-  battery_interval_months: number;
+  battery_install_date: string | null;
+  battery_expiry_date: string | null;
+  battery_interval_months: number | null;
 }
 
 interface ComponentStatus {
@@ -62,6 +65,16 @@ interface ComponentStatus {
   status: 'green' | 'yellow' | 'red' | 'grey';
   type: 'hours' | 'date' | 'both';
   hasData: boolean;
+}
+
+// Interface pour les alertes TC-SAFE
+interface Alert {
+  id: string;
+  component: string;
+  icon: string;
+  message: string;
+  severity: 'warning' | 'critical';  // Jaune ou Rouge
+  color: string;
 }
 
 export default function MaintenanceReportScreen() {
@@ -77,12 +90,18 @@ export default function MaintenanceReportScreen() {
   const [settings, setSettings] = useState<ComponentSettings | null>(null);
   const [eltData, setEltData] = useState<ELTData | null>(null);
   const [components, setComponents] = useState<ComponentStatus[]>([]);
+  const [alerts, setAlerts] = useState<Alert[]>([]);
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  // Recharger les données à chaque focus (retour de settings)
+  useFocusEffect(
+    useCallback(() => {
+      console.log('[REPORT] Screen focused - reloading data');
+      fetchData();
+    }, [aircraftId])
+  );
 
   const fetchData = async () => {
+    console.log('[REPORT] Fetching data for aircraft:', aircraftId);
     try {
       // Récupérer Aircraft (source de vérité pour les heures) + Settings + ELT
       const [aircraftRes, settingsRes, eltRes] = await Promise.all([
@@ -91,13 +110,18 @@ export default function MaintenanceReportScreen() {
         api.get(`/api/elt/aircraft/${aircraftId}`).catch(() => ({ data: null }))
       ]);
       
+      console.log('[REPORT] Aircraft data:', JSON.stringify(aircraftRes.data));
+      console.log('[REPORT] Settings data:', JSON.stringify(settingsRes.data));
+      console.log('[REPORT] ELT data:', eltRes.data ? 'found' : 'none');
+      
       setAircraft(aircraftRes.data);
       setSettings(settingsRes.data);
       setEltData(eltRes.data);
       
       calculateComponents(aircraftRes.data, settingsRes.data, eltRes.data);
-    } catch (error) {
-      console.error('Error fetching report data:', error);
+    } catch (error: any) {
+      console.error('[REPORT] Error fetching data:', error);
+      console.error('[REPORT] Error details:', error.response?.data);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -124,12 +148,25 @@ export default function MaintenanceReportScreen() {
     return { pct: Math.min((monthsElapsed / intervalMonths) * 100, 150), hasData: true };
   };
 
-  const calculateHoursPercentage = (currentHours: number, lastWorkHours: number | null, interval: number): { pct: number; hoursSince: number; hasData: boolean } => {
-    // Si on a les heures au moment du dernier travail, on calcule la différence
-    if (lastWorkHours !== null && currentHours > 0) {
-      const hoursSince = currentHours - lastWorkHours;
-      return { pct: Math.min((hoursSince / interval) * 100, 150), hoursSince, hasData: true };
+  const calculateHoursPercentage = (currentHours: number, lastWorkHours: number | null | undefined, interval: number): { pct: number; hoursSince: number; hasData: boolean } => {
+    console.log('[CALC] calculateHoursPercentage:', { currentHours, lastWorkHours, interval, typeOfLastWork: typeof lastWorkHours });
+    
+    // Convertir en nombre pour être sûr
+    const current = Number(currentHours) || 0;
+    const lastWork = lastWorkHours !== null && lastWorkHours !== undefined ? Number(lastWorkHours) : null;
+    const int = Number(interval) || 2000;
+    
+    // Si on a les heures totales du moteur, on calcule le % vers le TBO
+    // lastWork = heures moteur QUAND l'overhaul a été fait (ex: 0 pour moteur neuf)
+    if (current > 0) {
+      // Si lastWork est défini, on calcule les heures DEPUIS l'overhaul
+      // Sinon, on utilise les heures totales (cas où moteur jamais révisé ou données manquantes)
+      const hoursSince = lastWork !== null && !isNaN(lastWork) ? (current - lastWork) : current;
+      const pct = Math.min((hoursSince / int) * 100, 150);
+      console.log('[CALC] Result: hasData=true, hoursSince=', hoursSince, 'pct=', pct);
+      return { pct, hoursSince, hasData: true };
     }
+    console.log('[CALC] Result: hasData=false (current=', current, ')');
     return { pct: 0, hoursSince: 0, hasData: false };
   };
 
@@ -139,20 +176,27 @@ export default function MaintenanceReportScreen() {
   };
 
   const calculateComponents = (ac: Aircraft, s: ComponentSettings, elt: ELTData | null) => {
+    console.log('[REPORT] calculateComponents called');
+    console.log('[REPORT] Aircraft engine_hours:', ac.engine_hours);
+    console.log('[REPORT] Settings engine_last_overhaul_hours:', s.engine_last_overhaul_hours);
+    console.log('[REPORT] Settings engine_tbo_hours:', s.engine_tbo_hours);
+    
     const comps: ComponentStatus[] = [];
     
-    // 1. MOTEUR - Source: Aircraft.engine_hours - Settings.engine_last_overhaul_hours
-    const engineCalc = calculateHoursPercentage(ac.engine_hours, s.engine_last_overhaul_hours, s.engine_tbo_hours);
-    const engineStatus = getStatusColor(engineCalc.pct, engineCalc.hasData);
+    // 1. MOTEUR - Calcul simple: heures actuelles / TBO
+    // La date de révision est juste une info, pas utilisée dans le calcul
+    const enginePct = Math.min((ac.engine_hours / s.engine_tbo_hours) * 100, 150);
+    const engineStatus = getStatusColor(enginePct, ac.engine_hours > 0);
+    console.log('[CALC] Engine: hours=', ac.engine_hours, 'TBO=', s.engine_tbo_hours, 'pct=', enginePct);
     comps.push({
       name: 'Moteur',
       icon: 'cog',
-      percentage: engineCalc.pct,
-      current: engineCalc.hasData ? `${engineCalc.hoursSince.toFixed(1)} h depuis révision` : 'Données non disponibles',
+      percentage: enginePct,
+      current: `${ac.engine_hours.toFixed(1)} h`,
       limit: `TBO: ${s.engine_tbo_hours} h`,
       ...engineStatus,
       type: 'hours',
-      hasData: engineCalc.hasData
+      hasData: ac.engine_hours > 0
     });
 
     // 2. HÉLICE - Source: Aircraft.propeller_hours ou date selon type
@@ -240,21 +284,47 @@ export default function MaintenanceReportScreen() {
       hasData: vacuumCalc.hasData
     });
 
-    // 7. ELT (optionnel) - Source: ELT record
+    // 7. ELT (optionnel) - Source: ELT record + intervalles configurables
     if (elt) {
-      const eltTestCalc = calculateDatePercentage(elt.last_test_date, elt.test_interval_months || 12);
-      const eltBatteryCalc = calculateDatePercentage(elt.battery_change_date, elt.battery_interval_months || 72);
+      // Intervalles configurables (défauts: test 12 mois, batterie 24 mois)
+      const testInterval = s.elt_test_interval_months || 12;
+      const batteryInterval = s.elt_battery_interval_months || elt.battery_interval_months || 24;
+      
+      // Test - calculé depuis last_test_date
+      const eltTestCalc = calculateDatePercentage(elt.last_test_date, testInterval);
+      
+      // Batterie - utilise battery_expiry_date si disponible, sinon calcule depuis battery_install_date
+      let eltBatteryCalc: { pct: number; hasData: boolean } = { pct: 0, hasData: false };
+      let batteryDisplayDate: string | null = null;
+      
+      if (elt.battery_expiry_date) {
+        // Calcul direct depuis la date d'expiration
+        const expiryDate = new Date(elt.battery_expiry_date);
+        const now = new Date();
+        const monthsUntilExpiry = (expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24 * 30);
+        // Pourcentage basé sur le temps restant vs intervalle configuré
+        const pct = Math.max(0, Math.min(((batteryInterval - monthsUntilExpiry) / batteryInterval) * 100, 150));
+        eltBatteryCalc = { pct, hasData: true };
+        batteryDisplayDate = elt.battery_expiry_date;
+      } else if (elt.battery_install_date) {
+        // Calcul depuis la date d'installation avec intervalle configurable
+        eltBatteryCalc = calculateDatePercentage(elt.battery_install_date, batteryInterval);
+        batteryDisplayDate = elt.battery_install_date;
+      }
+      
       const hasEltData = eltTestCalc.hasData || eltBatteryCalc.hasData;
       const maxEltPct = Math.max(eltTestCalc.pct, eltBatteryCalc.pct);
       const eltStatus = getStatusColor(maxEltPct, hasEltData);
       
       let eltCurrent = 'Données non disponibles';
       if (eltTestCalc.hasData && eltBatteryCalc.hasData) {
-        eltCurrent = `Test: ${formatDate(elt.last_test_date)} | Batt: ${formatDate(elt.battery_change_date)}`;
+        const battLabel = elt.battery_expiry_date ? 'Exp. batt' : 'Batt';
+        eltCurrent = `Test: ${formatDate(elt.last_test_date)} | ${battLabel}: ${formatDate(batteryDisplayDate)}`;
       } else if (eltTestCalc.hasData) {
-        eltCurrent = `Test: ${formatDate(elt.last_test_date)}`;
+        eltCurrent = `Dernier test: ${formatDate(elt.last_test_date)}`;
       } else if (eltBatteryCalc.hasData) {
-        eltCurrent = `Batterie: ${formatDate(elt.battery_change_date)}`;
+        const battLabel = elt.battery_expiry_date ? 'Expiration batterie' : 'Installation batterie';
+        eltCurrent = `${battLabel}: ${formatDate(batteryDisplayDate)}`;
       }
       
       comps.push({
@@ -262,7 +332,7 @@ export default function MaintenanceReportScreen() {
         icon: 'locate',
         percentage: maxEltPct,
         current: eltCurrent,
-        limit: 'Test 12m / Batt 72m',
+        limit: `Test ${testInterval}m / Batt ${batteryInterval}m`,
         ...eltStatus,
         type: 'date',
         hasData: hasEltData
@@ -270,6 +340,226 @@ export default function MaintenanceReportScreen() {
     }
 
     setComponents(comps);
+    
+    // Générer les alertes TC-SAFE basées sur les mêmes données que les graphiques
+    generateAlerts(ac, s, elt, comps);
+  };
+
+  // Génère les alertes TC-SAFE - lit les mêmes données que les graphiques
+  const generateAlerts = (ac: Aircraft, s: ComponentSettings, elt: ELTData | null, comps: ComponentStatus[]) => {
+    const newAlerts: Alert[] = [];
+    
+    // MOTEUR - basé sur heures moteur Aircraft (même calcul que graphique)
+    const enginePct = (ac.engine_hours / s.engine_tbo_hours) * 100;
+    if (enginePct > 100) {
+      newAlerts.push({
+        id: 'engine-critical',
+        component: 'Moteur',
+        icon: 'cog',
+        message: `TBO dépassé (${ac.engine_hours.toFixed(0)}h / ${s.engine_tbo_hours}h)`,
+        severity: 'critical',
+        color: '#EF4444'
+      });
+    } else if (enginePct >= 80) {
+      newAlerts.push({
+        id: 'engine-warning',
+        component: 'Moteur',
+        icon: 'cog',
+        message: `Approche TBO (${Math.round(enginePct)}%)`,
+        severity: 'warning',
+        color: '#F59E0B'
+      });
+    }
+    
+    // HÉLICE - basé sur le composant calculé (même données)
+    const propComp = comps.find(c => c.name === 'Hélice');
+    if (propComp && propComp.hasData) {
+      if (propComp.percentage > 100) {
+        newAlerts.push({
+          id: 'propeller-critical',
+          component: 'Hélice',
+          icon: 'sync-circle',
+          message: 'Inspection dépassée',
+          severity: 'critical',
+          color: '#EF4444'
+        });
+      } else if (propComp.percentage >= 80) {
+        newAlerts.push({
+          id: 'propeller-warning',
+          component: 'Hélice',
+          icon: 'sync-circle',
+          message: `Inspection à prévoir (${Math.round(propComp.percentage)}%)`,
+          severity: 'warning',
+          color: '#F59E0B'
+        });
+      }
+    }
+    
+    // AVIONIQUE - basé sur date certification (Jaune ≥ 20 mois, Rouge > 24 mois)
+    if (s.avionics_last_certification_date) {
+      const certDate = new Date(s.avionics_last_certification_date);
+      const now = new Date();
+      const monthsSince = (now.getTime() - certDate.getTime()) / (1000 * 60 * 60 * 24 * 30);
+      if (monthsSince > 24) {
+        newAlerts.push({
+          id: 'avionics-critical',
+          component: 'Avionique',
+          icon: 'radio',
+          message: 'Certification expirée',
+          severity: 'critical',
+          color: '#EF4444'
+        });
+      } else if (monthsSince >= 20) {
+        newAlerts.push({
+          id: 'avionics-warning',
+          component: 'Avionique',
+          icon: 'radio',
+          message: `Certification expire bientôt`,
+          severity: 'warning',
+          color: '#F59E0B'
+        });
+      }
+    }
+    
+    // MAGNETOS - Jaune ≥ 400h, Rouge ≥ 500h (depuis dernière inspection)
+    if (s.magnetos_last_inspection_hours !== null) {
+      const magnetosHoursSince = ac.engine_hours - s.magnetos_last_inspection_hours;
+      if (magnetosHoursSince >= 500) {
+        newAlerts.push({
+          id: 'magnetos-critical',
+          component: 'Magnétos',
+          icon: 'flash',
+          message: `Inspection requise (${magnetosHoursSince.toFixed(0)}h)`,
+          severity: 'critical',
+          color: '#EF4444'
+        });
+      } else if (magnetosHoursSince >= 400) {
+        newAlerts.push({
+          id: 'magnetos-warning',
+          component: 'Magnétos',
+          icon: 'flash',
+          message: `Inspection à prévoir (${magnetosHoursSince.toFixed(0)}h)`,
+          severity: 'warning',
+          color: '#F59E0B'
+        });
+      }
+    }
+    
+    // VACUUM PUMP - Jaune ≥ 320h, Rouge ≥ 400h (depuis dernier remplacement)
+    if (s.vacuum_pump_last_replacement_hours !== null) {
+      const vacuumHoursSince = ac.engine_hours - s.vacuum_pump_last_replacement_hours;
+      if (vacuumHoursSince >= 400) {
+        newAlerts.push({
+          id: 'vacuum-critical',
+          component: 'Pompe à vide',
+          icon: 'speedometer',
+          message: `Remplacement requis (${vacuumHoursSince.toFixed(0)}h)`,
+          severity: 'critical',
+          color: '#EF4444'
+        });
+      } else if (vacuumHoursSince >= 320) {
+        newAlerts.push({
+          id: 'vacuum-warning',
+          component: 'Pompe à vide',
+          icon: 'speedometer',
+          message: `Remplacement à prévoir (${vacuumHoursSince.toFixed(0)}h)`,
+          severity: 'warning',
+          color: '#F59E0B'
+        });
+      }
+    }
+    
+    // ELT - Jaune ≤ 15 jours avant échéance, Rouge dépassé
+    if (elt) {
+      // Test ELT
+      if (elt.last_test_date) {
+        const testDate = new Date(elt.last_test_date);
+        const testInterval = s.elt_test_interval_months || 12;
+        const nextTest = new Date(testDate.getTime() + testInterval * 30 * 24 * 60 * 60 * 1000);
+        const now = new Date();
+        const daysUntilTest = (nextTest.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
+        
+        if (daysUntilTest < 0) {
+          newAlerts.push({
+            id: 'elt-test-critical',
+            component: 'ELT',
+            icon: 'locate',
+            message: 'Test opérationnel dépassé',
+            severity: 'critical',
+            color: '#EF4444'
+          });
+        } else if (daysUntilTest <= 15) {
+          newAlerts.push({
+            id: 'elt-test-warning',
+            component: 'ELT',
+            icon: 'locate',
+            message: `Test dans ${Math.round(daysUntilTest)} jours`,
+            severity: 'warning',
+            color: '#F59E0B'
+          });
+        }
+      }
+      
+      // Batterie ELT
+      if (elt.battery_expiry_date) {
+        const expiryDate = new Date(elt.battery_expiry_date);
+        const now = new Date();
+        const daysUntilExpiry = (expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
+        
+        if (daysUntilExpiry < 0) {
+          newAlerts.push({
+            id: 'elt-battery-critical',
+            component: 'ELT',
+            icon: 'locate',
+            message: 'Batterie expirée',
+            severity: 'critical',
+            color: '#EF4444'
+          });
+        } else if (daysUntilExpiry <= 15) {
+          newAlerts.push({
+            id: 'elt-battery-warning',
+            component: 'ELT',
+            icon: 'locate',
+            message: `Batterie expire dans ${Math.round(daysUntilExpiry)} jours`,
+            severity: 'warning',
+            color: '#F59E0B'
+          });
+        }
+      }
+    }
+    
+    // CELLULE (Annuelle) - basé sur le composant calculé
+    const airframeComp = comps.find(c => c.name === 'Cellule');
+    if (airframeComp && airframeComp.hasData) {
+      if (airframeComp.percentage > 100) {
+        newAlerts.push({
+          id: 'airframe-critical',
+          component: 'Cellule',
+          icon: 'airplane',
+          message: 'Inspection annuelle dépassée',
+          severity: 'critical',
+          color: '#EF4444'
+        });
+      } else if (airframeComp.percentage >= 80) {
+        newAlerts.push({
+          id: 'airframe-warning',
+          component: 'Cellule',
+          icon: 'airplane',
+          message: `Annuelle à prévoir (${Math.round(airframeComp.percentage)}%)`,
+          severity: 'warning',
+          color: '#F59E0B'
+        });
+      }
+    }
+    
+    // Trier: critiques d'abord, puis warnings
+    newAlerts.sort((a, b) => {
+      if (a.severity === 'critical' && b.severity === 'warning') return -1;
+      if (a.severity === 'warning' && b.severity === 'critical') return 1;
+      return 0;
+    });
+    
+    setAlerts(newAlerts);
   };
 
   const renderProgressBar = (comp: ComponentStatus) => {
@@ -345,6 +635,40 @@ export default function MaintenanceReportScreen() {
           Informatif uniquement — Consultez un AME certifié
         </Text>
       </View>
+
+      {/* Section Alertes TC-SAFE */}
+      {!loading && alerts.length > 0 && (
+        <View style={styles.alertsContainer}>
+          <View style={styles.alertsHeader}>
+            <Ionicons name="notifications" size={18} color="#1E3A8A" />
+            <Text style={styles.alertsTitle}>Alertes ({alerts.length})</Text>
+          </View>
+          {alerts.map((alert) => (
+            <View 
+              key={alert.id} 
+              style={[
+                styles.alertItem, 
+                { backgroundColor: alert.color + '10', borderLeftColor: alert.color }
+              ]}
+            >
+              <View style={[styles.alertIconContainer, { backgroundColor: alert.color + '20' }]}>
+                <Ionicons name={alert.icon as any} size={16} color={alert.color} />
+              </View>
+              <View style={styles.alertContent}>
+                <Text style={[styles.alertComponent, { color: alert.color }]}>{alert.component}</Text>
+                <Text style={styles.alertMessage}>{alert.message}</Text>
+              </View>
+              <View style={[styles.alertBadge, { backgroundColor: alert.color }]}>
+                <Ionicons 
+                  name={alert.severity === 'critical' ? 'alert-circle' : 'warning'} 
+                  size={12} 
+                  color="#FFFFFF" 
+                />
+              </View>
+            </View>
+          ))}
+        </View>
+      )}
 
       {loading ? (
         <View style={styles.centered}>
@@ -479,4 +803,61 @@ const styles = StyleSheet.create({
   footerValueGrey: { color: '#9CA3AF', fontStyle: 'italic' },
   footerSection: { alignItems: 'center', paddingVertical: 20 },
   footerNote: { fontSize: 11, color: '#94A3B8', fontStyle: 'italic' },
+  // Styles pour les alertes TC-SAFE
+  alertsContainer: {
+    backgroundColor: '#FFFFFF',
+    marginHorizontal: 16,
+    marginTop: 8,
+    marginBottom: 8,
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  alertsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+    gap: 6,
+  },
+  alertsTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1E3A8A',
+  },
+  alertItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 10,
+    borderRadius: 8,
+    marginBottom: 6,
+    borderLeftWidth: 3,
+  },
+  alertIconContainer: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  alertContent: {
+    flex: 1,
+    marginLeft: 10,
+  },
+  alertComponent: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  alertMessage: {
+    fontSize: 12,
+    color: '#475569',
+    marginTop: 1,
+  },
+  alertBadge: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
 });
