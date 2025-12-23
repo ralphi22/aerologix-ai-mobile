@@ -636,6 +636,40 @@ export default function MaintenanceReportScreen() {
         </Text>
       </View>
 
+      {/* Section Alertes TC-SAFE */}
+      {!loading && alerts.length > 0 && (
+        <View style={styles.alertsContainer}>
+          <View style={styles.alertsHeader}>
+            <Ionicons name="notifications" size={18} color="#1E3A8A" />
+            <Text style={styles.alertsTitle}>Alertes ({alerts.length})</Text>
+          </View>
+          {alerts.map((alert) => (
+            <View 
+              key={alert.id} 
+              style={[
+                styles.alertItem, 
+                { backgroundColor: alert.color + '10', borderLeftColor: alert.color }
+              ]}
+            >
+              <View style={[styles.alertIconContainer, { backgroundColor: alert.color + '20' }]}>
+                <Ionicons name={alert.icon as any} size={16} color={alert.color} />
+              </View>
+              <View style={styles.alertContent}>
+                <Text style={[styles.alertComponent, { color: alert.color }]}>{alert.component}</Text>
+                <Text style={styles.alertMessage}>{alert.message}</Text>
+              </View>
+              <View style={[styles.alertBadge, { backgroundColor: alert.color }]}>
+                <Ionicons 
+                  name={alert.severity === 'critical' ? 'alert-circle' : 'warning'} 
+                  size={12} 
+                  color="#FFFFFF" 
+                />
+              </View>
+            </View>
+          ))}
+        </View>
+      )}
+
       {loading ? (
         <View style={styles.centered}>
           <ActivityIndicator size="large" color="#1E3A8A" />
