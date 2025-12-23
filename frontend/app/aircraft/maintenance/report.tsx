@@ -134,16 +134,22 @@ export default function MaintenanceReportScreen() {
     return { pct: Math.min((monthsElapsed / intervalMonths) * 100, 150), hasData: true };
   };
 
-  const calculateHoursPercentage = (currentHours: number, lastWorkHours: number | null, interval: number): { pct: number; hoursSince: number; hasData: boolean } => {
-    console.log('[CALC] calculateHoursPercentage:', { currentHours, lastWorkHours, interval });
+  const calculateHoursPercentage = (currentHours: number, lastWorkHours: number | null | undefined, interval: number): { pct: number; hoursSince: number; hasData: boolean } => {
+    console.log('[CALC] calculateHoursPercentage:', { currentHours, lastWorkHours, interval, typeOfLastWork: typeof lastWorkHours });
+    
+    // Convertir en nombre pour être sûr
+    const current = Number(currentHours) || 0;
+    const lastWork = lastWorkHours !== null && lastWorkHours !== undefined ? Number(lastWorkHours) : null;
+    const int = Number(interval) || 2000;
+    
     // Si on a les heures au moment du dernier travail, on calcule la différence
-    if (lastWorkHours !== null && lastWorkHours !== undefined && currentHours > 0) {
-      const hoursSince = currentHours - lastWorkHours;
-      const pct = Math.min((hoursSince / interval) * 100, 150);
+    if (lastWork !== null && !isNaN(lastWork) && current > 0) {
+      const hoursSince = current - lastWork;
+      const pct = Math.min((hoursSince / int) * 100, 150);
       console.log('[CALC] Result: hasData=true, hoursSince=', hoursSince, 'pct=', pct);
       return { pct, hoursSince, hasData: true };
     }
-    console.log('[CALC] Result: hasData=false (lastWorkHours is null/undefined or currentHours <= 0)');
+    console.log('[CALC] Result: hasData=false (lastWork=', lastWork, ', current=', current, ')');
     return { pct: 0, hoursSince: 0, hasData: false };
   };
 
