@@ -36,7 +36,11 @@ export default function MaintenanceADSBScreen() {
 
   const [records, setRecords] = useState<ADSB[]>([]);
   const [loading, setLoading] = useState(true);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  
+  // Mode sélection
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     fetchRecords();
@@ -50,56 +54,6 @@ export default function MaintenanceADSBScreen() {
       console.error('Error fetching AD/SB:', error);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleDelete = async (item: ADSB) => {
-    const confirmDelete = async () => {
-      console.log('Starting delete for AD/SB:', item._id);
-      setDeletingId(item._id);
-      try {
-        console.log('Calling API delete for:', `/api/adsb/record/${item._id}`);
-        const response = await api.delete(`/api/adsb/record/${item._id}`);
-        console.log('Delete response:', response);
-        
-        // Mise à jour de l'état local
-        setRecords(prevRecords => prevRecords.filter(r => r._id !== item._id));
-        
-        if (Platform.OS === 'web') {
-          window.alert('AD/SB supprimé avec succès');
-        } else {
-          Alert.alert('Succès', 'AD/SB supprimé avec succès');
-        }
-      } catch (error: any) {
-        console.error('Delete error:', error);
-        console.error('Error response:', error.response?.data);
-        console.error('Error status:', error.response?.status);
-        const message = error.response?.data?.detail || error.message || 'Erreur lors de la suppression';
-        if (Platform.OS === 'web') {
-          window.alert('Erreur: ' + message);
-        } else {
-          Alert.alert('Erreur', message);
-        }
-      } finally {
-        setDeletingId(null);
-      }
-    };
-
-    if (Platform.OS === 'web') {
-      const confirmed = window.confirm(`Supprimer ${item.adsb_type} ${item.reference_number} ?\n\nCette action est irréversible.`);
-      console.log('Confirm result:', confirmed);
-      if (confirmed) {
-        await confirmDelete();
-      }
-    } else {
-      Alert.alert(
-        'Confirmer la suppression',
-        `Supprimer ${item.adsb_type} ${item.reference_number} ?\n\nCette action est irréversible.`,
-        [
-          { text: 'Annuler', style: 'cancel' },
-          { text: 'Supprimer', style: 'destructive', onPress: confirmDelete }
-        ]
-      );
     }
   };
 
@@ -138,69 +92,178 @@ export default function MaintenanceADSBScreen() {
     return type === 'AD' ? '#EF4444' : '#F59E0B';
   };
 
-  const renderRecord = ({ item }: { item: ADSB }) => (
-    <View style={styles.recordCard}>
-      <View style={styles.recordHeader}>
-        <View style={[styles.typeTag, { backgroundColor: getTypeColor(item.adsb_type) + '20' }]}>
-          <Text style={[styles.typeText, { color: getTypeColor(item.adsb_type) }]}>
-            {item.adsb_type}
-          </Text>
-        </View>
-        <View style={[styles.statusTag, { backgroundColor: getStatusColor(item.status) + '20' }]}>
-          <Text style={[styles.statusText, { color: getStatusColor(item.status) }]}>
-            {getStatusLabel(item.status)}
-          </Text>
-        </View>
-      </View>
-      
-      <Text style={styles.recordRef}>{item.reference_number}</Text>
-      {item.title && <Text style={styles.recordTitle}>{item.title}</Text>}
-      {item.description && (
-        <Text style={styles.recordDesc} numberOfLines={2}>
-          {item.description}
-        </Text>
-      )}
-      
-      <View style={styles.recordDetails}>
-        {item.compliance_date && (
-          <View style={styles.detailItem}>
-            <Ionicons name="calendar-outline" size={14} color="#64748B" />
-            <Text style={styles.detailText}>{formatDate(item.compliance_date)}</Text>
-          </View>
-        )}
-        {item.compliance_airframe_hours && (
-          <View style={styles.detailItem}>
-            <Ionicons name="time-outline" size={14} color="#64748B" />
-            <Text style={styles.detailText}>{item.compliance_airframe_hours} h</Text>
-          </View>
-        )}
-      </View>
+  // Toggle mode sélection
+  const toggleSelectionMode = () => {
+    if (selectionMode) {
+      setSelectedIds(new Set());
+    }
+    setSelectionMode(!selectionMode);
+  };
 
-      <View style={styles.actionsRow}>
-        {item.source === 'ocr' && (
-          <View style={styles.sourceTag}>
-            <Ionicons name="scan" size={12} color="#3B82F6" />
-            <Text style={styles.sourceText}>OCR</Text>
+  // Toggle sélection d'un item
+  const toggleSelection = (id: string) => {
+    const newSelected = new Set(selectedIds);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedIds(newSelected);
+  };
+
+  // Sélectionner/désélectionner tous
+  const toggleSelectAll = () => {
+    if (selectedIds.size === records.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(records.map(r => r._id)));
+    }
+  };
+
+  // Suppression multiple
+  const handleDeleteSelected = async () => {
+    const count = selectedIds.size;
+    if (count === 0) return;
+
+    const confirmDelete = async () => {
+      setDeleting(true);
+      const idsToDelete = Array.from(selectedIds);
+      const errors: string[] = [];
+      const deleted: string[] = [];
+
+      for (const id of idsToDelete) {
+        try {
+          await api.delete(`/api/adsb/record/${id}`);
+          deleted.push(id);
+        } catch (error: any) {
+          const status = error.response?.status;
+          if (status === 401 || status === 403) {
+            errors.push(`Authentification requise`);
+            break;
+          } else if (status === 404) {
+            errors.push(`Élément introuvable: ${id}`);
+          } else {
+            errors.push(error.response?.data?.detail || `Erreur: ${id}`);
+          }
+        }
+      }
+
+      // Mettre à jour l'UI
+      if (deleted.length > 0) {
+        setRecords(prev => prev.filter(r => !deleted.includes(r._id)));
+        setSelectedIds(new Set());
+      }
+
+      setDeleting(false);
+      setSelectionMode(false);
+
+      // Afficher le résultat
+      if (errors.length > 0) {
+        const message = `${deleted.length} supprimé(s)\n${errors.length} erreur(s):\n${errors.join('\n')}`;
+        if (Platform.OS === 'web') {
+          window.alert(message);
+        } else {
+          Alert.alert('Résultat', message);
+        }
+      } else {
+        const message = `${deleted.length} AD/SB supprimé(s)`;
+        if (Platform.OS === 'web') {
+          window.alert(message);
+        } else {
+          Alert.alert('Succès', message);
+        }
+      }
+    };
+
+    // Confirmation
+    const message = `Supprimer ${count} élément(s) ?\n\nCette action est irréversible.`;
+    if (Platform.OS === 'web') {
+      if (window.confirm(message)) {
+        await confirmDelete();
+      }
+    } else {
+      Alert.alert(
+        'Confirmer la suppression',
+        message,
+        [
+          { text: 'Annuler', style: 'cancel' },
+          { text: 'Supprimer', style: 'destructive', onPress: confirmDelete }
+        ]
+      );
+    }
+  };
+
+  const renderRecord = ({ item }: { item: ADSB }) => {
+    const isSelected = selectedIds.has(item._id);
+    
+    return (
+      <TouchableOpacity 
+        style={[
+          styles.recordCard,
+          selectionMode && styles.selectableCard,
+          isSelected && styles.selectedCard
+        ]}
+        onPress={() => selectionMode && toggleSelection(item._id)}
+        activeOpacity={selectionMode ? 0.7 : 1}
+      >
+        {/* Checkbox en mode sélection */}
+        {selectionMode && (
+          <View style={styles.checkboxContainer}>
+            <View style={[styles.checkbox, isSelected && styles.checkboxSelected]}>
+              {isSelected && <Ionicons name="checkmark" size={16} color="#FFFFFF" />}
+            </View>
           </View>
         )}
-        
-        <TouchableOpacity
-          style={[styles.deleteButton, deletingId === item._id && styles.deleteButtonDisabled]}
-          onPress={() => handleDelete(item)}
-          disabled={deletingId === item._id}
-        >
-          {deletingId === item._id ? (
-            <ActivityIndicator size="small" color="#EF4444" />
-          ) : (
-            <>
-              <Ionicons name="trash-outline" size={16} color="#EF4444" />
-              <Text style={styles.deleteButtonText}>Supprimer</Text>
-            </>
+
+        <View style={styles.recordContent}>
+          <View style={styles.recordHeader}>
+            <View style={[styles.typeTag, { backgroundColor: getTypeColor(item.adsb_type) + '20' }]}>
+              <Text style={[styles.typeText, { color: getTypeColor(item.adsb_type) }]}>
+                {item.adsb_type}
+              </Text>
+            </View>
+            <View style={[styles.statusTag, { backgroundColor: getStatusColor(item.status) + '20' }]}>
+              <Text style={[styles.statusText, { color: getStatusColor(item.status) }]}>
+                {getStatusLabel(item.status)}
+              </Text>
+            </View>
+          </View>
+          
+          <Text style={styles.recordRef}>{item.reference_number}</Text>
+          {item.title && <Text style={styles.recordTitle}>{item.title}</Text>}
+          {item.description && (
+            <Text style={styles.recordDesc} numberOfLines={2}>
+              {item.description}
+            </Text>
           )}
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
+          
+          <View style={styles.recordDetails}>
+            {item.compliance_date && (
+              <View style={styles.detailItem}>
+                <Ionicons name="calendar-outline" size={14} color="#64748B" />
+                <Text style={styles.detailText}>{formatDate(item.compliance_date)}</Text>
+              </View>
+            )}
+            {item.compliance_airframe_hours && (
+              <View style={styles.detailItem}>
+                <Ionicons name="time-outline" size={14} color="#64748B" />
+                <Text style={styles.detailText}>{item.compliance_airframe_hours} h</Text>
+              </View>
+            )}
+          </View>
+
+          {item.source === 'ocr' && (
+            <View style={styles.sourceRow}>
+              <View style={styles.sourceTag}>
+                <Ionicons name="scan" size={12} color="#3B82F6" />
+                <Text style={styles.sourceText}>OCR</Text>
+              </View>
+            </View>
+          )}
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   const adCount = records.filter(r => r.adsb_type === 'AD').length;
   const sbCount = records.filter(r => r.adsb_type === 'SB').length;
@@ -208,19 +271,70 @@ export default function MaintenanceADSBScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.headerButton}>
           <Ionicons name="arrow-back" size={24} color="#1E3A8A" />
         </TouchableOpacity>
         <View style={styles.headerContent}>
           <Text style={styles.headerTitle}>AD/SB</Text>
           <Text style={styles.headerSubtitle}>{registration}</Text>
         </View>
-        <TouchableOpacity onPress={fetchRecords} style={styles.refreshButton}>
-          <Ionicons name="refresh" size={24} color="#1E3A8A" />
-        </TouchableOpacity>
+        
+        {records.length > 0 && (
+          <TouchableOpacity 
+            onPress={toggleSelectionMode} 
+            style={styles.headerButton}
+          >
+            <Ionicons 
+              name={selectionMode ? "close" : "trash-outline"} 
+              size={24} 
+              color={selectionMode ? "#EF4444" : "#1E3A8A"} 
+            />
+          </TouchableOpacity>
+        )}
+        {records.length === 0 && (
+          <TouchableOpacity onPress={fetchRecords} style={styles.headerButton}>
+            <Ionicons name="refresh" size={24} color="#1E3A8A" />
+          </TouchableOpacity>
+        )}
       </View>
 
-      {!loading && records.length > 0 && (
+      {/* Barre de sélection */}
+      {selectionMode && (
+        <View style={styles.selectionBar}>
+          <TouchableOpacity onPress={toggleSelectAll} style={styles.selectAllButton}>
+            <Ionicons 
+              name={selectedIds.size === records.length ? "checkbox" : "square-outline"} 
+              size={20} 
+              color="#1E3A8A" 
+            />
+            <Text style={styles.selectAllText}>
+              {selectedIds.size === records.length ? 'Tout désélectionner' : 'Tout sélectionner'}
+            </Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            onPress={handleDeleteSelected}
+            disabled={selectedIds.size === 0 || deleting}
+            style={[
+              styles.deleteSelectedButton,
+              selectedIds.size === 0 && styles.deleteSelectedButtonDisabled
+            ]}
+          >
+            {deleting ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <>
+                <Ionicons name="trash" size={18} color="#FFFFFF" />
+                <Text style={styles.deleteSelectedText}>
+                  Supprimer ({selectedIds.size})
+                </Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {!loading && records.length > 0 && !selectionMode && (
         <View style={styles.summaryBar}>
           <View style={styles.summaryItem}>
             <Text style={[styles.summaryCount, { color: '#EF4444' }]}>{adCount}</Text>
@@ -272,13 +386,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#E2E8F0',
   },
-  backButton: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  refreshButton: {
+  headerButton: {
     width: 40,
     height: 40,
     justifyContent: 'center',
@@ -296,6 +404,43 @@ const styles = StyleSheet.create({
   headerSubtitle: {
     fontSize: 14,
     color: '#64748B',
+  },
+  selectionBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#F1F5F9',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+  },
+  selectAllButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  selectAllText: {
+    fontSize: 14,
+    color: '#1E3A8A',
+    fontWeight: '500',
+  },
+  deleteSelectedButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#EF4444',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
+    gap: 6,
+  },
+  deleteSelectedButtonDisabled: {
+    backgroundColor: '#FDA4AF',
+  },
+  deleteSelectedText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
   summaryBar: {
     flexDirection: 'row',
@@ -355,6 +500,37 @@ const styles = StyleSheet.create({
     padding: 16,
     borderWidth: 1,
     borderColor: '#E2E8F0',
+    flexDirection: 'row',
+  },
+  selectableCard: {
+    borderColor: '#CBD5E1',
+  },
+  selectedCard: {
+    borderColor: '#3B82F6',
+    backgroundColor: '#EFF6FF',
+  },
+  checkboxContainer: {
+    justifyContent: 'flex-start',
+    alignItems: 'center',
+    marginRight: 12,
+    paddingTop: 4,
+    width: 24,
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 4,
+    borderWidth: 2,
+    borderColor: '#CBD5E1',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  checkboxSelected: {
+    backgroundColor: '#3B82F6',
+    borderColor: '#3B82F6',
+  },
+  recordContent: {
+    flex: 1,
   },
   recordHeader: {
     flexDirection: 'row',
@@ -409,10 +585,8 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#64748B',
   },
-  actionsRow: {
+  sourceRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     marginTop: 12,
     paddingTop: 12,
     borderTopWidth: 1,
@@ -431,22 +605,5 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#3B82F6',
     fontWeight: '500',
-  },
-  deleteButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FEE2E2',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-    gap: 6,
-  },
-  deleteButtonDisabled: {
-    opacity: 0.5,
-  },
-  deleteButtonText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#EF4444',
   },
 });
