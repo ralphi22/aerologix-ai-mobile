@@ -344,7 +344,8 @@ export default function ComponentSettingsScreen() {
             <>
               {renderInput('Modèle moteur', 'engine_model', 'Ex: IO-360-L2A')}
               {renderInput('TBO (heures)', 'engine_tbo_hours', '2000', 'numeric')}
-              {renderHoursInputWithButton('Heures moteur à la dernière révision', 'engine_last_overhaul_hours', 'engine')}
+              {renderHoursInputWithButton('Heures moteur à la dernière révision (0 si neuf)', 'engine_last_overhaul_hours', 'engine')}
+              <Text style={styles.hint}>Laisser vide pour utiliser les heures totales</Text>
               {renderInput('Date dernière révision', 'engine_last_overhaul_date', 'AAAA-MM-JJ')}
             </>
           ))}
