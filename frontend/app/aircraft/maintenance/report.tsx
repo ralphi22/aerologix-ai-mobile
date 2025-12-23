@@ -78,11 +78,16 @@ export default function MaintenanceReportScreen() {
   const [eltData, setEltData] = useState<ELTData | null>(null);
   const [components, setComponents] = useState<ComponentStatus[]>([]);
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  // Recharger les données à chaque focus (retour de settings)
+  useFocusEffect(
+    useCallback(() => {
+      console.log('[REPORT] Screen focused - reloading data');
+      fetchData();
+    }, [aircraftId])
+  );
 
   const fetchData = async () => {
+    console.log('[REPORT] Fetching data for aircraft:', aircraftId);
     try {
       // Récupérer Aircraft (source de vérité pour les heures) + Settings + ELT
       const [aircraftRes, settingsRes, eltRes] = await Promise.all([
