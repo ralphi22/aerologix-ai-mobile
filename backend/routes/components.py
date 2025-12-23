@@ -51,12 +51,20 @@ async def get_component_settings(
     db = Depends(get_database)
 ):
     """Get component settings for an aircraft"""
+    logger.info(f"Getting components for aircraft_id={aircraft_id}, user_id={current_user.id}")
+    
     # Verify aircraft belongs to user
     aircraft = await db.aircrafts.find_one({
         "_id": aircraft_id,
         "user_id": current_user.id
     })
+    
     if not aircraft:
+        logger.warning(f"Aircraft {aircraft_id} not found for user {current_user.id}")
+        # Try without user_id filter to debug
+        any_aircraft = await db.aircrafts.find_one({"_id": aircraft_id})
+        if any_aircraft:
+            logger.warning(f"Aircraft exists but belongs to user {any_aircraft.get('user_id')}")
         raise HTTPException(status_code=404, detail="Aircraft not found")
     
     settings = await db.component_settings.find_one({
@@ -66,6 +74,7 @@ async def get_component_settings(
     
     if not settings:
         # Return defaults
+        logger.info(f"No settings found, returning defaults for {aircraft_id}")
         return {
             "aircraft_id": aircraft_id,
             **DEFAULT_SETTINGS,
