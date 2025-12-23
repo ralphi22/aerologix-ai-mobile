@@ -135,11 +135,15 @@ export default function MaintenanceReportScreen() {
   };
 
   const calculateHoursPercentage = (currentHours: number, lastWorkHours: number | null, interval: number): { pct: number; hoursSince: number; hasData: boolean } => {
+    console.log('[CALC] calculateHoursPercentage:', { currentHours, lastWorkHours, interval });
     // Si on a les heures au moment du dernier travail, on calcule la différence
-    if (lastWorkHours !== null && currentHours > 0) {
+    if (lastWorkHours !== null && lastWorkHours !== undefined && currentHours > 0) {
       const hoursSince = currentHours - lastWorkHours;
-      return { pct: Math.min((hoursSince / interval) * 100, 150), hoursSince, hasData: true };
+      const pct = Math.min((hoursSince / interval) * 100, 150);
+      console.log('[CALC] Result: hasData=true, hoursSince=', hoursSince, 'pct=', pct);
+      return { pct, hoursSince, hasData: true };
     }
+    console.log('[CALC] Result: hasData=false (lastWorkHours is null/undefined or currentHours <= 0)');
     return { pct: 0, hoursSince: 0, hasData: false };
   };
 
