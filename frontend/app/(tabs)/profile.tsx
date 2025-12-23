@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../stores/authStore';
 import { useRouter, Link } from 'expo-router';
@@ -9,74 +9,56 @@ export default function ProfileScreen() {
   const router = useRouter();
 
   const handleLogout = () => {
-    const performLogout = async () => {
-      try {
-        // 1. Supprimer le token et réinitialiser l'état
-        await logout();
-        
-        // 2. Rediriger vers login
-        router.replace('/login');
-      } catch (error) {
-        console.error('Logout error:', error);
-        // Même en cas d'erreur, on redirige vers login
-        router.replace('/login');
-      }
-    };
-
-    // Confirmation
-    if (Platform.OS === 'web') {
-      if (window.confirm('Voulez-vous vraiment vous déconnecter ?')) {
-        performLogout();
-      }
-    } else {
-      Alert.alert(
-        'Déconnexion',
-        'Voulez-vous vraiment vous déconnecter ?',
-        [
-          { text: 'Annuler', style: 'cancel' },
-          {
-            text: 'Déconnexion',
-            style: 'destructive',
-            onPress: performLogout,
+    console.log('[ACTION] logout pressed');
+    
+    Alert.alert(
+      'Déconnexion',
+      'Voulez-vous vraiment vous déconnecter ?',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Déconnexion',
+          style: 'destructive',
+          onPress: async () => {
+            console.log('[ACTION] logout confirmed, performing logout...');
+            try {
+              await logout();
+              console.log('[ACTION] logout successful, navigating to login');
+              router.replace('/login');
+            } catch (error) {
+              console.error('[ACTION] logout error:', error);
+              // Force navigate anyway
+              router.replace('/login');
+            }
           },
-        ]
-      );
-    }
+        },
+      ]
+    );
   };
 
   const getPlanColor = (plan: string) => {
     switch (plan) {
-      case 'BASIC':
-        return '#94A3B8';
-      case 'PILOT':
-        return '#3B82F6';
-      case 'MAINTENANCE_PRO':
-        return '#8B5CF6';
-      case 'FLEET_AI':
-        return '#F59E0B';
-      default:
-        return '#94A3B8';
+      case 'BASIC': return '#94A3B8';
+      case 'PILOT': return '#3B82F6';
+      case 'MAINTENANCE_PRO': return '#8B5CF6';
+      case 'FLEET_AI': return '#F59E0B';
+      default: return '#94A3B8';
     }
   };
 
   const getPlanName = (plan: string) => {
     switch (plan) {
-      case 'BASIC':
-        return 'Basic';
-      case 'PILOT':
-        return 'Pilot';
-      case 'MAINTENANCE_PRO':
-        return 'Maintenance Pro';
-      case 'FLEET_AI':
-        return 'Fleet AI';
-      default:
-        return plan;
+      case 'BASIC': return 'Basic';
+      case 'PILOT': return 'Pilot';
+      case 'MAINTENANCE_PRO': return 'Maintenance Pro';
+      case 'FLEET_AI': return 'Fleet AI';
+      default: return plan;
     }
   };
 
   if (!user) {
     return (
-      <View style={styles.container}>
+      <View style={styles.centered}>
         <Text>Chargement...</Text>
       </View>
     );
@@ -94,12 +76,7 @@ export default function ProfileScreen() {
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Abonnement</Text>
-        <View
-          style={[
-            styles.planCard,
-            { backgroundColor: getPlanColor(user.subscription.plan) },
-          ]}
-        >
+        <View style={[styles.planCard, { backgroundColor: getPlanColor(user.subscription.plan) }]}>
           <Text style={styles.planName}>{getPlanName(user.subscription.plan)}</Text>
           <Text style={styles.planStatus}>
             {user.subscription.status === 'active' ? 'Actif' : user.subscription.status}
@@ -128,9 +105,7 @@ export default function ProfileScreen() {
             <Ionicons name="book-outline" size={20} color="#64748B" />
             <Text style={styles.limitLabel}>Entrées carnet/mois</Text>
             <Text style={styles.limitValue}>
-              {user.limits.logbook_entries_per_month === -1
-                ? 'Illimité'
-                : user.limits.logbook_entries_per_month}
+              {user.limits.logbook_entries_per_month === -1 ? 'Illimité' : user.limits.logbook_entries_per_month}
             </Text>
           </View>
         </View>
@@ -145,7 +120,11 @@ export default function ProfileScreen() {
           </TouchableOpacity>
         </Link>
 
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+        <TouchableOpacity 
+          style={styles.logoutButton} 
+          onPress={handleLogout}
+          activeOpacity={0.7}
+        >
           <Ionicons name="log-out-outline" size={20} color="#EF4444" />
           <Text style={styles.logoutButtonText}>Déconnexion</Text>
         </TouchableOpacity>
@@ -157,105 +136,36 @@ export default function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F1F5F9',
-  },
+  container: { flex: 1, backgroundColor: '#F1F5F9' },
+  centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   header: {
-    alignItems: 'center',
-    paddingVertical: 32,
+    alignItems: 'center', paddingVertical: 32,
     backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
+    borderBottomWidth: 1, borderBottomColor: '#E2E8F0',
   },
-  avatarContainer: {
-    marginBottom: 16,
-  },
-  name: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#1E293B',
-  },
-  email: {
-    fontSize: 14,
-    color: '#64748B',
-    marginTop: 4,
-  },
-  section: {
-    padding: 16,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#475569',
-    marginBottom: 12,
-  },
-  planCard: {
-    padding: 20,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  planName: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-  },
-  planStatus: {
-    fontSize: 14,
-    color: '#FFFFFF',
-    marginTop: 4,
-    opacity: 0.9,
-  },
-  limitCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-  },
+  avatarContainer: { marginBottom: 16 },
+  name: { fontSize: 24, fontWeight: 'bold', color: '#1E293B' },
+  email: { fontSize: 14, color: '#64748B', marginTop: 4 },
+  section: { padding: 16 },
+  sectionTitle: { fontSize: 16, fontWeight: '600', color: '#475569', marginBottom: 12 },
+  planCard: { padding: 20, borderRadius: 12, alignItems: 'center' },
+  planName: { fontSize: 24, fontWeight: 'bold', color: '#FFFFFF' },
+  planStatus: { fontSize: 14, color: '#FFFFFF', marginTop: 4, opacity: 0.9 },
+  limitCard: { backgroundColor: '#FFFFFF', borderRadius: 12, padding: 16 },
   limitRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    flexDirection: 'row', alignItems: 'center',
+    paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#F1F5F9',
   },
-  limitLabel: {
-    flex: 1,
-    fontSize: 14,
-    color: '#475569',
-    marginLeft: 12,
-  },
-  limitValue: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1E293B',
-  },
+  limitLabel: { flex: 1, fontSize: 14, color: '#475569', marginLeft: 12 },
+  limitValue: { fontSize: 14, fontWeight: '600', color: '#1E293B' },
   manageButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: '#FFFFFF', padding: 16, borderRadius: 12, marginBottom: 12,
   },
-  manageButtonText: {
-    flex: 1,
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1E3A8A',
-    marginLeft: 12,
-  },
+  manageButtonText: { flex: 1, fontSize: 16, fontWeight: '600', color: '#1E3A8A', marginLeft: 12 },
   logoutButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#FEE2E2',
-    padding: 16,
-    borderRadius: 12,
-    gap: 8,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#FEE2E2', padding: 16, borderRadius: 12, gap: 8,
   },
-  logoutButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#EF4444',
-  },
+  logoutButtonText: { fontSize: 16, fontWeight: '600', color: '#EF4444' },
 });
