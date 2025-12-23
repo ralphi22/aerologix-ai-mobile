@@ -37,7 +37,11 @@ export default function MaintenancePartsScreen() {
 
   const [parts, setParts] = useState<Part[]>([]);
   const [loading, setLoading] = useState(true);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  
+  // Mode sélection
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     fetchParts();
@@ -59,76 +63,100 @@ export default function MaintenancePartsScreen() {
     return new Date(dateString).toLocaleDateString('fr-CA');
   };
 
-  // Vérifie si une pièce peut être supprimée
-  // Règle simplifiée: les pièces OCR peuvent être supprimées (avec confirmation)
-  // Les pièces manuelles ne peuvent pas être supprimées
-  const canDelete = (part: Part): boolean => {
-    return part.source === 'ocr';
+  // Toggle mode sélection
+  const toggleSelectionMode = () => {
+    if (selectionMode) {
+      setSelectedIds(new Set());
+    }
+    setSelectionMode(!selectionMode);
   };
 
-  const handleDelete = async (part: Part) => {
-    console.log('=== DELETE BUTTON PRESSED ===');
-    console.log('Part to delete:', JSON.stringify(part, null, 2));
-    
-    // Vérification côté client
-    if (part.source !== 'ocr') {
-      console.log('Part is not OCR, blocking delete');
-      const message = 'Les pièces saisies manuellement ne peuvent pas être supprimées.';
-      if (Platform.OS === 'web') {
-        window.alert(message);
-      } else {
-        Alert.alert('Suppression interdite', message);
-      }
-      return;
+  // Toggle sélection d'un item
+  const toggleSelection = (id: string) => {
+    const newSelected = new Set(selectedIds);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
     }
+    setSelectedIds(newSelected);
+  };
+
+  // Sélectionner/désélectionner tous les items OCR
+  const toggleSelectAll = () => {
+    const ocrParts = parts.filter(p => p.source === 'ocr');
+    if (selectedIds.size === ocrParts.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(ocrParts.map(p => p._id)));
+    }
+  };
+
+  // Suppression multiple
+  const handleDeleteSelected = async () => {
+    const count = selectedIds.size;
+    if (count === 0) return;
 
     const confirmDelete = async () => {
-      console.log('confirmDelete called, starting delete for part:', part._id);
-      setDeletingId(part._id);
-      try {
-        const deleteUrl = `/api/parts/record/${part._id}`;
-        console.log('Calling API delete:', deleteUrl);
-        const response = await api.delete(deleteUrl);
-        console.log('Delete response:', response.status, response.data);
-        
-        // Mise à jour de l'état local
-        setParts(prevParts => prevParts.filter(p => p._id !== part._id));
-        console.log('Local state updated');
-        
-        if (Platform.OS === 'web') {
-          window.alert('Pièce supprimée avec succès');
-        } else {
-          Alert.alert('Succès', 'Pièce supprimée avec succès');
+      setDeleting(true);
+      const idsToDelete = Array.from(selectedIds);
+      const errors: string[] = [];
+      const deleted: string[] = [];
+
+      for (const id of idsToDelete) {
+        try {
+          await api.delete(`/api/parts/record/${id}`);
+          deleted.push(id);
+        } catch (error: any) {
+          const status = error.response?.status;
+          if (status === 401 || status === 403) {
+            errors.push(`Authentification requise`);
+            break;
+          } else if (status === 404) {
+            errors.push(`Élément introuvable: ${id}`);
+          } else {
+            errors.push(error.response?.data?.detail || `Erreur: ${id}`);
+          }
         }
-      } catch (error: any) {
-        console.error('Delete error:', error);
-        console.error('Error response:', error.response?.data);
-        console.error('Error status:', error.response?.status);
-        const message = error.response?.data?.detail || error.message || 'Erreur lors de la suppression';
+      }
+
+      // Mettre à jour l'UI avec les items supprimés
+      if (deleted.length > 0) {
+        setParts(prev => prev.filter(p => !deleted.includes(p._id)));
+        setSelectedIds(new Set());
+      }
+
+      setDeleting(false);
+      setSelectionMode(false);
+
+      // Afficher le résultat
+      if (errors.length > 0) {
+        const message = `${deleted.length} supprimé(s)\n${errors.length} erreur(s):\n${errors.join('\n')}`;
         if (Platform.OS === 'web') {
-          window.alert('Erreur: ' + message);
+          window.alert(message);
         } else {
-          Alert.alert('Erreur', message);
+          Alert.alert('Résultat', message);
         }
-      } finally {
-        setDeletingId(null);
+      } else {
+        const message = `${deleted.length} pièce(s) supprimée(s)`;
+        if (Platform.OS === 'web') {
+          window.alert(message);
+        } else {
+          Alert.alert('Succès', message);
+        }
       }
     };
 
-    // Exécuter directement sur web pour éviter les problèmes avec window.confirm
+    // Confirmation
+    const message = `Supprimer ${count} élément(s) ?\n\nCette action est irréversible.`;
     if (Platform.OS === 'web') {
-      console.log('Web platform - showing confirm dialog');
-      const confirmed = window.confirm(`Supprimer la pièce ${part.part_number} ?\n\nCette action est irréversible.`);
-      console.log('Confirm result:', confirmed);
-      if (confirmed) {
+      if (window.confirm(message)) {
         await confirmDelete();
-      } else {
-        console.log('User cancelled deletion');
       }
     } else {
       Alert.alert(
         'Confirmer la suppression',
-        `Supprimer la pièce ${part.part_number} ?\n\nCette action est irréversible.`,
+        message,
         [
           { text: 'Annuler', style: 'cancel' },
           { text: 'Supprimer', style: 'destructive', onPress: confirmDelete }
@@ -139,108 +167,164 @@ export default function MaintenancePartsScreen() {
 
   const renderPart = ({ item }: { item: Part }) => {
     const isOCR = item.source === 'ocr';
+    const isSelected = selectedIds.has(item._id);
     
     return (
-      <View style={styles.partCard}>
-        <View style={styles.partHeader}>
-          <View style={styles.partIcon}>
-            <Ionicons name="hardware-chip" size={20} color="#8B5CF6" />
+      <TouchableOpacity 
+        style={[
+          styles.partCard,
+          selectionMode && isOCR && styles.selectableCard,
+          isSelected && styles.selectedCard
+        ]}
+        onPress={() => selectionMode && isOCR && toggleSelection(item._id)}
+        activeOpacity={selectionMode ? 0.7 : 1}
+        disabled={selectionMode && !isOCR}
+      >
+        {/* Checkbox en mode sélection */}
+        {selectionMode && (
+          <View style={styles.checkboxContainer}>
+            {isOCR ? (
+              <View style={[styles.checkbox, isSelected && styles.checkboxSelected]}>
+                {isSelected && <Ionicons name="checkmark" size={16} color="#FFFFFF" />}
+              </View>
+            ) : (
+              <Ionicons name="lock-closed" size={18} color="#CBD5E1" />
+            )}
           </View>
-          <View style={styles.partInfo}>
-            <Text style={styles.partName}>{item.name || item.part_number}</Text>
-            <Text style={styles.partNumber}>P/N: {item.part_number}</Text>
-          </View>
-          <View style={styles.partQty}>
-            <Text style={styles.qtyValue}>{item.quantity}</Text>
-            <Text style={styles.qtyLabel}>Qté</Text>
-          </View>
-        </View>
-        
-        <View style={styles.partDetails}>
-          {item.serial_number && (
-            <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>S/N:</Text>
-              <Text style={styles.detailValue}>{item.serial_number}</Text>
-            </View>
-          )}
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Installé:</Text>
-            <Text style={styles.detailValue}>{formatDate(item.installation_date)}</Text>
-          </View>
-          {item.installation_airframe_hours && (
-            <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Heures:</Text>
-              <Text style={styles.detailValue}>{item.installation_airframe_hours} h</Text>
-            </View>
-          )}
-          {item.purchase_price && (
-            <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Prix:</Text>
-              <Text style={styles.detailValue}>${item.purchase_price.toFixed(2)}</Text>
-            </View>
-          )}
-        </View>
+        )}
 
-        {/* Actions row with source tag and delete button */}
-        <View style={styles.actionsRow}>
-          <View style={[styles.sourceTag, isOCR ? styles.sourceTagOCR : styles.sourceTagManual]}>
-            <Ionicons 
-              name={isOCR ? "scan" : "create"} 
-              size={12} 
-              color={isOCR ? "#3B82F6" : "#10B981"} 
-            />
-            <Text style={[
-              styles.sourceText,
-              { color: isOCR ? "#3B82F6" : "#10B981" }
-            ]}>
-              {isOCR ? "OCR" : "Manuel"}
-            </Text>
+        <View style={styles.partContent}>
+          <View style={styles.partHeader}>
+            <View style={styles.partIcon}>
+              <Ionicons name="hardware-chip" size={20} color="#8B5CF6" />
+            </View>
+            <View style={styles.partInfo}>
+              <Text style={styles.partName}>{item.name || item.part_number}</Text>
+              <Text style={styles.partNumber}>P/N: {item.part_number}</Text>
+            </View>
+            <View style={styles.partQty}>
+              <Text style={styles.qtyValue}>{item.quantity}</Text>
+              <Text style={styles.qtyLabel}>Qté</Text>
+            </View>
           </View>
           
-          {/* Delete button - only for OCR parts */}
-          {isOCR && (
-            <TouchableOpacity
-              style={[styles.deleteButton, deletingId === item._id && styles.deleteButtonDisabled]}
-              onPress={() => handleDelete(item)}
-              disabled={deletingId === item._id}
-            >
-              {deletingId === item._id ? (
-                <ActivityIndicator size="small" color="#EF4444" />
-              ) : (
-                <>
-                  <Ionicons name="trash-outline" size={16} color="#EF4444" />
-                  <Text style={styles.deleteButtonText}>Supprimer</Text>
-                </>
-              )}
-            </TouchableOpacity>
-          )}
-          
-          {/* Info message for manual parts */}
-          {!isOCR && (
-            <View style={styles.protectedNote}>
-              <Ionicons name="lock-closed" size={12} color="#94A3B8" />
-              <Text style={styles.protectedNoteText}>Protégé</Text>
+          <View style={styles.partDetails}>
+            {item.serial_number && (
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>S/N:</Text>
+                <Text style={styles.detailValue}>{item.serial_number}</Text>
+              </View>
+            )}
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Installé:</Text>
+              <Text style={styles.detailValue}>{formatDate(item.installation_date)}</Text>
             </View>
-          )}
+            {item.installation_airframe_hours && (
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Heures:</Text>
+                <Text style={styles.detailValue}>{item.installation_airframe_hours} h</Text>
+              </View>
+            )}
+            {item.purchase_price && (
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Prix:</Text>
+                <Text style={styles.detailValue}>${item.purchase_price.toFixed(2)}</Text>
+              </View>
+            )}
+          </View>
+
+          {/* Source tag */}
+          <View style={styles.sourceRow}>
+            <View style={[styles.sourceTag, isOCR ? styles.sourceTagOCR : styles.sourceTagManual]}>
+              <Ionicons 
+                name={isOCR ? "scan" : "create"} 
+                size={12} 
+                color={isOCR ? "#3B82F6" : "#10B981"} 
+              />
+              <Text style={[styles.sourceText, { color: isOCR ? "#3B82F6" : "#10B981" }]}>
+                {isOCR ? "OCR" : "Manuel"}
+              </Text>
+            </View>
+            {!isOCR && (
+              <View style={styles.protectedNote}>
+                <Ionicons name="shield-checkmark" size={12} color="#94A3B8" />
+                <Text style={styles.protectedNoteText}>Protégé</Text>
+              </View>
+            )}
+          </View>
         </View>
-      </View>
+      </TouchableOpacity>
     );
   };
+
+  const ocrPartsCount = parts.filter(p => p.source === 'ocr').length;
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.headerButton}>
           <Ionicons name="arrow-back" size={24} color="#1E3A8A" />
         </TouchableOpacity>
         <View style={styles.headerContent}>
           <Text style={styles.headerTitle}>Pièces</Text>
           <Text style={styles.headerSubtitle}>{registration}</Text>
         </View>
-        <TouchableOpacity onPress={fetchParts} style={styles.refreshButton}>
-          <Ionicons name="refresh" size={24} color="#1E3A8A" />
-        </TouchableOpacity>
+        
+        {/* Bouton mode sélection - visible uniquement si des items OCR existent */}
+        {ocrPartsCount > 0 && (
+          <TouchableOpacity 
+            onPress={toggleSelectionMode} 
+            style={styles.headerButton}
+          >
+            <Ionicons 
+              name={selectionMode ? "close" : "trash-outline"} 
+              size={24} 
+              color={selectionMode ? "#EF4444" : "#1E3A8A"} 
+            />
+          </TouchableOpacity>
+        )}
+        {ocrPartsCount === 0 && (
+          <TouchableOpacity onPress={fetchParts} style={styles.headerButton}>
+            <Ionicons name="refresh" size={24} color="#1E3A8A" />
+          </TouchableOpacity>
+        )}
       </View>
+
+      {/* Barre de sélection */}
+      {selectionMode && (
+        <View style={styles.selectionBar}>
+          <TouchableOpacity onPress={toggleSelectAll} style={styles.selectAllButton}>
+            <Ionicons 
+              name={selectedIds.size === ocrPartsCount ? "checkbox" : "square-outline"} 
+              size={20} 
+              color="#1E3A8A" 
+            />
+            <Text style={styles.selectAllText}>
+              {selectedIds.size === ocrPartsCount ? 'Tout désélectionner' : 'Tout sélectionner'}
+            </Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            onPress={handleDeleteSelected}
+            disabled={selectedIds.size === 0 || deleting}
+            style={[
+              styles.deleteSelectedButton,
+              selectedIds.size === 0 && styles.deleteSelectedButtonDisabled
+            ]}
+          >
+            {deleting ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <>
+                <Ionicons name="trash" size={18} color="#FFFFFF" />
+                <Text style={styles.deleteSelectedText}>
+                  Supprimer ({selectedIds.size})
+                </Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
+      )}
 
       {loading ? (
         <View style={styles.loadingContainer}>
@@ -280,13 +364,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#E2E8F0',
   },
-  backButton: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  refreshButton: {
+  headerButton: {
     width: 40,
     height: 40,
     justifyContent: 'center',
@@ -304,6 +382,43 @@ const styles = StyleSheet.create({
   headerSubtitle: {
     fontSize: 14,
     color: '#64748B',
+  },
+  selectionBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#F1F5F9',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+  },
+  selectAllButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  selectAllText: {
+    fontSize: 14,
+    color: '#1E3A8A',
+    fontWeight: '500',
+  },
+  deleteSelectedButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#EF4444',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
+    gap: 6,
+  },
+  deleteSelectedButtonDisabled: {
+    backgroundColor: '#FDA4AF',
+  },
+  deleteSelectedText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
   loadingContainer: {
     flex: 1,
@@ -337,6 +452,36 @@ const styles = StyleSheet.create({
     padding: 16,
     borderWidth: 1,
     borderColor: '#E2E8F0',
+    flexDirection: 'row',
+  },
+  selectableCard: {
+    borderColor: '#CBD5E1',
+  },
+  selectedCard: {
+    borderColor: '#3B82F6',
+    backgroundColor: '#EFF6FF',
+  },
+  checkboxContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+    width: 24,
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 4,
+    borderWidth: 2,
+    borderColor: '#CBD5E1',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  checkboxSelected: {
+    backgroundColor: '#3B82F6',
+    borderColor: '#3B82F6',
+  },
+  partContent: {
+    flex: 1,
   },
   partHeader: {
     flexDirection: 'row',
@@ -400,14 +545,18 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#1E293B',
   },
-  statusRow: {
+  sourceRow: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
   },
   sourceTag: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#EFF6FF',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 4,
@@ -422,32 +571,6 @@ const styles = StyleSheet.create({
   sourceText: {
     fontSize: 11,
     fontWeight: '500',
-  },
-  actionsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 12,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
-  },
-  deleteButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FEE2E2',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-    gap: 6,
-  },
-  deleteButtonDisabled: {
-    opacity: 0.5,
-  },
-  deleteButtonText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#EF4444',
   },
   protectedNote: {
     flexDirection: 'row',
