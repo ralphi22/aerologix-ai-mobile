@@ -145,14 +145,17 @@ export default function MaintenanceReportScreen() {
     const lastWork = lastWorkHours !== null && lastWorkHours !== undefined ? Number(lastWorkHours) : null;
     const int = Number(interval) || 2000;
     
-    // Si on a les heures au moment du dernier travail, on calcule la différence
-    if (lastWork !== null && !isNaN(lastWork) && current > 0) {
-      const hoursSince = current - lastWork;
+    // Si on a les heures totales du moteur, on calcule le % vers le TBO
+    // lastWork = heures moteur QUAND l'overhaul a été fait (ex: 0 pour moteur neuf)
+    if (current > 0) {
+      // Si lastWork est défini, on calcule les heures DEPUIS l'overhaul
+      // Sinon, on utilise les heures totales (cas où moteur jamais révisé ou données manquantes)
+      const hoursSince = lastWork !== null && !isNaN(lastWork) ? (current - lastWork) : current;
       const pct = Math.min((hoursSince / int) * 100, 150);
       console.log('[CALC] Result: hasData=true, hoursSince=', hoursSince, 'pct=', pct);
       return { pct, hoursSince, hasData: true };
     }
-    console.log('[CALC] Result: hasData=false (lastWork=', lastWork, ', current=', current, ')');
+    console.log('[CALC] Result: hasData=false (current=', current, ')');
     return { pct: 0, hoursSince: 0, hasData: false };
   };
 
