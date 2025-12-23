@@ -119,7 +119,7 @@ export default function MaintenanceADSBScreen() {
       `${item.adsb_type} ${item.reference_number}\n\nAction irréversible.`,
       [
         { text: 'Annuler', style: 'cancel' },
-        { text: 'Supprimer', style: 'destructive', onPress: performDelete }
+        { text: 'Supprimer', style: 'destructive', onPress: () => { performDelete(); } }
       ]
     );
   };
