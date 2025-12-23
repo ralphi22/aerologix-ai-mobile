@@ -96,13 +96,18 @@ export default function MaintenanceReportScreen() {
         api.get(`/api/elt/aircraft/${aircraftId}`).catch(() => ({ data: null }))
       ]);
       
+      console.log('[REPORT] Aircraft data:', JSON.stringify(aircraftRes.data));
+      console.log('[REPORT] Settings data:', JSON.stringify(settingsRes.data));
+      console.log('[REPORT] ELT data:', eltRes.data ? 'found' : 'none');
+      
       setAircraft(aircraftRes.data);
       setSettings(settingsRes.data);
       setEltData(eltRes.data);
       
       calculateComponents(aircraftRes.data, settingsRes.data, eltRes.data);
-    } catch (error) {
-      console.error('Error fetching report data:', error);
+    } catch (error: any) {
+      console.error('[REPORT] Error fetching data:', error);
+      console.error('[REPORT] Error details:', error.response?.data);
     } finally {
       setLoading(false);
       setRefreshing(false);
