@@ -162,11 +162,21 @@ export default function ComponentSettingsScreen() {
 
   // Auto-fill current hours when setting "last work hours"
   const fillCurrentHours = (field: string, hoursType: 'engine' | 'propeller' | 'airframe') => {
-    if (!aircraft) return;
+    console.log('[SETTINGS] fillCurrentHours called - field:', field, 'hoursType:', hoursType);
+    console.log('[SETTINGS] Aircraft data:', aircraft);
+    if (!aircraft) {
+      console.log('[SETTINGS] No aircraft data available');
+      return;
+    }
     const hours = hoursType === 'engine' ? aircraft.engine_hours : 
                   hoursType === 'propeller' ? aircraft.propeller_hours : 
                   aircraft.airframe_hours;
-    updateSetting(field, String(hours || 0));
+    console.log('[SETTINGS] Setting', field, 'to', hours);
+    setSettings(prev => {
+      const newSettings = { ...prev, [field]: String(hours || 0) };
+      console.log('[SETTINGS] New settings[' + field + ']:', newSettings[field as keyof typeof newSettings]);
+      return newSettings;
+    });
   };
 
   const renderSection = (title: string, icon: string, color: string, children: React.ReactNode) => (
