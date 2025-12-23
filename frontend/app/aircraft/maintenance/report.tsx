@@ -149,10 +149,16 @@ export default function MaintenanceReportScreen() {
   };
 
   const calculateComponents = (ac: Aircraft, s: ComponentSettings, elt: ELTData | null) => {
+    console.log('[REPORT] calculateComponents called');
+    console.log('[REPORT] Aircraft engine_hours:', ac.engine_hours);
+    console.log('[REPORT] Settings engine_last_overhaul_hours:', s.engine_last_overhaul_hours);
+    console.log('[REPORT] Settings engine_tbo_hours:', s.engine_tbo_hours);
+    
     const comps: ComponentStatus[] = [];
     
     // 1. MOTEUR - Source: Aircraft.engine_hours - Settings.engine_last_overhaul_hours
     const engineCalc = calculateHoursPercentage(ac.engine_hours, s.engine_last_overhaul_hours, s.engine_tbo_hours);
+    console.log('[REPORT] Engine calc result:', engineCalc);
     const engineStatus = getStatusColor(engineCalc.pct, engineCalc.hasData);
     comps.push({
       name: 'Moteur',
