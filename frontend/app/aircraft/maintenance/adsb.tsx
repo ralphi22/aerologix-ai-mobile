@@ -55,10 +55,15 @@ export default function MaintenanceADSBScreen() {
 
   const handleDelete = async (item: ADSB) => {
     const confirmDelete = async () => {
+      console.log('Starting delete for AD/SB:', item._id);
       setDeletingId(item._id);
       try {
-        await api.delete(`/api/adsb/record/${item._id}`);
-        setRecords(records.filter(r => r._id !== item._id));
+        console.log('Calling API delete for:', `/api/adsb/record/${item._id}`);
+        const response = await api.delete(`/api/adsb/record/${item._id}`);
+        console.log('Delete response:', response);
+        
+        // Mise à jour de l'état local
+        setRecords(prevRecords => prevRecords.filter(r => r._id !== item._id));
         
         if (Platform.OS === 'web') {
           window.alert('AD/SB supprimé avec succès');
@@ -67,7 +72,9 @@ export default function MaintenanceADSBScreen() {
         }
       } catch (error: any) {
         console.error('Delete error:', error);
-        const message = error.response?.data?.detail || 'Erreur lors de la suppression';
+        console.error('Error response:', error.response?.data);
+        console.error('Error status:', error.response?.status);
+        const message = error.response?.data?.detail || error.message || 'Erreur lors de la suppression';
         if (Platform.OS === 'web') {
           window.alert('Erreur: ' + message);
         } else {
@@ -79,8 +86,10 @@ export default function MaintenanceADSBScreen() {
     };
 
     if (Platform.OS === 'web') {
-      if (window.confirm(`Supprimer ${item.adsb_type} ${item.reference_number} ?\n\nCette action est irréversible.`)) {
-        confirmDelete();
+      const confirmed = window.confirm(`Supprimer ${item.adsb_type} ${item.reference_number} ?\n\nCette action est irréversible.`);
+      console.log('Confirm result:', confirmed);
+      if (confirmed) {
+        await confirmDelete();
       }
     } else {
       Alert.alert(
