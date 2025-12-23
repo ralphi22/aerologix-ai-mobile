@@ -412,6 +412,17 @@ export default function ComponentSettingsScreen() {
             </>
           ))}
 
+          {renderSection('ELT (Balise de détresse)', 'locate', '#EC4899', (
+            <>
+              <Text style={styles.hint}>Test opérationnel et batterie</Text>
+              {renderInput('Intervalle test (mois)', 'elt_test_interval_months', '12', 'numeric')}
+              {renderInput('Date dernier test', 'elt_last_test_date', 'AAAA-MM-JJ')}
+              {renderInput('Intervalle batterie (mois)', 'elt_battery_interval_months', '24', 'numeric')}
+              {renderInput('Date installation batterie', 'elt_battery_install_date', 'AAAA-MM-JJ')}
+              {renderInput('Date expiration batterie', 'elt_battery_expiry_date', 'AAAA-MM-JJ')}
+            </>
+          ))}
+
           <View style={styles.footer}>
             <Text style={styles.footerNote}>
               Les graphiques se calculent automatiquement à partir des heures Aircraft et ces paramètres.
