@@ -114,7 +114,7 @@ export default function MaintenanceInvoicesScreen() {
       `${invoice.invoice_number || 'Sans numéro'}\n\nAction irréversible.`,
       [
         { text: 'Annuler', style: 'cancel' },
-        { text: 'Supprimer', style: 'destructive', onPress: performDelete }
+        { text: 'Supprimer', style: 'destructive', onPress: () => { performDelete(); } }
       ]
     );
   };
