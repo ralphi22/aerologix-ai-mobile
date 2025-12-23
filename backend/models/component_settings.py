@@ -43,6 +43,10 @@ class ComponentSettingsCreate(BaseModel):
     # AIRFRAME
     airframe_last_annual_date: Optional[str] = None
     airframe_last_annual_hours: Optional[float] = None  # Airframe hours at annual
+    
+    # ELT (intervals stored here, dates come from ELT module)
+    elt_test_interval_months: Optional[int] = 12
+    elt_battery_interval_months: Optional[int] = 24
 
 class ComponentSettingsUpdate(ComponentSettingsCreate):
     """Update - same as create, all optional"""
