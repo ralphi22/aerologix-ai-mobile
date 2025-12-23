@@ -252,19 +252,43 @@ export default function MaintenanceReportScreen() {
 
     // 7. ELT (optionnel) - Source: ELT record
     if (elt) {
-      const eltTestCalc = calculateDatePercentage(elt.last_test_date, elt.test_interval_months || 12);
-      const eltBatteryCalc = calculateDatePercentage(elt.battery_change_date, elt.battery_interval_months || 72);
+      // Test annuel (12 mois)
+      const eltTestCalc = calculateDatePercentage(elt.last_test_date, 12);
+      
+      // Batterie - utilise battery_expiry_date si disponible, sinon calcule depuis battery_install_date
+      let eltBatteryCalc: { pct: number; hasData: boolean } = { pct: 0, hasData: false };
+      let batteryDisplayDate: string | null = null;
+      
+      if (elt.battery_expiry_date) {
+        // Calcul direct depuis la date d'expiration
+        const expiryDate = new Date(elt.battery_expiry_date);
+        const now = new Date();
+        const monthsUntilExpiry = (expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24 * 30);
+        const totalMonths = elt.battery_interval_months || 72;
+        // Pourcentage inversé car on compte vers l'expiration
+        const pct = Math.max(0, Math.min(((totalMonths - monthsUntilExpiry) / totalMonths) * 100, 150));
+        eltBatteryCalc = { pct, hasData: true };
+        batteryDisplayDate = elt.battery_expiry_date;
+      } else if (elt.battery_install_date) {
+        // Calcul depuis la date d'installation
+        const intervalMonths = elt.battery_interval_months || 72;
+        eltBatteryCalc = calculateDatePercentage(elt.battery_install_date, intervalMonths);
+        batteryDisplayDate = elt.battery_install_date;
+      }
+      
       const hasEltData = eltTestCalc.hasData || eltBatteryCalc.hasData;
       const maxEltPct = Math.max(eltTestCalc.pct, eltBatteryCalc.pct);
       const eltStatus = getStatusColor(maxEltPct, hasEltData);
       
       let eltCurrent = 'Données non disponibles';
       if (eltTestCalc.hasData && eltBatteryCalc.hasData) {
-        eltCurrent = `Test: ${formatDate(elt.last_test_date)} | Batt: ${formatDate(elt.battery_change_date)}`;
+        const battLabel = elt.battery_expiry_date ? 'Exp. batt' : 'Batt';
+        eltCurrent = `Test: ${formatDate(elt.last_test_date)} | ${battLabel}: ${formatDate(batteryDisplayDate)}`;
       } else if (eltTestCalc.hasData) {
-        eltCurrent = `Test: ${formatDate(elt.last_test_date)}`;
+        eltCurrent = `Dernier test: ${formatDate(elt.last_test_date)}`;
       } else if (eltBatteryCalc.hasData) {
-        eltCurrent = `Batterie: ${formatDate(elt.battery_change_date)}`;
+        const battLabel = elt.battery_expiry_date ? 'Expiration batterie' : 'Installation batterie';
+        eltCurrent = `${battLabel}: ${formatDate(batteryDisplayDate)}`;
       }
       
       comps.push({
