@@ -163,20 +163,34 @@ export default function ComponentSettingsScreen() {
   // Auto-fill current hours when setting "last work hours"
   const fillCurrentHours = (field: string, hoursType: 'engine' | 'propeller' | 'airframe') => {
     console.log('[SETTINGS] fillCurrentHours called - field:', field, 'hoursType:', hoursType);
-    console.log('[SETTINGS] Aircraft data:', aircraft);
+    console.log('[SETTINGS] Aircraft data:', JSON.stringify(aircraft));
+    
     if (!aircraft) {
       console.log('[SETTINGS] No aircraft data available');
+      Alert.alert('Erreur', 'Données avion non disponibles');
       return;
     }
-    const hours = hoursType === 'engine' ? aircraft.engine_hours : 
-                  hoursType === 'propeller' ? aircraft.propeller_hours : 
-                  aircraft.airframe_hours;
+    
+    let hours: number;
+    if (hoursType === 'engine') {
+      hours = aircraft.engine_hours || 0;
+    } else if (hoursType === 'propeller') {
+      hours = aircraft.propeller_hours || 0;
+    } else {
+      hours = aircraft.airframe_hours || 0;
+    }
+    
     console.log('[SETTINGS] Setting', field, 'to', hours);
-    setSettings(prev => {
-      const newSettings = { ...prev, [field]: String(hours || 0) };
-      console.log('[SETTINGS] New settings[' + field + ']:', newSettings[field as keyof typeof newSettings]);
-      return newSettings;
+    
+    // Mise à jour directe du state
+    setSettings(prevSettings => {
+      const updated = { ...prevSettings, [field]: String(hours) };
+      console.log('[SETTINGS] Updated settings:', field, '=', updated[field as keyof typeof updated]);
+      return updated;
     });
+    
+    // Feedback visuel
+    Alert.alert('✓', `${hours} heures appliquées`);
   };
 
   const renderSection = (title: string, icon: string, color: string, children: React.ReactNode) => (
