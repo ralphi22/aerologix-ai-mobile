@@ -79,12 +79,15 @@ export default function MaintenancePartsScreen() {
     }
 
     const confirmDelete = async () => {
+      console.log('Starting delete for part:', part._id);
       setDeletingId(part._id);
       try {
-        console.log('Deleting part:', part._id);
-        await api.delete(`/api/parts/record/${part._id}`);
-        console.log('Part deleted successfully');
-        setParts(parts.filter(p => p._id !== part._id));
+        console.log('Calling API delete for:', `/api/parts/record/${part._id}`);
+        const response = await api.delete(`/api/parts/record/${part._id}`);
+        console.log('Delete response:', response);
+        
+        // Mise à jour de l'état local
+        setParts(prevParts => prevParts.filter(p => p._id !== part._id));
         
         if (Platform.OS === 'web') {
           window.alert('Pièce supprimée avec succès');
@@ -94,7 +97,8 @@ export default function MaintenancePartsScreen() {
       } catch (error: any) {
         console.error('Delete error:', error);
         console.error('Error response:', error.response?.data);
-        const message = error.response?.data?.detail || 'Erreur lors de la suppression';
+        console.error('Error status:', error.response?.status);
+        const message = error.response?.data?.detail || error.message || 'Erreur lors de la suppression';
         if (Platform.OS === 'web') {
           window.alert('Erreur: ' + message);
         } else {
@@ -105,9 +109,12 @@ export default function MaintenancePartsScreen() {
       }
     };
 
+    // Exécuter directement sur web pour éviter les problèmes avec window.confirm
     if (Platform.OS === 'web') {
-      if (window.confirm(`Supprimer la pièce ${part.part_number} ?\n\nCette action est irréversible.`)) {
-        confirmDelete();
+      const confirmed = window.confirm(`Supprimer la pièce ${part.part_number} ?\n\nCette action est irréversible.`);
+      console.log('Confirm result:', confirmed);
+      if (confirmed) {
+        await confirmDelete();
       }
     } else {
       Alert.alert(
