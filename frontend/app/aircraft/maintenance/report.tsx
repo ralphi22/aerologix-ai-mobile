@@ -13,36 +13,36 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import api from '../../../services/api';
 
+interface Aircraft {
+  _id: string;
+  registration: string;
+  engine_hours: number;
+  propeller_hours: number;
+  airframe_hours: number;
+}
+
 interface ComponentSettings {
   engine_model: string | null;
   engine_tbo_hours: number;
-  engine_hours_since_overhaul: number | null;
+  engine_last_overhaul_hours: number | null;
   engine_last_overhaul_date: string | null;
   propeller_type: 'fixed' | 'variable';
   propeller_model: string | null;
   propeller_manufacturer_interval_years: number | null;
-  propeller_hours_since_inspection: number | null;
+  propeller_last_inspection_hours: number | null;
   propeller_last_inspection_date: string | null;
   avionics_last_certification_date: string | null;
   avionics_certification_interval_months: number;
   magnetos_model: string | null;
   magnetos_interval_hours: number;
-  magnetos_hours_since_inspection: number | null;
+  magnetos_last_inspection_hours: number | null;
   magnetos_last_inspection_date: string | null;
   vacuum_pump_model: string | null;
   vacuum_pump_interval_hours: number;
-  vacuum_pump_hours_since_replacement: number | null;
+  vacuum_pump_last_replacement_hours: number | null;
   vacuum_pump_last_replacement_date: string | null;
   airframe_last_annual_date: string | null;
-  airframe_hours_since_annual: number | null;
-  regulations: {
-    propeller_fixed_max_years: number;
-    propeller_variable_fallback_years: number;
-    avionics_certification_months: number;
-    magnetos_default_hours: number;
-    vacuum_pump_default_hours: number;
-    engine_default_tbo: number;
-  };
+  airframe_last_annual_hours: number | null;
 }
 
 interface ELTData {
@@ -61,6 +61,7 @@ interface ComponentStatus {
   color: string;
   status: 'green' | 'yellow' | 'red' | 'grey';
   type: 'hours' | 'date' | 'both';
+  hasData: boolean;
 }
 
 export default function MaintenanceReportScreen() {
@@ -72,6 +73,7 @@ export default function MaintenanceReportScreen() {
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [aircraft, setAircraft] = useState<Aircraft | null>(null);
   const [settings, setSettings] = useState<ComponentSettings | null>(null);
   const [eltData, setEltData] = useState<ELTData | null>(null);
   const [components, setComponents] = useState<ComponentStatus[]>([]);
@@ -82,15 +84,18 @@ export default function MaintenanceReportScreen() {
 
   const fetchData = async () => {
     try {
-      const [settingsRes, eltRes] = await Promise.all([
+      // Récupérer Aircraft (source de vérité pour les heures) + Settings + ELT
+      const [aircraftRes, settingsRes, eltRes] = await Promise.all([
+        api.get(`/api/aircraft/${aircraftId}`),
         api.get(`/api/components/aircraft/${aircraftId}`),
         api.get(`/api/elt/aircraft/${aircraftId}`).catch(() => ({ data: null }))
       ]);
       
+      setAircraft(aircraftRes.data);
       setSettings(settingsRes.data);
       setEltData(eltRes.data);
       
-      calculateComponents(settingsRes.data, eltRes.data);
+      calculateComponents(aircraftRes.data, settingsRes.data, eltRes.data);
     } catch (error) {
       console.error('Error fetching report data:', error);
     } finally {
@@ -104,23 +109,28 @@ export default function MaintenanceReportScreen() {
     fetchData();
   };
 
-  const getStatusColor = (percentage: number): { color: string; status: 'green' | 'yellow' | 'red' | 'grey' } => {
-    if (percentage >= 100) return { color: '#EF4444', status: 'red' };  // Exceeded
-    if (percentage >= 80) return { color: '#F59E0B', status: 'yellow' };  // >= 80%
-    return { color: '#10B981', status: 'green' };  // < 80%
+  const getStatusColor = (percentage: number, hasData: boolean): { color: string; status: 'green' | 'yellow' | 'red' | 'grey' } => {
+    if (!hasData) return { color: '#9CA3AF', status: 'grey' };
+    if (percentage >= 100) return { color: '#EF4444', status: 'red' };
+    if (percentage >= 80) return { color: '#F59E0B', status: 'yellow' };
+    return { color: '#10B981', status: 'green' };
   };
 
-  const calculateDatePercentage = (lastDate: string | null, intervalMonths: number): number => {
-    if (!lastDate) return 0;
+  const calculateDatePercentage = (lastDate: string | null, intervalMonths: number): { pct: number; hasData: boolean } => {
+    if (!lastDate) return { pct: 0, hasData: false };
     const last = new Date(lastDate);
     const now = new Date();
     const monthsElapsed = (now.getTime() - last.getTime()) / (1000 * 60 * 60 * 24 * 30);
-    return Math.min((monthsElapsed / intervalMonths) * 100, 150);
+    return { pct: Math.min((monthsElapsed / intervalMonths) * 100, 150), hasData: true };
   };
 
-  const calculateHoursPercentage = (hoursSince: number | null, interval: number): number => {
-    if (!hoursSince) return 0;
-    return Math.min((hoursSince / interval) * 100, 150);
+  const calculateHoursPercentage = (currentHours: number, lastWorkHours: number | null, interval: number): { pct: number; hoursSince: number; hasData: boolean } => {
+    // Si on a les heures au moment du dernier travail, on calcule la différence
+    if (lastWorkHours !== null && currentHours > 0) {
+      const hoursSince = currentHours - lastWorkHours;
+      return { pct: Math.min((hoursSince / interval) * 100, 150), hoursSince, hasData: true };
+    }
+    return { pct: 0, hoursSince: 0, hasData: false };
   };
 
   const formatDate = (dateStr: string | null): string => {
@@ -128,112 +138,134 @@ export default function MaintenanceReportScreen() {
     return new Date(dateStr).toLocaleDateString('fr-CA');
   };
 
-  const calculateComponents = (s: ComponentSettings, elt: ELTData | null) => {
+  const calculateComponents = (ac: Aircraft, s: ComponentSettings, elt: ELTData | null) => {
     const comps: ComponentStatus[] = [];
     
-    // 1. ENGINE
-    const enginePct = calculateHoursPercentage(s.engine_hours_since_overhaul, s.engine_tbo_hours);
-    const engineStatus = getStatusColor(enginePct);
+    // 1. MOTEUR - Source: Aircraft.engine_hours - Settings.engine_last_overhaul_hours
+    const engineCalc = calculateHoursPercentage(ac.engine_hours, s.engine_last_overhaul_hours, s.engine_tbo_hours);
+    const engineStatus = getStatusColor(engineCalc.pct, engineCalc.hasData);
     comps.push({
       name: 'Moteur',
       icon: 'cog',
-      percentage: enginePct,
-      current: s.engine_hours_since_overhaul ? `${s.engine_hours_since_overhaul} h` : 'N/D',
-      limit: `${s.engine_tbo_hours} h TBO`,
+      percentage: engineCalc.pct,
+      current: engineCalc.hasData ? `${engineCalc.hoursSince.toFixed(1)} h depuis révision` : 'Données non disponibles',
+      limit: `TBO: ${s.engine_tbo_hours} h`,
       ...engineStatus,
-      type: 'hours'
+      type: 'hours',
+      hasData: engineCalc.hasData
     });
 
-    // 2. PROPELLER
-    let propPct = 0;
-    let propLimit = '';
+    // 2. HÉLICE - Source: Aircraft.propeller_hours ou date selon type
+    let propCalc: { pct: number; hasData: boolean };
+    let propCurrent: string;
+    let propLimit: string;
+    
     if (s.propeller_type === 'fixed') {
-      // Fixed pitch: 5 years max
-      propPct = calculateDatePercentage(s.propeller_last_inspection_date, 5 * 12);
-      propLimit = '5 ans';
+      // Hélice fixe: basé sur DATE (5 ans max)
+      propCalc = calculateDatePercentage(s.propeller_last_inspection_date, 5 * 12);
+      propCurrent = propCalc.hasData ? `Dernière: ${formatDate(s.propeller_last_inspection_date)}` : 'Données non disponibles';
+      propLimit = '5 ans max';
     } else {
-      // Variable: manufacturer interval or 10 years fallback
+      // Hélice variable: basé sur DATE (fabricant ou 10 ans)
       const intervalYears = s.propeller_manufacturer_interval_years || 10;
-      propPct = calculateDatePercentage(s.propeller_last_inspection_date, intervalYears * 12);
+      propCalc = calculateDatePercentage(s.propeller_last_inspection_date, intervalYears * 12);
+      propCurrent = propCalc.hasData ? `Dernière: ${formatDate(s.propeller_last_inspection_date)}` : 'Données non disponibles';
       propLimit = `${intervalYears} ans`;
     }
-    const propStatus = getStatusColor(propPct);
+    const propStatus = getStatusColor(propCalc.pct, propCalc.hasData);
     comps.push({
       name: 'Hélice',
       icon: 'sync-circle',
-      percentage: propPct,
-      current: s.propeller_last_inspection_date ? formatDate(s.propeller_last_inspection_date) : 'N/D',
+      percentage: propCalc.pct,
+      current: propCurrent,
       limit: propLimit,
       ...propStatus,
-      type: s.propeller_type === 'fixed' ? 'date' : 'both'
+      type: 'date',
+      hasData: propCalc.hasData
     });
 
-    // 3. AIRFRAME (Annual)
-    const airframePct = calculateDatePercentage(s.airframe_last_annual_date, 12);
-    const airframeStatus = getStatusColor(airframePct);
+    // 3. CELLULE - Source: date de la dernière annuelle (12 mois)
+    const airframeCalc = calculateDatePercentage(s.airframe_last_annual_date, 12);
+    const airframeStatus = getStatusColor(airframeCalc.pct, airframeCalc.hasData);
     comps.push({
-      name: 'Cellule',
+      name: 'Cellule (Annuelle)',
       icon: 'airplane',
-      percentage: airframePct,
-      current: s.airframe_last_annual_date ? formatDate(s.airframe_last_annual_date) : 'N/D',
+      percentage: airframeCalc.pct,
+      current: airframeCalc.hasData ? `Dernière: ${formatDate(s.airframe_last_annual_date)}` : 'Données non disponibles',
       limit: '12 mois',
       ...airframeStatus,
-      type: 'date'
+      type: 'date',
+      hasData: airframeCalc.hasData
     });
 
-    // 4. AVIONICS (24 months)
-    const avionicsPct = calculateDatePercentage(s.avionics_last_certification_date, s.avionics_certification_interval_months);
-    const avionicsStatus = getStatusColor(avionicsPct);
+    // 4. AVIONIQUE 24 MOIS - Source: date certification
+    const avionicsCalc = calculateDatePercentage(s.avionics_last_certification_date, s.avionics_certification_interval_months);
+    const avionicsStatus = getStatusColor(avionicsCalc.pct, avionicsCalc.hasData);
     comps.push({
       name: 'Avionique (24 mois)',
       icon: 'radio',
-      percentage: avionicsPct,
-      current: s.avionics_last_certification_date ? formatDate(s.avionics_last_certification_date) : 'N/D',
+      percentage: avionicsCalc.pct,
+      current: avionicsCalc.hasData ? `Certifié: ${formatDate(s.avionics_last_certification_date)}` : 'Données non disponibles',
       limit: '24 mois',
       ...avionicsStatus,
-      type: 'date'
+      type: 'date',
+      hasData: avionicsCalc.hasData
     });
 
-    // 5. MAGNETOS (500h default)
-    const magnetosPct = calculateHoursPercentage(s.magnetos_hours_since_inspection, s.magnetos_interval_hours);
-    const magnetosStatus = getStatusColor(magnetosPct);
+    // 5. MAGNÉTOS - Source: Aircraft.engine_hours - Settings.magnetos_last_inspection_hours
+    const magnetosCalc = calculateHoursPercentage(ac.engine_hours, s.magnetos_last_inspection_hours, s.magnetos_interval_hours);
+    const magnetosStatus = getStatusColor(magnetosCalc.pct, magnetosCalc.hasData);
     comps.push({
       name: 'Magnétos',
       icon: 'flash',
-      percentage: magnetosPct,
-      current: s.magnetos_hours_since_inspection ? `${s.magnetos_hours_since_inspection} h` : 'N/D',
+      percentage: magnetosCalc.pct,
+      current: magnetosCalc.hasData ? `${magnetosCalc.hoursSince.toFixed(1)} h depuis inspection` : 'Données non disponibles',
       limit: `${s.magnetos_interval_hours} h`,
       ...magnetosStatus,
-      type: 'hours'
+      type: 'hours',
+      hasData: magnetosCalc.hasData
     });
 
-    // 6. VACUUM PUMP (400h default)
-    const vacuumPct = calculateHoursPercentage(s.vacuum_pump_hours_since_replacement, s.vacuum_pump_interval_hours);
-    const vacuumStatus = getStatusColor(vacuumPct);
+    // 6. POMPE À VIDE - Source: Aircraft.engine_hours - Settings.vacuum_pump_last_replacement_hours
+    const vacuumCalc = calculateHoursPercentage(ac.engine_hours, s.vacuum_pump_last_replacement_hours, s.vacuum_pump_interval_hours);
+    const vacuumStatus = getStatusColor(vacuumCalc.pct, vacuumCalc.hasData);
     comps.push({
       name: 'Pompe à vide',
       icon: 'speedometer',
-      percentage: vacuumPct,
-      current: s.vacuum_pump_hours_since_replacement ? `${s.vacuum_pump_hours_since_replacement} h` : 'N/D',
+      percentage: vacuumCalc.pct,
+      current: vacuumCalc.hasData ? `${vacuumCalc.hoursSince.toFixed(1)} h depuis remplacement` : 'Données non disponibles',
       limit: `${s.vacuum_pump_interval_hours} h`,
       ...vacuumStatus,
-      type: 'hours'
+      type: 'hours',
+      hasData: vacuumCalc.hasData
     });
 
-    // 7. ELT (Optional)
-    if (elt && (elt.last_test_date || elt.battery_change_date)) {
-      const eltTestPct = calculateDatePercentage(elt.last_test_date, elt.test_interval_months || 12);
-      const eltBatteryPct = calculateDatePercentage(elt.battery_change_date, elt.battery_interval_months || 72);
-      const maxEltPct = Math.max(eltTestPct, eltBatteryPct);
-      const eltStatus = getStatusColor(maxEltPct);
+    // 7. ELT (optionnel) - Source: ELT record
+    if (elt) {
+      const eltTestCalc = calculateDatePercentage(elt.last_test_date, elt.test_interval_months || 12);
+      const eltBatteryCalc = calculateDatePercentage(elt.battery_change_date, elt.battery_interval_months || 72);
+      const hasEltData = eltTestCalc.hasData || eltBatteryCalc.hasData;
+      const maxEltPct = Math.max(eltTestCalc.pct, eltBatteryCalc.pct);
+      const eltStatus = getStatusColor(maxEltPct, hasEltData);
+      
+      let eltCurrent = 'Données non disponibles';
+      if (eltTestCalc.hasData && eltBatteryCalc.hasData) {
+        eltCurrent = `Test: ${formatDate(elt.last_test_date)} | Batt: ${formatDate(elt.battery_change_date)}`;
+      } else if (eltTestCalc.hasData) {
+        eltCurrent = `Test: ${formatDate(elt.last_test_date)}`;
+      } else if (eltBatteryCalc.hasData) {
+        eltCurrent = `Batterie: ${formatDate(elt.battery_change_date)}`;
+      }
+      
       comps.push({
         name: 'ELT',
         icon: 'locate',
         percentage: maxEltPct,
-        current: elt.last_test_date ? formatDate(elt.last_test_date) : 'N/D',
-        limit: 'Test + Batterie',
+        current: eltCurrent,
+        limit: 'Test 12m / Batt 72m',
         ...eltStatus,
-        type: 'date'
+        type: 'date',
+        hasData: hasEltData
       });
     }
 
@@ -250,28 +282,32 @@ export default function MaintenanceReportScreen() {
           </View>
           <View style={styles.cardInfo}>
             <Text style={styles.cardTitle}>{comp.name}</Text>
-            <Text style={styles.cardSubtitle}>{comp.type === 'hours' ? 'Heures' : comp.type === 'date' ? 'Date' : 'Mixte'}</Text>
+            <Text style={styles.cardSubtitle}>{comp.type === 'hours' ? 'Heures' : 'Date'}</Text>
           </View>
           <View style={[styles.statusBadge, { backgroundColor: comp.color + '20' }]}>
             <View style={[styles.statusDot, { backgroundColor: comp.color }]} />
             <Text style={[styles.statusText, { color: comp.color }]}>
-              {comp.status === 'green' ? 'OK' : comp.status === 'yellow' ? 'Bientôt' : comp.status === 'red' ? 'Dépassé' : '—'}
+              {!comp.hasData ? 'N/D' : comp.status === 'green' ? 'OK' : comp.status === 'yellow' ? 'Bientôt' : 'Dépassé'}
             </Text>
           </View>
         </View>
         
         <View style={styles.progressContainer}>
           <View style={styles.progressBar}>
-            <View style={[styles.progressFill, { width: `${width}%`, backgroundColor: comp.color }]} />
-            {width >= 80 && width < 100 && <View style={[styles.warningLine, { left: '80%' }]} />}
+            {comp.hasData && (
+              <View style={[styles.progressFill, { width: `${width}%`, backgroundColor: comp.color }]} />
+            )}
+            {comp.hasData && width >= 80 && width < 100 && <View style={[styles.warningLine, { left: '80%' }]} />}
           </View>
-          <Text style={styles.progressText}>{Math.round(comp.percentage)}%</Text>
+          <Text style={styles.progressText}>{comp.hasData ? `${Math.round(comp.percentage)}%` : '—'}</Text>
         </View>
         
         <View style={styles.cardFooter}>
           <View style={styles.footerItem}>
-            <Text style={styles.footerLabel}>Actuel</Text>
-            <Text style={styles.footerValue}>{comp.current}</Text>
+            <Text style={styles.footerLabel}>État</Text>
+            <Text style={[styles.footerValue, !comp.hasData && styles.footerValueGrey]} numberOfLines={1}>
+              {comp.current}
+            </Text>
           </View>
           <View style={styles.footerItem}>
             <Text style={styles.footerLabel}>Limite</Text>
@@ -319,6 +355,25 @@ export default function MaintenanceReportScreen() {
           contentContainerStyle={styles.scrollContent}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         >
+          {aircraft && (
+            <View style={styles.hoursBar}>
+              <View style={styles.hoursItem}>
+                <Text style={styles.hoursValue}>{aircraft.engine_hours?.toFixed(1) || '0'}</Text>
+                <Text style={styles.hoursLabel}>Heures moteur</Text>
+              </View>
+              <View style={styles.hoursDivider} />
+              <View style={styles.hoursItem}>
+                <Text style={styles.hoursValue}>{aircraft.propeller_hours?.toFixed(1) || '0'}</Text>
+                <Text style={styles.hoursLabel}>Heures hélice</Text>
+              </View>
+              <View style={styles.hoursDivider} />
+              <View style={styles.hoursItem}>
+                <Text style={styles.hoursValue}>{aircraft.airframe_hours?.toFixed(1) || '0'}</Text>
+                <Text style={styles.hoursLabel}>Heures cellule</Text>
+              </View>
+            </View>
+          )}
+
           <View style={styles.legend}>
             <View style={styles.legendItem}>
               <View style={[styles.legendDot, { backgroundColor: '#10B981' }]} />
@@ -332,11 +387,15 @@ export default function MaintenanceReportScreen() {
               <View style={[styles.legendDot, { backgroundColor: '#EF4444' }]} />
               <Text style={styles.legendText}>Dépassé</Text>
             </View>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendDot, { backgroundColor: '#9CA3AF' }]} />
+              <Text style={styles.legendText}>N/D</Text>
+            </View>
           </View>
 
           {components.map(renderProgressBar)}
           
-          <View style={styles.footer}>
+          <View style={styles.footerSection}>
             <Text style={styles.footerNote}>
               Réf: Transport Canada RAC 605 / Standard 625
             </Text>
@@ -366,13 +425,22 @@ const styles = StyleSheet.create({
   disclaimerText: { fontSize: 12, color: '#92400E' },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   scrollContent: { padding: 16 },
+  hoursBar: {
+    flexDirection: 'row', backgroundColor: '#FFFFFF',
+    borderRadius: 12, padding: 16, marginBottom: 16,
+    borderWidth: 1, borderColor: '#E2E8F0',
+  },
+  hoursItem: { flex: 1, alignItems: 'center' },
+  hoursValue: { fontSize: 20, fontWeight: 'bold', color: '#1E3A8A' },
+  hoursLabel: { fontSize: 11, color: '#64748B', marginTop: 2 },
+  hoursDivider: { width: 1, backgroundColor: '#E2E8F0', marginHorizontal: 8 },
   legend: {
     flexDirection: 'row', justifyContent: 'center',
-    marginBottom: 16, gap: 20,
+    marginBottom: 16, gap: 16,
   },
-  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  legendDot: { width: 12, height: 12, borderRadius: 6 },
-  legendText: { fontSize: 12, color: '#64748B' },
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  legendDot: { width: 10, height: 10, borderRadius: 5 },
+  legendText: { fontSize: 11, color: '#64748B' },
   card: {
     backgroundColor: '#FFFFFF', borderRadius: 12, padding: 16,
     marginBottom: 12, borderWidth: 1, borderColor: '#E2E8F0',
@@ -400,14 +468,15 @@ const styles = StyleSheet.create({
   warningLine: {
     position: 'absolute', top: 0, bottom: 0, width: 2, backgroundColor: '#F59E0B',
   },
-  progressText: { fontSize: 14, fontWeight: '600', color: '#1E293B', width: 45 },
+  progressText: { fontSize: 14, fontWeight: '600', color: '#1E293B', width: 40, textAlign: 'right' },
   cardFooter: {
     flexDirection: 'row', justifyContent: 'space-between',
     marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#F1F5F9',
   },
-  footerItem: {},
+  footerItem: { flex: 1 },
   footerLabel: { fontSize: 11, color: '#94A3B8' },
-  footerValue: { fontSize: 14, fontWeight: '500', color: '#1E293B' },
-  footer: { alignItems: 'center', paddingVertical: 20 },
+  footerValue: { fontSize: 13, fontWeight: '500', color: '#1E293B', marginTop: 2 },
+  footerValueGrey: { color: '#9CA3AF', fontStyle: 'italic' },
+  footerSection: { alignItems: 'center', paddingVertical: 20 },
   footerNote: { fontSize: 11, color: '#94A3B8', fontStyle: 'italic' },
 });
