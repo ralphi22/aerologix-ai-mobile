@@ -189,21 +189,21 @@ export default function SubscriptionScreen() {
                 {plan.features.has_predictive_maintenance && (
                   <View style={styles.featureRow}>
                     <Ionicons name="analytics" size={16} color="#10B981" />
-                    <Text style={styles.featureText}>Maintenance prédictive</Text>
+                    <Text style={styles.featureText}>Insights maintenance (informatif)</Text>
                   </View>
                 )}
 
                 {plan.features.has_auto_notifications && (
                   <View style={styles.featureRow}>
                     <Ionicons name="notifications" size={16} color="#10B981" />
-                    <Text style={styles.featureText}>Notifications auto</Text>
+                    <Text style={styles.featureText}>Rappels maintenance (contrôle propriétaire)</Text>
                   </View>
                 )}
 
                 {plan.features.has_mechanic_sharing && (
                   <View style={styles.featureRow}>
                     <Ionicons name="share-social" size={16} color="#10B981" />
-                    <Text style={styles.featureText}>Partage mécanicien</Text>
+                    <Text style={styles.featureText}>Partage avec TEA/AMO (accès contrôlé)</Text>
                   </View>
                 )}
 
