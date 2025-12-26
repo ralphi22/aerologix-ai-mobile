@@ -57,6 +57,7 @@ app.include_router(parts.router)
 app.include_router(elt.router)
 app.include_router(invoices.router)
 app.include_router(components.router)
+app.include_router(shares.router)
 
 @app.get("/")
 async def root():
