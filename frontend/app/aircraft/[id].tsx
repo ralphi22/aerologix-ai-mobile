@@ -378,15 +378,32 @@ export default function AircraftDetailScreen() {
           </TouchableOpacity>
         </View>
 
-        <TouchableOpacity style={styles.editButton} onPress={handleEdit}>
-          <Ionicons name="create-outline" size={20} color="#FFFFFF" />
-          <Text style={styles.editButtonText}>Modifier l'avion</Text>
-        </TouchableOpacity>
+        {/* Boutons propriétaire uniquement (pas en mode partagé) */}
+        {!isSharedMode && (
+          <>
+            {/* Bouton Partager avec TEA/AMO */}
+            <TouchableOpacity 
+              style={styles.shareButton} 
+              onPress={() => router.push({
+                pathname: '/aircraft/share',
+                params: { aircraftId: selectedAircraft._id, registration: selectedAircraft.registration }
+              })}
+            >
+              <Ionicons name="share-social-outline" size={20} color="#FFFFFF" />
+              <Text style={styles.shareButtonText}>Partager avec TEA/AMO</Text>
+            </TouchableOpacity>
 
-        <TouchableOpacity style={styles.deleteButton} onPress={handleDelete}>
-          <Ionicons name="trash-outline" size={20} color="#EF4444" />
-          <Text style={styles.deleteButtonText}>Supprimer l'avion</Text>
-        </TouchableOpacity>
+            <TouchableOpacity style={styles.editButton} onPress={handleEdit}>
+              <Ionicons name="create-outline" size={20} color="#FFFFFF" />
+              <Text style={styles.editButtonText}>Modifier l'avion</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.deleteButton} onPress={handleDelete}>
+              <Ionicons name="trash-outline" size={20} color="#EF4444" />
+              <Text style={styles.deleteButtonText}>Supprimer l'avion</Text>
+            </TouchableOpacity>
+          </>
+        )}
       </View>
     </ScrollView>
     </View>
