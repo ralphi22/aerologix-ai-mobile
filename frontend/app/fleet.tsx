@@ -25,7 +25,7 @@ import {
   acceptShare,
   SharedAircraft,
   PendingInvitation,
-} from '../../services/sharesService';
+} from '../services/sharesService';
 
 export default function FleetScreen() {
   const router = useRouter();
