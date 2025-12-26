@@ -205,6 +205,16 @@ export default function AircraftDetailScreen() {
         </LinearGradient>
       </ImageBackground>
 
+      {/* Badge de mode partagé (pour TEA/AMO) */}
+      {isSharedMode && (
+        <View style={styles.sharedBadge}>
+          <Ionicons name="share-social" size={16} color="#1E3A8A" />
+          <Text style={styles.sharedBadgeText}>
+            Accès partagé: {isContributor ? 'Contribution' : 'Lecture seule'}
+          </Text>
+        </View>
+      )}
+
       <View style={styles.content}>
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Heures de vol</Text>
