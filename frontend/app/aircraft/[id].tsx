@@ -26,10 +26,19 @@ interface ELTStatusData {
 }
 
 export default function AircraftDetailScreen() {
-  const { id } = useLocalSearchParams();
+  const { id, sharedAccess, shareRole, shareId } = useLocalSearchParams<{
+    id: string;
+    sharedAccess?: string;
+    shareRole?: string;
+    shareId?: string;
+  }>();
   const router = useRouter();
   const { selectedAircraft, deleteAircraft } = useAircraftStore();
   const insets = useSafeAreaInsets();
+  
+  // Mode partagé (TEA/AMO)
+  const isSharedMode = sharedAccess === 'true';
+  const isContributor = shareRole === 'contributor';
   
   // État pour le statut ELT
   const [eltStatus, setEltStatus] = useState<ELTStatusData>({ status: 'none', label: '' });
