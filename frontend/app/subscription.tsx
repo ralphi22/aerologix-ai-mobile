@@ -441,4 +441,13 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 18,
   },
+  disclaimerText: {
+    fontSize: 11,
+    color: '#64748B',
+    textAlign: 'center',
+    lineHeight: 16,
+    marginTop: 12,
+    fontStyle: 'italic',
+    paddingHorizontal: 16,
+  },
 });
