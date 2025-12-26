@@ -257,6 +257,9 @@ export default function SubscriptionScreen() {
         <Text style={styles.footerText}>
           Tous les abonnements incluent un paiement sécurisé via Stripe et peuvent être annulés à tout moment.
         </Text>
+        <Text style={styles.disclaimerText}>
+          Information seulement — le propriétaire et le TEA/AMO demeurent responsables des décisions et des registres officiels.
+        </Text>
       </View>
     </ScrollView>
     </SafeAreaView>
