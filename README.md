@@ -195,6 +195,30 @@ Pour toute question ou assistance :
 - Email : support@aerologix.ai
 - GitHub Issues : [aerologix-ai-mobile/issues](https://github.com/ralphi22/aerologix-ai-mobile/issues)
 
+## Privacy Policy
+
+Privacy Policy – AeroLogix AI
+AeroLogix AI respects user privacy and is committed to protecting personal data.
+Data Collection
+The app collects only the data necessary for its core functionality, including:
+Email address (for account authentication)
+User-provided content such as aircraft data, documents, images, and maintenance records
+Data Usage
+Collected data is used solely to:
+Provide access to the application
+Store and display user aircraft records and documents
+Enable app features such as maintenance tracking and document scanning
+Data Sharing
+AeroLogix AI does not sell, share, or use personal data for advertising or tracking purposes.
+Data Storage and Security
+Data is stored securely and access is restricted to authorized systems only.
+User Responsibility
+All data entered into the app is provided by the user.
+The app is intended for informational and organizational purposes only.
+Contact
+For any privacy-related questions, contact:
+support@aerologix.ai
+
 ## 📄 Licence
 
 © 2025 AeroLogix AI. Tous droits réservés.
