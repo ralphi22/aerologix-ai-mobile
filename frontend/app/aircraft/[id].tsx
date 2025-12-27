@@ -493,22 +493,7 @@ const styles = StyleSheet.create({
     color: '#1E293B',
     marginBottom: 16,
   },
-  hoursGrid: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  hoursCard: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-  },
+  // Styles compteur heures (unused legacy removed)
   hoursContainer: {
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
