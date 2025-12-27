@@ -112,15 +112,6 @@ export default function LogBookScreen() {
     loadData();
   };
 
-  const toggleFlightTracking = async (value: boolean) => {
-    try {
-      await api.post(`/api/aircraft/${aircraftId}/flight-tracking?enabled=${value}`);
-      setFlightTrackingEnabled(value);
-    } catch (error: any) {
-      Alert.alert('Erreur', error.response?.data?.detail || 'Erreur');
-    }
-  };
-
   // ============ LOGBOOK FUNCTIONS ============
   const handleAddEntry = async () => {
     if (!newEntry.description.trim()) {
