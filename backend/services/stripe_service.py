@@ -153,15 +153,15 @@ async def get_subscription(stripe_subscription_id: str) -> Optional[dict]:
         return {
             "id": subscription.id,
             "status": subscription.status,
-            "current_period_start": datetime.fromtimestamp(subscription.current_period_start),
-            "current_period_end": datetime.fromtimestamp(subscription.current_period_end),
-            "cancel_at_period_end": subscription.cancel_at_period_end,
-            "plan_id": subscription.metadata.get("plan_id"),
-            "billing_cycle": subscription.metadata.get("billing_cycle")
+            "current_period_start": datetime.fromtimestamp(getattr(subscription, 'current_period_start', 0)) if getattr(subscription, 'current_period_start', None) else None,
+            "current_period_end": datetime.fromtimestamp(getattr(subscription, 'current_period_end', 0)) if getattr(subscription, 'current_period_end', None) else None,
+            "cancel_at_period_end": getattr(subscription, 'cancel_at_period_end', False),
+            "plan_id": subscription.metadata.get("plan_id") if hasattr(subscription, 'metadata') else None,
+            "billing_cycle": subscription.metadata.get("billing_cycle") if hasattr(subscription, 'metadata') else None
         }
         
-    except stripe.error.StripeError as e:
-        logger.error(f"Stripe error getting subscription: {e}")
+    except Exception as e:
+        logger.error(f"Error getting subscription {stripe_subscription_id}: {e}")
         return None
 
 
