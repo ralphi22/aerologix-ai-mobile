@@ -26,10 +26,19 @@ interface ELTStatusData {
 }
 
 export default function AircraftDetailScreen() {
-  const { id } = useLocalSearchParams();
+  const { id, sharedAccess, shareRole, shareId } = useLocalSearchParams<{
+    id: string;
+    sharedAccess?: string;
+    shareRole?: string;
+    shareId?: string;
+  }>();
   const router = useRouter();
   const { selectedAircraft, deleteAircraft } = useAircraftStore();
   const insets = useSafeAreaInsets();
+  
+  // Mode partagé (TEA/AMO)
+  const isSharedMode = sharedAccess === 'true';
+  const isContributor = shareRole === 'contributor';
   
   // État pour le statut ELT
   const [eltStatus, setEltStatus] = useState<ELTStatusData>({ status: 'none', label: '' });
@@ -196,6 +205,16 @@ export default function AircraftDetailScreen() {
         </LinearGradient>
       </ImageBackground>
 
+      {/* Badge de mode partagé (pour TEA/AMO) */}
+      {isSharedMode && (
+        <View style={styles.sharedBadge}>
+          <Ionicons name="share-social" size={16} color="#1E3A8A" />
+          <Text style={styles.sharedBadgeText}>
+            Accès partagé: {isContributor ? 'Contribution' : 'Lecture seule'}
+          </Text>
+        </View>
+      )}
+
       <View style={styles.content}>
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Heures de vol</Text>
@@ -359,15 +378,32 @@ export default function AircraftDetailScreen() {
           </TouchableOpacity>
         </View>
 
-        <TouchableOpacity style={styles.editButton} onPress={handleEdit}>
-          <Ionicons name="create-outline" size={20} color="#FFFFFF" />
-          <Text style={styles.editButtonText}>Modifier l'avion</Text>
-        </TouchableOpacity>
+        {/* Boutons propriétaire uniquement (pas en mode partagé) */}
+        {!isSharedMode && (
+          <>
+            {/* Bouton Partager avec TEA/AMO */}
+            <TouchableOpacity 
+              style={styles.shareButton} 
+              onPress={() => router.push({
+                pathname: '/aircraft/share',
+                params: { aircraftId: selectedAircraft._id, registration: selectedAircraft.registration }
+              })}
+            >
+              <Ionicons name="share-social-outline" size={20} color="#FFFFFF" />
+              <Text style={styles.shareButtonText}>Partager avec TEA/AMO</Text>
+            </TouchableOpacity>
 
-        <TouchableOpacity style={styles.deleteButton} onPress={handleDelete}>
-          <Ionicons name="trash-outline" size={20} color="#EF4444" />
-          <Text style={styles.deleteButtonText}>Supprimer l'avion</Text>
-        </TouchableOpacity>
+            <TouchableOpacity style={styles.editButton} onPress={handleEdit}>
+              <Ionicons name="create-outline" size={20} color="#FFFFFF" />
+              <Text style={styles.editButtonText}>Modifier l'avion</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.deleteButton} onPress={handleDelete}>
+              <Ionicons name="trash-outline" size={20} color="#EF4444" />
+              <Text style={styles.deleteButtonText}>Supprimer l'avion</Text>
+            </TouchableOpacity>
+          </>
+        )}
       </View>
     </ScrollView>
     </View>
@@ -580,5 +616,36 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#EF4444',
+  },
+  sharedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#EFF6FF',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    gap: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#DBEAFE',
+  },
+  sharedBadgeText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1E3A8A',
+  },
+  shareButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#3B82F6',
+    borderRadius: 12,
+    padding: 16,
+    gap: 8,
+    marginTop: 16,
+  },
+  shareButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
 });

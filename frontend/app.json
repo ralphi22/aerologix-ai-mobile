@@ -40,13 +40,16 @@
           "resizeMode": "contain",
           "backgroundColor": "#1E3A8A"
         }
-      ]
+      ],
+      "expo-font",
+      "expo-secure-store",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true
     },
     "extra": {
-      "apiUrl": "https://maintflow-10.preview.emergentagent.com/api",
+      "apiUrl": "https://sky-subscriptions.preview.emergentagent.com/api",
       "eas": {
         "projectId": "4b010684-347e-4c92-b8d4-cc6dcb721019"
       }
