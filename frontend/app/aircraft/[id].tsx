@@ -261,9 +261,26 @@ export default function AircraftDetailScreen() {
             </View>
             <View style={styles.moduleContent}>
               <Text style={styles.moduleName}>Log Book</Text>
-              <Text style={styles.moduleSubtitle}>Historique des vols et entrées</Text>
+              <Text style={styles.moduleSubtitle}>Carnet de route officiel</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color="#3B82F6" />
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={[styles.moduleCard, styles.moduleCardActive]}
+            onPress={() => router.push({
+              pathname: '/aircraft/flights',
+              params: { aircraftId: selectedAircraft._id, registration: selectedAircraft.registration }
+            })}
+          >
+            <View style={[styles.moduleIcon, { backgroundColor: '#ECFDF5' }]}>
+              <Ionicons name="airplane" size={24} color="#10B981" />
+            </View>
+            <View style={styles.moduleContent}>
+              <Text style={styles.moduleName}>Vols Proposés</Text>
+              <Text style={styles.moduleSubtitle}>Vols détectés à confirmer</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#10B981" />
           </TouchableOpacity>
 
           <TouchableOpacity 
