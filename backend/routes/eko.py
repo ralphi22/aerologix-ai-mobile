@@ -167,7 +167,15 @@ async def chat_with_eko(
 ):
     """
     Chat with EKO - TC-SAFE aviation assistant.
+    Rate limited: 10 requests/minute per user.
     """
+    # Rate limiting check
+    if not check_rate_limit(current_user.id):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Veuillez patienter avant d'envoyer un nouveau message."
+        )
+    
     if not EMERGENT_LLM_KEY:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
