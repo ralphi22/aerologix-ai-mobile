@@ -170,19 +170,22 @@ async def chat_with_eko(
     })
     
     try:
-        # Call OpenAI API directly with Emergent LLM Key
-        import openai
+        # Call OpenAI via Emergent Integrations
+        from emergentintegrations.llm.chat import chat, LlmMessage
         
-        client = openai.OpenAI(api_key=EMERGENT_LLM_KEY)
+        # Convert messages to LlmMessage format
+        llm_messages = []
+        for msg in messages:
+            llm_messages.append(LlmMessage(role=msg["role"], content=msg["content"]))
         
-        completion = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=messages,
-            max_tokens=800,
-            temperature=0.7
+        # Call the chat function
+        response = await chat(
+            api_key=EMERGENT_LLM_KEY,
+            messages=llm_messages,
+            model="gpt-4o-mini"
         )
         
-        assistant_message = completion.choices[0].message.content
+        assistant_message = response.content
         
         # Log the conversation
         conversation_id = generate_id()
