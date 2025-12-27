@@ -43,6 +43,10 @@ export default function AircraftDetailScreen() {
   // État pour le statut ELT
   const [eltStatus, setEltStatus] = useState<ELTStatusData>({ status: 'none', label: '' });
   const [loadingELT, setLoadingELT] = useState(true);
+  
+  // État pour le partage pilote
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [shareLoading, setShareLoading] = useState(false);
 
   // Charger le statut ELT au montage
   useEffect(() => {
