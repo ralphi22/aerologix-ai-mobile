@@ -36,26 +36,6 @@ export default function ProfileScreen() {
     );
   };
 
-  const getPlanColor = (plan: string) => {
-    switch (plan) {
-      case 'BASIC': return '#94A3B8';
-      case 'PILOT': return '#3B82F6';
-      case 'MAINTENANCE_PRO': return '#8B5CF6';
-      case 'FLEET_AI': return '#F59E0B';
-      default: return '#94A3B8';
-    }
-  };
-
-  const getPlanName = (plan: string) => {
-    switch (plan) {
-      case 'BASIC': return 'Basic';
-      case 'PILOT': return 'Pilot';
-      case 'MAINTENANCE_PRO': return 'Maintenance Pro';
-      case 'FLEET_AI': return 'Fleet AI';
-      default: return plan;
-    }
-  };
-
   if (!user) {
     return (
       <View style={styles.centered}>
@@ -72,16 +52,6 @@ export default function ProfileScreen() {
         </View>
         <Text style={styles.name}>{user.name}</Text>
         <Text style={styles.email}>{user.email}</Text>
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Abonnement</Text>
-        <View style={[styles.planCard, { backgroundColor: getPlanColor(user.subscription.plan) }]}>
-          <Text style={styles.planName}>{getPlanName(user.subscription.plan)}</Text>
-          <Text style={styles.planStatus}>
-            {user.subscription.status === 'active' ? 'Actif' : user.subscription.status}
-          </Text>
-        </View>
       </View>
 
       <View style={styles.section}>
