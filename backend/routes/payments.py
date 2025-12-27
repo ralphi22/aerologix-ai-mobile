@@ -70,7 +70,7 @@ async def create_checkout_session(
     )
     
     # Update user with Stripe customer ID if not set
-    if not current_user.stripe_customer_id:
+    if not current_user.subscription.stripe_customer_id:
         await db.users.update_one(
             {"_id": current_user.id},
             {"$set": {"stripe_customer_id": stripe_customer_id}}
