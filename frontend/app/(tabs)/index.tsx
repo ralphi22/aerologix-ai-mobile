@@ -182,63 +182,102 @@ export default function AircraftListScreen() {
     }
   };
 
-  const renderAircraftCard = ({ item }: any) => (
-    <TouchableOpacity
-      style={styles.card}
-      onPress={() => handleAircraftPress(item)}
-      activeOpacity={0.9}
-    >
-      <ImageBackground
-        source={item.photo_url ? { uri: item.photo_url } : require('../../assets/images/icon.png')}
-        style={styles.cardBackground}
-        imageStyle={styles.cardImage}
-      >
-        <LinearGradient
-          colors={['rgba(30, 58, 138, 0.8)', 'rgba(30, 58, 138, 0.95)']}
-          style={styles.cardGradient}
-        >
-          <View style={styles.cardHeader}>
-            <View>
-              <Text style={styles.registration}>{item.registration}</Text>
-              <Text style={styles.aircraftType}>
-                {item.manufacturer} {item.model || item.aircraft_type}
-              </Text>
-            </View>
-            {user && (
-              <View
-                style={[
-                  styles.planBadge,
-                  { backgroundColor: getPlanBadgeColor(user.subscription.plan) },
-                ]}
-              >
-                <Text style={styles.planBadgeText}>{user.subscription.plan}</Text>
-              </View>
-            )}
-          </View>
+  const renderAircraftCard = ({ item }: any) => {
+    const tracking = trackingState[item._id];
+    const isTracking = tracking?.isActive || false;
+    const sessionMinutes = tracking?.elapsedMinutes || 0;
 
-          <View style={styles.cardFooter}>
-            <View style={styles.hoursContainer}>
-              <View style={styles.hoursItem}>
-                <Ionicons name="speedometer-outline" size={16} color="#FFFFFF" />
-                <Text style={styles.hoursLabel}>Airframe</Text>
-                <Text style={styles.hoursValue}>{item.airframe_hours}h</Text>
+    return (
+      <TouchableOpacity
+        style={styles.card}
+        onPress={() => handleAircraftPress(item)}
+        activeOpacity={0.9}
+      >
+        <ImageBackground
+          source={item.photo_url ? { uri: item.photo_url } : require('../../assets/images/icon.png')}
+          style={styles.cardBackground}
+          imageStyle={styles.cardImage}
+        >
+          <LinearGradient
+            colors={['rgba(30, 58, 138, 0.8)', 'rgba(30, 58, 138, 0.95)']}
+            style={styles.cardGradient}
+          >
+            <View style={styles.cardHeader}>
+              <View>
+                <Text style={styles.registration}>{item.registration}</Text>
+                <Text style={styles.aircraftType}>
+                  {item.manufacturer} {item.model || item.aircraft_type}
+                </Text>
               </View>
-              <View style={styles.hoursItem}>
-                <Ionicons name="settings-outline" size={16} color="#FFFFFF" />
-                <Text style={styles.hoursLabel}>Engine</Text>
-                <Text style={styles.hoursValue}>{item.engine_hours}h</Text>
+              {user && (
+                <View
+                  style={[
+                    styles.planBadge,
+                    { backgroundColor: getPlanBadgeColor(user.subscription.plan) },
+                  ]}
+                >
+                  <Text style={styles.planBadgeText}>{user.subscription.plan}</Text>
+                </View>
+              )}
+            </View>
+
+            <View style={styles.cardFooter}>
+              <View style={styles.hoursContainer}>
+                <View style={styles.hoursItem}>
+                  <Ionicons name="speedometer-outline" size={16} color="#FFFFFF" />
+                  <Text style={styles.hoursLabel}>Airframe</Text>
+                  <Text style={styles.hoursValue}>{item.airframe_hours}h</Text>
+                </View>
+                <View style={styles.hoursItem}>
+                  <Ionicons name="settings-outline" size={16} color="#FFFFFF" />
+                  <Text style={styles.hoursLabel}>Engine</Text>
+                  <Text style={styles.hoursValue}>{item.engine_hours}h</Text>
+                </View>
+                <View style={styles.hoursItem}>
+                  <Ionicons name="sync-outline" size={16} color="#FFFFFF" />
+                  <Text style={styles.hoursLabel}>Propeller</Text>
+                  <Text style={styles.hoursValue}>{item.propeller_hours}h</Text>
+                </View>
               </View>
-              <View style={styles.hoursItem}>
-                <Ionicons name="sync-outline" size={16} color="#FFFFFF" />
-                <Text style={styles.hoursLabel}>Propeller</Text>
-                <Text style={styles.hoursValue}>{item.propeller_hours}h</Text>
+
+              {/* Suivi de vol - Section */}
+              <View style={styles.trackingSection}>
+                {/* Micro-compteur de session */}
+                {isTracking && (
+                  <View style={styles.sessionCounter}>
+                    <Ionicons name="time" size={14} color="#10B981" />
+                    <Text style={styles.sessionTime}>{formatSessionTime(sessionMinutes)}</Text>
+                    <View style={styles.recordingDot} />
+                  </View>
+                )}
+
+                {/* Bouton ON/OFF */}
+                <TouchableOpacity
+                  style={[
+                    styles.trackingButton,
+                    isTracking ? styles.trackingButtonActive : styles.trackingButtonInactive
+                  ]}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    toggleTracking(item._id);
+                  }}
+                >
+                  <Ionicons 
+                    name={isTracking ? "stop-circle" : "play-circle"} 
+                    size={18} 
+                    color={isTracking ? "#FFFFFF" : "#FFFFFF"} 
+                  />
+                  <Text style={styles.trackingButtonText}>
+                    {isTracking ? 'Arrêter le suivi' : 'Activer le suivi'}
+                  </Text>
+                </TouchableOpacity>
               </View>
             </View>
-          </View>
-        </LinearGradient>
-      </ImageBackground>
-    </TouchableOpacity>
-  );
+          </LinearGradient>
+        </ImageBackground>
+      </TouchableOpacity>
+    );
+  };
 
   const renderEmptyState = () => (
     <View style={styles.emptyState}>
