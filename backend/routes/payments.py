@@ -106,36 +106,45 @@ async def stripe_webhook(
 ):
     """
     Handle Stripe webhook events.
+    CRITICAL: Always return 200 OK to Stripe - never let exceptions propagate.
     """
-    if not stripe_signature:
-        raise HTTPException(status_code=400, detail="Missing Stripe signature")
-    
-    payload = await request.body()
-    
     try:
-        event = stripe_service.verify_webhook_signature(payload, stripe_signature)
+        if not stripe_signature:
+            logger.warning("Webhook received without Stripe signature")
+            return {"received": True}
+        
+        payload = await request.body()
+        
+        try:
+            event = stripe_service.verify_webhook_signature(payload, stripe_signature)
+        except Exception as e:
+            logger.error(f"Webhook signature verification failed: {e}")
+            return {"received": True}
+        
+        event_type = event["type"]
+        data = event["data"]["object"]
+        
+        logger.info(f"Processing webhook event: {event_type}")
+        
+        try:
+            if event_type == "checkout.session.completed":
+                await handle_checkout_completed(db, data)
+            
+            elif event_type == "customer.subscription.updated":
+                await handle_subscription_updated(db, data)
+            
+            elif event_type == "customer.subscription.deleted":
+                await handle_subscription_deleted(db, data)
+            
+            elif event_type == "invoice.payment_failed":
+                await handle_payment_failed(db, data)
+        except Exception as e:
+            logger.error(f"Webhook handler error for {event_type}: {e}")
+    
     except Exception as e:
-        logger.error(f"Webhook signature verification failed: {e}")
-        raise HTTPException(status_code=400, detail="Invalid signature")
+        logger.error(f"Webhook global error: {e}")
     
-    event_type = event["type"]
-    data = event["data"]["object"]
-    
-    logger.info(f"Processing webhook event: {event_type}")
-    
-    if event_type == "checkout.session.completed":
-        await handle_checkout_completed(db, data)
-    
-    elif event_type == "customer.subscription.updated":
-        await handle_subscription_updated(db, data)
-    
-    elif event_type == "customer.subscription.deleted":
-        await handle_subscription_deleted(db, data)
-    
-    elif event_type == "invoice.payment_failed":
-        await handle_payment_failed(db, data)
-    
-    return {"status": "success"}
+    return {"received": True}
 
 
 async def handle_checkout_completed(db: AsyncIOMotorDatabase, session: dict):
