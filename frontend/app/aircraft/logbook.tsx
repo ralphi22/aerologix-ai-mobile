@@ -62,7 +62,6 @@ export default function LogBookScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [entries, setEntries] = useState<LogBookEntry[]>([]);
   const [proposedFlights, setProposedFlights] = useState<FlightCandidate[]>([]);
-  const [flightTrackingEnabled, setFlightTrackingEnabled] = useState(false);
   
   // Add entry modal
   const [addModalVisible, setAddModalVisible] = useState(false);
