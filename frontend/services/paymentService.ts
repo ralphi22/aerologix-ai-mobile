@@ -49,7 +49,15 @@ export interface PortalSessionResponse {
 }
 
 // Plan pricing info (CAD)
-export const PLAN_PRICING = {
+export const PLAN_PRICING: Record<PlanId, {
+  name: string;
+  description: string;
+  monthly: number;
+  yearly: number;
+  color: string;
+  popular?: boolean;
+  features: string[];
+}> = {
   solo: {
     name: 'Solo',
     description: '1 aéronef, synchronisation de base',
