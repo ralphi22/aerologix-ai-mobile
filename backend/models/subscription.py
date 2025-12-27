@@ -97,7 +97,7 @@ class SubscriptionResponse(BaseModel):
 
 class CheckoutSessionRequest(BaseModel):
     plan_id: PlanType
-    billing_cycle: BillingCycle = BillingCycle.MONTHLY
+    billing_cycle: BillingCycle  # OBLIGATOIRE - pas de fallback
 
 
 class CheckoutSessionResponse(BaseModel):
