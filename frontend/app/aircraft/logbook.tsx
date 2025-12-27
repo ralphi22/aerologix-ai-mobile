@@ -92,14 +92,6 @@ export default function LogBookScreen() {
     if (!aircraftId) return;
     
     try {
-      // Load flight tracking status
-      try {
-        const trackingRes = await api.get(`/api/aircraft/${aircraftId}/flight-tracking`);
-        setFlightTrackingEnabled(trackingRes.data.flight_tracking_enabled || false);
-      } catch {
-        setFlightTrackingEnabled(false);
-      }
-
       // Load logbook entries
       const logRes = await api.get(`/api/aircraft/${aircraftId}/logbook`);
       setEntries(logRes.data || []);
