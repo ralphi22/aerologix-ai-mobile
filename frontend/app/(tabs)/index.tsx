@@ -31,6 +31,102 @@ export default function AircraftListScreen() {
   const { aircraft, isLoading, fetchAircraft, selectAircraft } = useAircraftStore();
   const { user } = useAuthStore();
   const [refreshing, setRefreshing] = useState(false);
+  
+  // État de suivi de vol par avion
+  const [trackingState, setTrackingState] = useState<TrackingState>({});
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    loadAircraft();
+    
+    // Démarrer le timer global pour mettre à jour les compteurs
+    timerRef.current = setInterval(() => {
+      setTrackingState(prev => {
+        const updated = { ...prev };
+        Object.keys(updated).forEach(id => {
+          if (updated[id].isActive && updated[id].startTime) {
+            const elapsed = Math.floor((Date.now() - updated[id].startTime) / 60000);
+            updated[id] = { ...updated[id], elapsedMinutes: elapsed };
+          }
+        });
+        return updated;
+      });
+    }, 1000); // Update every second for smoother display
+
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, []);
+
+  // Formater le temps en h:mm
+  const formatSessionTime = (minutes: number): string => {
+    if (minutes === 0) return '0:00';
+    const hrs = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    return `${hrs}:${mins.toString().padStart(2, '0')}`;
+  };
+
+  // Démarrer le suivi de vol
+  const startTracking = async (aircraftId: string) => {
+    setTrackingState(prev => ({
+      ...prev,
+      [aircraftId]: {
+        isActive: true,
+        startTime: Date.now(),
+        elapsedMinutes: 0
+      }
+    }));
+  };
+
+  // Arrêter le suivi et créer FlightCandidate
+  const stopTracking = async (aircraftId: string) => {
+    const state = trackingState[aircraftId];
+    if (!state || !state.startTime) return;
+
+    const durationMinutes = Math.max(1, Math.floor((Date.now() - state.startTime) / 60000));
+    
+    // Créer le FlightCandidate PROPOSED
+    try {
+      const departTs = new Date(state.startTime).toISOString();
+      const arrivalTs = new Date().toISOString();
+      
+      await api.post(`/api/aircraft/${aircraftId}/flight-candidates`, {
+        depart_ts: departTs,
+        arrival_ts: arrivalTs,
+        duration_est_minutes: durationMinutes,
+        source: 'session_tracking'
+      });
+
+      Alert.alert(
+        'Vol enregistré',
+        `Durée: ${formatSessionTime(durationMinutes)}\n\nCe vol est proposé et doit être confirmé depuis le Log Book.`,
+        [{ text: 'OK' }]
+      );
+    } catch (error: any) {
+      console.error('Error creating flight candidate:', error);
+      Alert.alert('Erreur', 'Impossible d\'enregistrer le vol');
+    }
+
+    // Reset state
+    setTrackingState(prev => ({
+      ...prev,
+      [aircraftId]: {
+        isActive: false,
+        startTime: null,
+        elapsedMinutes: 0
+      }
+    }));
+  };
+
+  // Toggle suivi
+  const toggleTracking = (aircraftId: string) => {
+    const state = trackingState[aircraftId];
+    if (state?.isActive) {
+      stopTracking(aircraftId);
+    } else {
+      startTracking(aircraftId);
+    }
+  };
 
   useEffect(() => {
     loadAircraft();
