@@ -176,50 +176,15 @@ export default function AircraftDetailScreen() {
     router.replace('/(tabs)');
   };
 
-  // Partage pilote - Créer un lien sécurisé
+  // Partage pilote - Créer un lien sécurisé via navigation
   const handleShareWithPilot = () => {
-    Alert.prompt(
-      'Partager avec un pilote',
-      'Entrez le nom ou surnom du pilote (ex: Alex, Jean-Pierre)',
-      [
-        { text: 'Annuler', style: 'cancel' },
-        {
-          text: 'Créer le lien',
-          onPress: async (pilotLabel) => {
-            if (!pilotLabel || pilotLabel.trim().length === 0) {
-              Alert.alert('Erreur', 'Veuillez entrer un nom de pilote');
-              return;
-            }
-            
-            setShareLoading(true);
-            try {
-              const response = await api.post(`/api/pilot-invites/aircraft/${selectedAircraft._id}/create`, {
-                pilot_label: pilotLabel.trim(),
-                expires_days: 30
-              });
-              
-              const inviteUrl = response.data.invite_url;
-              const fullUrl = `${window?.location?.origin || ''}${inviteUrl}`;
-              
-              Alert.alert(
-                'Lien créé !',
-                `Pilote: ${pilotLabel}\nValide 30 jours\n\nCopiez ce lien et envoyez-le au pilote:\n\n${fullUrl}`,
-                [
-                  { text: 'OK' }
-                ]
-              );
-            } catch (error: any) {
-              Alert.alert('Erreur', error.response?.data?.detail || 'Impossible de créer le lien');
-            } finally {
-              setShareLoading(false);
-            }
-          }
-        }
-      ],
-      'plain-text',
-      '',
-      'default'
-    );
+    router.push({
+      pathname: '/aircraft/share-pilot',
+      params: { 
+        aircraftId: selectedAircraft._id, 
+        registration: selectedAircraft.registration 
+      }
+    });
   };
 
   return (
