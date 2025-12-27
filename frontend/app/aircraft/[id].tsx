@@ -216,24 +216,29 @@ export default function AircraftDetailScreen() {
       )}
 
       <View style={styles.content}>
+        {/* Compteur d'heures enregistrées */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Heures de vol</Text>
-          <View style={styles.hoursGrid}>
-            <View style={styles.hoursCard}>
-              <Ionicons name="speedometer" size={32} color="#1E3A8A" />
-              <Text style={styles.hoursLabel}>Cellule</Text>
-              <Text style={styles.hoursValue}>{selectedAircraft.airframe_hours}h</Text>
+          <Text style={styles.sectionTitle}>Heures enregistrées</Text>
+          <View style={styles.hoursContainer}>
+            <View style={styles.hoursRow}>
+              <View style={styles.hoursItem}>
+                <Text style={styles.hoursLabel}>Cellule</Text>
+                <Text style={styles.hoursValue}>{selectedAircraft.airframe_hours?.toFixed(1) || '0.0'}</Text>
+              </View>
+              <View style={styles.hoursDivider} />
+              <View style={styles.hoursItem}>
+                <Text style={styles.hoursLabel}>Moteur</Text>
+                <Text style={styles.hoursValue}>{selectedAircraft.engine_hours?.toFixed(1) || '0.0'}</Text>
+              </View>
+              <View style={styles.hoursDivider} />
+              <View style={styles.hoursItem}>
+                <Text style={styles.hoursLabel}>Hélice</Text>
+                <Text style={styles.hoursValue}>{selectedAircraft.propeller_hours?.toFixed(1) || '0.0'}</Text>
+              </View>
             </View>
-            <View style={styles.hoursCard}>
-              <Ionicons name="settings" size={32} color="#1E3A8A" />
-              <Text style={styles.hoursLabel}>Moteur</Text>
-              <Text style={styles.hoursValue}>{selectedAircraft.engine_hours}h</Text>
-            </View>
-            <View style={styles.hoursCard}>
-              <Ionicons name="sync" size={32} color="#1E3A8A" />
-              <Text style={styles.hoursLabel}>Hélice</Text>
-              <Text style={styles.hoursValue}>{selectedAircraft.propeller_hours}h</Text>
-            </View>
+            <Text style={styles.hoursDisclaimer}>
+              Heures enregistrées à titre indicatif. Référez-vous au carnet officiel pour toute validation.
+            </Text>
           </View>
         </View>
 
@@ -261,7 +266,7 @@ export default function AircraftDetailScreen() {
             </View>
             <View style={styles.moduleContent}>
               <Text style={styles.moduleName}>Log Book</Text>
-              <Text style={styles.moduleSubtitle}>Historique des vols et entrées</Text>
+              <Text style={styles.moduleSubtitle}>Carnet de route et vols</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color="#3B82F6" />
           </TouchableOpacity>

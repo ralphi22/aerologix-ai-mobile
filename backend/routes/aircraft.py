@@ -160,3 +160,230 @@ async def delete_aircraft(
     
     logger.info(f"Aircraft {aircraft_id} deleted for user {current_user.email}")
     return None
+
+
+# ==================== FLIGHT TRACKING TOGGLE ====================
+
+@router.post("/{aircraft_id}/flight-tracking")
+async def toggle_flight_tracking(
+    aircraft_id: str,
+    enabled: bool,
+    current_user: User = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_database)
+):
+    """
+    Enable or disable flight tracking for an aircraft.
+    Only the owner can toggle this setting.
+    """
+    aircraft = await db.aircrafts.find_one({
+        "_id": aircraft_id,
+        "user_id": current_user.id
+    })
+    
+    if not aircraft:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Aéronef non trouvé"
+        )
+    
+    await db.aircrafts.update_one(
+        {"_id": aircraft_id},
+        {"$set": {
+            "flight_tracking_enabled": enabled,
+            "updated_at": datetime.utcnow()
+        }}
+    )
+    
+    logger.info(f"Flight tracking {'enabled' if enabled else 'disabled'} for {aircraft_id}")
+    return {"flight_tracking_enabled": enabled}
+
+
+@router.get("/{aircraft_id}/flight-tracking")
+async def get_flight_tracking_status(
+    aircraft_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_database)
+):
+    """Get flight tracking status for an aircraft."""
+    aircraft = await db.aircrafts.find_one({"_id": aircraft_id})
+    
+    if not aircraft:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Aéronef non trouvé"
+        )
+    
+    # Verify access (owner or shared)
+    is_owner = aircraft.get("user_id") == current_user.id
+    if not is_owner:
+        share = await db.aircraft_shares.find_one({
+            "aircraft_id": aircraft_id,
+            "mechanic_user_id": current_user.id,
+            "status": "active"
+        })
+        if not share:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé")
+    
+    return {"flight_tracking_enabled": aircraft.get("flight_tracking_enabled", False)}
+
+
+# ==================== PILOT SHARING (up to 5) ====================
+
+@router.get("/{aircraft_id}/pilots")
+async def get_aircraft_pilots(
+    aircraft_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_database)
+):
+    """Get pilots shared on this aircraft (max 5)."""
+    aircraft = await db.aircrafts.find_one({
+        "_id": aircraft_id,
+        "user_id": current_user.id
+    })
+    
+    if not aircraft:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Aéronef non trouvé"
+        )
+    
+    pilots = await db.aircraft_pilots.find({
+        "aircraft_id": aircraft_id,
+        "status": "active"
+    }).to_list(10)
+    
+    result = []
+    for pilot in pilots:
+        user = await db.users.find_one({"_id": pilot["user_id"]})
+        result.append({
+            "id": pilot["_id"],
+            "user_id": pilot["user_id"],
+            "email": user.get("email") if user else None,
+            "pilot_label": pilot.get("pilot_label", ""),
+            "status": pilot["status"],
+            "created_at": pilot["created_at"]
+        })
+    
+    return result
+
+
+@router.post("/{aircraft_id}/pilots")
+async def add_pilot(
+    aircraft_id: str,
+    email: str,
+    pilot_label: str = "",
+    current_user: User = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_database)
+):
+    """
+    Invite a pilot to contribute to this aircraft's log book.
+    Maximum 5 pilots per aircraft.
+    """
+    # Verify ownership
+    aircraft = await db.aircrafts.find_one({
+        "_id": aircraft_id,
+        "user_id": current_user.id
+    })
+    
+    if not aircraft:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Aéronef non trouvé"
+        )
+    
+    # Check pilot limit
+    pilot_count = await db.aircraft_pilots.count_documents({
+        "aircraft_id": aircraft_id,
+        "status": "active"
+    })
+    
+    if pilot_count >= 5:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Maximum 5 pilotes par aéronef"
+        )
+    
+    # Find pilot user
+    pilot_user = await db.users.find_one({"email": email.lower()})
+    if not pilot_user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Utilisateur non trouvé avec cet email"
+        )
+    
+    if pilot_user["_id"] == current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Vous êtes déjà le propriétaire"
+        )
+    
+    # Check if already added
+    existing = await db.aircraft_pilots.find_one({
+        "aircraft_id": aircraft_id,
+        "user_id": pilot_user["_id"],
+        "status": "active"
+    })
+    
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Ce pilote est déjà ajouté"
+        )
+    
+    pilot_id = str(datetime.utcnow().timestamp()).replace(".", "")
+    pilot_doc = {
+        "_id": pilot_id,
+        "aircraft_id": aircraft_id,
+        "user_id": pilot_user["_id"],
+        "owner_user_id": current_user.id,
+        "pilot_label": pilot_label or pilot_user.get("name", "Pilote"),
+        "status": "active",
+        "created_at": datetime.utcnow()
+    }
+    
+    await db.aircraft_pilots.insert_one(pilot_doc)
+    logger.info(f"Pilot {email} added to aircraft {aircraft_id}")
+    
+    return {
+        "id": pilot_id,
+        "user_id": pilot_user["_id"],
+        "email": email,
+        "pilot_label": pilot_doc["pilot_label"],
+        "status": "active"
+    }
+
+
+@router.delete("/{aircraft_id}/pilots/{pilot_id}")
+async def remove_pilot(
+    aircraft_id: str,
+    pilot_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_database)
+):
+    """Remove a pilot from the aircraft."""
+    # Verify ownership
+    aircraft = await db.aircrafts.find_one({
+        "_id": aircraft_id,
+        "user_id": current_user.id
+    })
+    
+    if not aircraft:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Aéronef non trouvé"
+        )
+    
+    result = await db.aircraft_pilots.update_one(
+        {"_id": pilot_id, "aircraft_id": aircraft_id},
+        {"$set": {"status": "removed"}}
+    )
+    
+    if result.modified_count == 0:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Pilote non trouvé"
+        )
+    
+    logger.info(f"Pilot {pilot_id} removed from aircraft {aircraft_id}")
+    return {"message": "Pilote retiré"}
+
