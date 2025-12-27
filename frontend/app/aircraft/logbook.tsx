@@ -293,6 +293,14 @@ export default function LogBookScreen() {
 
       <Text style={styles.sourceText}>Estimé — à vérifier et confirmer</Text>
 
+      {/* GARDE-FOU #5: Afficher source pilote si applicable */}
+      {item.source === 'pilot_share' && item.pilot_label && (
+        <View style={styles.pilotSourceBadge}>
+          <Ionicons name="person" size={14} color="#8B5CF6" />
+          <Text style={styles.pilotSourceText}>Pilote invité: {item.pilot_label}</Text>
+        </View>
+      )}
+
       <View style={styles.actionButtons}>
         <TouchableOpacity style={styles.confirmButton} onPress={() => handleConfirmFlight(item)}>
           <Ionicons name="checkmark" size={18} color="#FFFFFF" />
