@@ -688,6 +688,16 @@ const styles = StyleSheet.create({
     gap: 8,
     marginTop: 16,
   },
+  pilotShareButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#10B981',
+    borderRadius: 12,
+    padding: 16,
+    gap: 8,
+    marginTop: 16,
+  },
   shareButtonText: {
     fontSize: 16,
     fontWeight: '600',
