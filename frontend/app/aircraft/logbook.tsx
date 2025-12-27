@@ -389,23 +389,6 @@ export default function LogBookScreen() {
           style={styles.proposedContainer}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         >
-          {/* Flight Tracking Toggle */}
-          <View style={styles.trackingToggle}>
-            <View style={styles.trackingInfo}>
-              <Ionicons name="locate" size={20} color="#3B82F6" />
-              <View style={styles.trackingTextContainer}>
-                <Text style={styles.trackingLabel}>Suivi des vols</Text>
-                <Text style={styles.trackingHint}>Détection automatique des vols</Text>
-              </View>
-            </View>
-            <Switch
-              value={flightTrackingEnabled}
-              onValueChange={toggleFlightTracking}
-              trackColor={{ false: '#E2E8F0', true: '#93C5FD' }}
-              thumbColor={flightTrackingEnabled ? '#3B82F6' : '#94A3B8'}
-            />
-          </View>
-
           {/* Disclaimer */}
           <View style={styles.proposedDisclaimer}>
             <Ionicons name="information-circle" size={14} color="#92400E" />
@@ -424,10 +407,7 @@ export default function LogBookScreen() {
               <Ionicons name="airplane-outline" size={48} color="#CBD5E1" />
               <Text style={styles.emptyProposedTitle}>Aucun vol en attente</Text>
               <Text style={styles.emptyProposedText}>
-                {flightTrackingEnabled 
-                  ? "Les vols détectés apparaîtront ici"
-                  : "Activez le suivi pour détecter les vols"
-                }
+                Les vols détectés apparaîtront ici
               </Text>
             </View>
           )}
