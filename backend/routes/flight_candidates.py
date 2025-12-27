@@ -52,6 +52,7 @@ class FlightCandidateResponse(BaseModel):
     arrival_ts: datetime
     duration_est_minutes: int
     source: str
+    pilot_label: Optional[str] = None
     created_by_user_id: Optional[str]
     confirmed_by_user_id: Optional[str]
     created_at: datetime
