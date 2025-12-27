@@ -401,6 +401,15 @@ export default function AircraftDetailScreen() {
         {/* Boutons propriétaire uniquement (pas en mode partagé) */}
         {!isSharedMode && (
           <>
+            {/* Bouton Partager avec Pilote */}
+            <TouchableOpacity 
+              style={styles.pilotShareButton} 
+              onPress={handleShareWithPilot}
+            >
+              <Ionicons name="person-add-outline" size={20} color="#FFFFFF" />
+              <Text style={styles.shareButtonText}>Partager avec un pilote</Text>
+            </TouchableOpacity>
+
             {/* Bouton Partager avec TEA/AMO */}
             <TouchableOpacity 
               style={styles.shareButton} 
