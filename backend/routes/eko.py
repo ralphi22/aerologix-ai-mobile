@@ -170,31 +170,19 @@ async def chat_with_eko(
     })
     
     try:
-        # Call OpenAI via Emergent LLM proxy
-        async with httpx.AsyncClient(timeout=60.0) as client:
-            response = await client.post(
-                "https://api.emergentmethods.ai/openai/v1/chat/completions",
-                headers={
-                    "Authorization": f"Bearer {EMERGENT_LLM_KEY}",
-                    "Content-Type": "application/json"
-                },
-                json={
-                    "model": "gpt-4o-mini",
-                    "messages": messages,
-                    "max_tokens": 800,
-                    "temperature": 0.7
-                }
-            )
-            
-            if response.status_code != 200:
-                logger.error(f"OpenAI API error: {response.status_code} - {response.text}")
-                raise HTTPException(
-                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                    detail="Erreur de communication avec EKO"
-                )
-            
-            data = response.json()
-            assistant_message = data["choices"][0]["message"]["content"]
+        # Call OpenAI API directly with Emergent LLM Key
+        import openai
+        
+        client = openai.OpenAI(api_key=EMERGENT_LLM_KEY)
+        
+        completion = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=messages,
+            max_tokens=800,
+            temperature=0.7
+        )
+        
+        assistant_message = completion.choices[0].message.content
         
         # Log the conversation
         conversation_id = generate_id()
