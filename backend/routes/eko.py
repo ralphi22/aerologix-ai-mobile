@@ -6,10 +6,11 @@ TC-SAFE: Information only - never provides airworthiness decisions
 from fastapi import APIRouter, Depends, HTTPException, status
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List, Optional, Dict
 from datetime import datetime
+from collections import defaultdict
 import logging
-import httpx
+import time
 import os
 from dotenv import load_dotenv
 
@@ -24,6 +25,33 @@ logger = logging.getLogger(__name__)
 
 # Emergent LLM Key for OpenAI integration
 EMERGENT_LLM_KEY = os.getenv("EMERGENT_LLM_KEY")
+
+# Rate limiting: 10 requests per minute per user
+RATE_LIMIT_REQUESTS = 10
+RATE_LIMIT_WINDOW = 60  # seconds
+_rate_limit_store: Dict[str, List[float]] = defaultdict(list)
+
+
+def check_rate_limit(user_id: str) -> bool:
+    """
+    Check if user has exceeded rate limit.
+    Returns True if allowed, False if rate limited.
+    """
+    now = time.time()
+    window_start = now - RATE_LIMIT_WINDOW
+    
+    # Clean old entries
+    _rate_limit_store[user_id] = [
+        t for t in _rate_limit_store[user_id] if t > window_start
+    ]
+    
+    # Check limit
+    if len(_rate_limit_store[user_id]) >= RATE_LIMIT_REQUESTS:
+        return False
+    
+    # Record this request
+    _rate_limit_store[user_id].append(now)
+    return True
 
 # EKO System Prompt - TC-SAFE Compliant
 EKO_SYSTEM_PROMPT = """Tu es EKO.
