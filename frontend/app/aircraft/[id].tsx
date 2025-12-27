@@ -598,6 +598,50 @@ const styles = StyleSheet.create({
     borderTopColor: '#F1F5F9',
     fontStyle: 'italic',
   },
+  // Styles pour le suivi de vol
+  trackingCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  trackingInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  trackingIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  trackingTextContainer: {
+    flex: 1,
+  },
+  trackingLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1E293B',
+  },
+  trackingHint: {
+    fontSize: 12,
+    color: '#64748B',
+    marginTop: 2,
+  },
+  trackingDisclaimer: {
+    fontSize: 11,
+    color: '#94A3B8',
+    textAlign: 'center',
+    marginTop: 8,
+    fontStyle: 'italic',
+  },
   card: {
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
