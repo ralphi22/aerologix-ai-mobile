@@ -46,6 +46,7 @@ interface FlightCandidate {
   arrival_ts: string;
   duration_est_minutes: number;
   source: string;
+  pilot_label?: string;
   created_at: string;
 }
 
