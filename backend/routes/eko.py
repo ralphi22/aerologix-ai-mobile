@@ -170,10 +170,10 @@ async def chat_with_eko(
     })
     
     try:
-        # Call OpenAI via Emergent
+        # Call OpenAI via Emergent LLM proxy
         async with httpx.AsyncClient(timeout=60.0) as client:
             response = await client.post(
-                "https://api.openai.com/v1/chat/completions",
+                "https://ai-gateway.emergentmethods.ai/v1/chat/completions",
                 headers={
                     "Authorization": f"Bearer {EMERGENT_LLM_KEY}",
                     "Content-Type": "application/json"
