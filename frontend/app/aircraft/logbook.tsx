@@ -549,11 +549,6 @@ const styles = StyleSheet.create({
 
   // Proposed Flights
   proposedContainer: { flex: 1, backgroundColor: '#F8FAFC' },
-  trackingToggle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#FFFFFF', margin: 16, marginBottom: 0, padding: 16, borderRadius: 12, borderWidth: 1, borderColor: '#E2E8F0' },
-  trackingInfo: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  trackingTextContainer: {},
-  trackingLabel: { fontSize: 15, fontWeight: '600', color: '#1E293B' },
-  trackingHint: { fontSize: 12, color: '#64748B', marginTop: 2 },
   proposedDisclaimer: { flexDirection: 'row', alignItems: 'flex-start', backgroundColor: '#FEF3C7', margin: 16, padding: 12, borderRadius: 8, gap: 8 },
   proposedDisclaimerText: { flex: 1, fontSize: 12, color: '#92400E', lineHeight: 18 },
   proposedCard: { backgroundColor: '#FFFFFF', marginHorizontal: 16, marginBottom: 12, borderRadius: 12, padding: 16, borderWidth: 2, borderColor: '#FDE68A' },
