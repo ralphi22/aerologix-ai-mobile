@@ -45,12 +45,37 @@ export default function AircraftDetailScreen() {
   const [eltStatus, setEltStatus] = useState<ELTStatusData>({ status: 'none', label: '' });
   const [loadingELT, setLoadingELT] = useState(true);
 
-  // Charger le statut ELT au montage
+  // État pour le suivi de vol
+  const [flightTrackingEnabled, setFlightTrackingEnabled] = useState(false);
+  const [loadingTracking, setLoadingTracking] = useState(true);
+
+  // Charger le statut ELT et flight tracking au montage
   useEffect(() => {
     if (selectedAircraft?._id) {
       fetchELTStatus();
+      fetchFlightTrackingStatus();
     }
   }, [selectedAircraft?._id]);
+
+  const fetchFlightTrackingStatus = async () => {
+    try {
+      const response = await api.get(`/api/aircraft/${selectedAircraft?._id}/flight-tracking`);
+      setFlightTrackingEnabled(response.data.flight_tracking_enabled || false);
+    } catch {
+      setFlightTrackingEnabled(false);
+    } finally {
+      setLoadingTracking(false);
+    }
+  };
+
+  const toggleFlightTracking = async (value: boolean) => {
+    try {
+      await api.post(`/api/aircraft/${selectedAircraft?._id}/flight-tracking?enabled=${value}`);
+      setFlightTrackingEnabled(value);
+    } catch (error: any) {
+      Alert.alert('Erreur', error.response?.data?.detail || 'Erreur');
+    }
+  };
 
   const fetchELTStatus = async () => {
     try {
