@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,16 @@ import { useRouter } from 'expo-router';
 import { useAircraftStore } from '../../stores/aircraftStore';
 import { useAuthStore } from '../../stores/authStore';
 import { LinearGradient } from 'expo-linear-gradient';
+import api from '../../services/api';
+
+// État de suivi par avion
+interface TrackingState {
+  [aircraftId: string]: {
+    isActive: boolean;
+    startTime: number | null;
+    elapsedMinutes: number;
+  };
+}
 
 export default function AircraftListScreen() {
   const router = useRouter();
