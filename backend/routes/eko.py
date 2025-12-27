@@ -171,21 +171,35 @@ async def chat_with_eko(
     
     try:
         # Call OpenAI via Emergent Integrations
-        from emergentintegrations.llm.chat import chat, LlmMessage
+        from emergentintegrations.llm.chat import LlmChat, UserMessage
         
-        # Convert messages to LlmMessage format
-        llm_messages = []
-        for msg in messages:
-            llm_messages.append(LlmMessage(role=msg["role"], content=msg["content"]))
+        # Create a unique session ID for this conversation
+        session_id = f"eko_{current_user.id}_{generate_id()}"
         
-        # Call the chat function
-        response = await chat(
+        # Build the full system message with any context
+        full_system = EKO_SYSTEM_PROMPT
+        if request.aircraft_context:
+            full_system += f"\n\n[Contexte utilisateur: L'utilisateur consulte actuellement l'aéronef {request.aircraft_context} dans AeroLogix AI]"
+        
+        # Create chat instance with history
+        initial_messages = []
+        for msg in request.conversation_history[-10:]:
+            initial_messages.append({
+                "role": msg.role,
+                "content": msg.content
+            })
+        
+        chat_instance = LlmChat(
             api_key=EMERGENT_LLM_KEY,
-            messages=llm_messages,
-            model="gpt-4o-mini"
+            session_id=session_id,
+            system_message=full_system,
+            initial_messages=initial_messages if initial_messages else None
         )
         
-        assistant_message = response.content
+        # Send user message and get response
+        assistant_message = await chat_instance.send_message(
+            UserMessage(text=request.message)
+        )
         
         # Log the conversation
         conversation_id = generate_id()
