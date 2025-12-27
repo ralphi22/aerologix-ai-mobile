@@ -268,42 +268,6 @@ export default function AircraftDetailScreen() {
           </View>
         </View>
 
-        {/* Suivi de vol - Section capacité avion */}
-        {!isSharedMode && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Capacités</Text>
-            <View style={styles.trackingCard}>
-              <View style={styles.trackingInfo}>
-                <View style={[styles.trackingIcon, { backgroundColor: flightTrackingEnabled ? '#DBEAFE' : '#F1F5F9' }]}>
-                  <Ionicons 
-                    name="locate" 
-                    size={22} 
-                    color={flightTrackingEnabled ? '#3B82F6' : '#94A3B8'} 
-                  />
-                </View>
-                <View style={styles.trackingTextContainer}>
-                  <Text style={styles.trackingLabel}>Suivi des vols</Text>
-                  <Text style={styles.trackingHint}>
-                    {flightTrackingEnabled 
-                      ? 'Détection automatique activée' 
-                      : 'Détection automatique désactivée'}
-                  </Text>
-                </View>
-              </View>
-              <Switch
-                value={flightTrackingEnabled}
-                onValueChange={toggleFlightTracking}
-                trackColor={{ false: '#E2E8F0', true: '#93C5FD' }}
-                thumbColor={flightTrackingEnabled ? '#3B82F6' : '#94A3B8'}
-                disabled={loadingTracking}
-              />
-            </View>
-            <Text style={styles.trackingDisclaimer}>
-              Les vols détectés apparaîtront dans le Log Book pour confirmation manuelle.
-            </Text>
-          </View>
-        )}
-
         {selectedAircraft.description && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Description</Text>
