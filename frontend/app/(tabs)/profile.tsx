@@ -75,16 +75,6 @@ export default function ProfileScreen() {
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Abonnement</Text>
-        <View style={[styles.planCard, { backgroundColor: getPlanColor(user.subscription.plan) }]}>
-          <Text style={styles.planName}>{getPlanName(user.subscription.plan)}</Text>
-          <Text style={styles.planStatus}>
-            {user.subscription.status === 'active' ? 'Actif' : user.subscription.status}
-          </Text>
-        </View>
-      </View>
-
-      <View style={styles.section}>
         <Text style={styles.sectionTitle}>Limites</Text>
         <View style={styles.limitCard}>
           <View style={styles.limitRow}>
