@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from database.mongodb import db
 from config import get_settings
-from routes import auth, plans, aircraft, ocr, maintenance, adsb, stc, parts, elt, invoices, components, shares, payments, fleet, eko, flight_candidates, logbook
+from routes import auth, plans, aircraft, ocr, maintenance, adsb, stc, parts, elt, invoices, components, shares, payments, fleet, eko, flight_candidates, logbook, pilot_invites
 import logging
 
 # Configure logging
@@ -63,6 +63,7 @@ app.include_router(fleet.router)
 app.include_router(eko.router)
 app.include_router(flight_candidates.router)
 app.include_router(logbook.router)
+app.include_router(pilot_invites.router)
 
 @app.get("/")
 async def root():

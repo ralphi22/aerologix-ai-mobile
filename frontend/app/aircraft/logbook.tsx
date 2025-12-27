@@ -14,7 +14,6 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
-  Switch,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
@@ -47,6 +46,7 @@ interface FlightCandidate {
   arrival_ts: string;
   duration_est_minutes: number;
   source: string;
+  pilot_label?: string;
   created_at: string;
 }
 
@@ -63,7 +63,6 @@ export default function LogBookScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [entries, setEntries] = useState<LogBookEntry[]>([]);
   const [proposedFlights, setProposedFlights] = useState<FlightCandidate[]>([]);
-  const [flightTrackingEnabled, setFlightTrackingEnabled] = useState(false);
   
   // Add entry modal
   const [addModalVisible, setAddModalVisible] = useState(false);
@@ -94,14 +93,6 @@ export default function LogBookScreen() {
     if (!aircraftId) return;
     
     try {
-      // Load flight tracking status
-      try {
-        const trackingRes = await api.get(`/api/aircraft/${aircraftId}/flight-tracking`);
-        setFlightTrackingEnabled(trackingRes.data.flight_tracking_enabled || false);
-      } catch {
-        setFlightTrackingEnabled(false);
-      }
-
       // Load logbook entries
       const logRes = await api.get(`/api/aircraft/${aircraftId}/logbook`);
       setEntries(logRes.data || []);
@@ -120,15 +111,6 @@ export default function LogBookScreen() {
   const onRefresh = () => {
     setRefreshing(true);
     loadData();
-  };
-
-  const toggleFlightTracking = async (value: boolean) => {
-    try {
-      await api.post(`/api/aircraft/${aircraftId}/flight-tracking?enabled=${value}`);
-      setFlightTrackingEnabled(value);
-    } catch (error: any) {
-      Alert.alert('Erreur', error.response?.data?.detail || 'Erreur');
-    }
   };
 
   // ============ LOGBOOK FUNCTIONS ============
@@ -312,6 +294,14 @@ export default function LogBookScreen() {
 
       <Text style={styles.sourceText}>Estimé — à vérifier et confirmer</Text>
 
+      {/* GARDE-FOU #5: Afficher source pilote si applicable */}
+      {item.source === 'pilot_share' && item.pilot_label && (
+        <View style={styles.pilotSourceBadge}>
+          <Ionicons name="person" size={14} color="#8B5CF6" />
+          <Text style={styles.pilotSourceText}>Pilote invité: {item.pilot_label}</Text>
+        </View>
+      )}
+
       <View style={styles.actionButtons}>
         <TouchableOpacity style={styles.confirmButton} onPress={() => handleConfirmFlight(item)}>
           <Ionicons name="checkmark" size={18} color="#FFFFFF" />
@@ -408,23 +398,6 @@ export default function LogBookScreen() {
           style={styles.proposedContainer}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         >
-          {/* Flight Tracking Toggle */}
-          <View style={styles.trackingToggle}>
-            <View style={styles.trackingInfo}>
-              <Ionicons name="locate" size={20} color="#3B82F6" />
-              <View style={styles.trackingTextContainer}>
-                <Text style={styles.trackingLabel}>Suivi des vols</Text>
-                <Text style={styles.trackingHint}>Détection automatique des vols</Text>
-              </View>
-            </View>
-            <Switch
-              value={flightTrackingEnabled}
-              onValueChange={toggleFlightTracking}
-              trackColor={{ false: '#E2E8F0', true: '#93C5FD' }}
-              thumbColor={flightTrackingEnabled ? '#3B82F6' : '#94A3B8'}
-            />
-          </View>
-
           {/* Disclaimer */}
           <View style={styles.proposedDisclaimer}>
             <Ionicons name="information-circle" size={14} color="#92400E" />
@@ -443,10 +416,7 @@ export default function LogBookScreen() {
               <Ionicons name="airplane-outline" size={48} color="#CBD5E1" />
               <Text style={styles.emptyProposedTitle}>Aucun vol en attente</Text>
               <Text style={styles.emptyProposedText}>
-                {flightTrackingEnabled 
-                  ? "Les vols détectés apparaîtront ici"
-                  : "Activez le suivi pour détecter les vols"
-                }
+                Les vols détectés apparaîtront ici
               </Text>
             </View>
           )}
@@ -588,11 +558,6 @@ const styles = StyleSheet.create({
 
   // Proposed Flights
   proposedContainer: { flex: 1, backgroundColor: '#F8FAFC' },
-  trackingToggle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#FFFFFF', margin: 16, marginBottom: 0, padding: 16, borderRadius: 12, borderWidth: 1, borderColor: '#E2E8F0' },
-  trackingInfo: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  trackingTextContainer: {},
-  trackingLabel: { fontSize: 15, fontWeight: '600', color: '#1E293B' },
-  trackingHint: { fontSize: 12, color: '#64748B', marginTop: 2 },
   proposedDisclaimer: { flexDirection: 'row', alignItems: 'flex-start', backgroundColor: '#FEF3C7', margin: 16, padding: 12, borderRadius: 8, gap: 8 },
   proposedDisclaimerText: { flex: 1, fontSize: 12, color: '#92400E', lineHeight: 18 },
   proposedCard: { backgroundColor: '#FFFFFF', marginHorizontal: 16, marginBottom: 12, borderRadius: 12, padding: 16, borderWidth: 2, borderColor: '#FDE68A' },
@@ -605,7 +570,9 @@ const styles = StyleSheet.create({
   icaoCode: { fontSize: 18, fontWeight: 'bold', color: '#1E293B' },
   timeText: { fontSize: 12, color: '#64748B', marginTop: 2 },
   planeIcon: { transform: [{ rotate: '90deg' }], marginHorizontal: 12 },
-  sourceText: { fontSize: 11, color: '#94A3B8', fontStyle: 'italic', marginBottom: 12 },
+  sourceText: { fontSize: 11, color: '#94A3B8', fontStyle: 'italic', marginBottom: 8 },
+  pilotSourceBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#F5F3FF', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, marginBottom: 12 },
+  pilotSourceText: { fontSize: 12, fontWeight: '500', color: '#8B5CF6' },
   actionButtons: { flexDirection: 'row', gap: 8 },
   confirmButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#10B981', paddingVertical: 10, borderRadius: 8, gap: 6 },
   confirmButtonText: { color: '#FFFFFF', fontWeight: '600', fontSize: 14 },

@@ -43,6 +43,10 @@ export default function AircraftDetailScreen() {
   // État pour le statut ELT
   const [eltStatus, setEltStatus] = useState<ELTStatusData>({ status: 'none', label: '' });
   const [loadingELT, setLoadingELT] = useState(true);
+  
+  // État pour le partage pilote
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [shareLoading, setShareLoading] = useState(false);
 
   // Charger le statut ELT au montage
   useEffect(() => {
@@ -170,6 +174,17 @@ export default function AircraftDetailScreen() {
 
   const handleGoBack = () => {
     router.replace('/(tabs)');
+  };
+
+  // Partage pilote - Créer un lien sécurisé via navigation
+  const handleShareWithPilot = () => {
+    router.push({
+      pathname: '/aircraft/share-pilot',
+      params: { 
+        aircraftId: selectedAircraft._id, 
+        registration: selectedAircraft.registration 
+      }
+    });
   };
 
   return (
@@ -386,6 +401,15 @@ export default function AircraftDetailScreen() {
         {/* Boutons propriétaire uniquement (pas en mode partagé) */}
         {!isSharedMode && (
           <>
+            {/* Bouton Partager avec Pilote */}
+            <TouchableOpacity 
+              style={styles.pilotShareButton} 
+              onPress={handleShareWithPilot}
+            >
+              <Ionicons name="person-add-outline" size={20} color="#FFFFFF" />
+              <Text style={styles.shareButtonText}>Partager avec un pilote</Text>
+            </TouchableOpacity>
+
             {/* Bouton Partager avec TEA/AMO */}
             <TouchableOpacity 
               style={styles.shareButton} 
@@ -493,32 +517,48 @@ const styles = StyleSheet.create({
     color: '#1E293B',
     marginBottom: 16,
   },
-  hoursGrid: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  hoursCard: {
-    flex: 1,
+  // Styles compteur heures (unused legacy removed)
+  hoursContainer: {
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
     padding: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  hoursRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
     alignItems: 'center',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
+  },
+  hoursItem: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  hoursDivider: {
+    width: 1,
+    height: 40,
+    backgroundColor: '#E2E8F0',
   },
   hoursLabel: {
     fontSize: 12,
     color: '#64748B',
-    marginTop: 8,
+    marginBottom: 4,
   },
   hoursValue: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#1E293B',
-    marginTop: 4,
+    fontSize: 22,
+    fontWeight: '600',
+    color: '#334155',
+  },
+  hoursDisclaimer: {
+    fontSize: 11,
+    color: '#94A3B8',
+    textAlign: 'center',
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+    fontStyle: 'italic',
   },
   card: {
     backgroundColor: '#FFFFFF',
@@ -643,6 +683,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#3B82F6',
+    borderRadius: 12,
+    padding: 16,
+    gap: 8,
+    marginTop: 16,
+  },
+  pilotShareButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#10B981',
     borderRadius: 12,
     padding: 16,
     gap: 8,

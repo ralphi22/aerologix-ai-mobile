@@ -6,7 +6,7 @@ import { Platform } from 'react-native';
 // Utilise extra.apiUrl de app.json (inclus dans le build EAS) en priorité
 const API_URL = Constants.expoConfig?.extra?.apiUrl?.replace(/\/api$/, '') || 
                 process.env.EXPO_PUBLIC_BACKEND_URL || 
-                'https://sky-subscriptions.preview.emergentagent.com';
+                'https://aircraft-manager.preview.emergentagent.com';
 
 const api = axios.create({
   baseURL: API_URL,

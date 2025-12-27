@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -15,12 +15,118 @@ import { useRouter } from 'expo-router';
 import { useAircraftStore } from '../../stores/aircraftStore';
 import { useAuthStore } from '../../stores/authStore';
 import { LinearGradient } from 'expo-linear-gradient';
+import api from '../../services/api';
+
+// État de suivi par avion
+interface TrackingState {
+  [aircraftId: string]: {
+    isActive: boolean;
+    startTime: number | null;
+    elapsedMinutes: number;
+  };
+}
 
 export default function AircraftListScreen() {
   const router = useRouter();
   const { aircraft, isLoading, fetchAircraft, selectAircraft } = useAircraftStore();
   const { user } = useAuthStore();
   const [refreshing, setRefreshing] = useState(false);
+  
+  // État de suivi de vol par avion
+  const [trackingState, setTrackingState] = useState<TrackingState>({});
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    loadAircraft();
+    
+    // Démarrer le timer global pour mettre à jour les compteurs
+    timerRef.current = setInterval(() => {
+      setTrackingState(prev => {
+        const updated = { ...prev };
+        Object.keys(updated).forEach(id => {
+          if (updated[id].isActive && updated[id].startTime) {
+            const elapsed = Math.floor((Date.now() - updated[id].startTime) / 60000);
+            updated[id] = { ...updated[id], elapsedMinutes: elapsed };
+          }
+        });
+        return updated;
+      });
+    }, 1000); // Update every second for smoother display
+
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, []);
+
+  // Formater le temps en h:mm
+  const formatSessionTime = (minutes: number): string => {
+    if (minutes === 0) return '0:00';
+    const hrs = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    return `${hrs}:${mins.toString().padStart(2, '0')}`;
+  };
+
+  // Démarrer le suivi de vol
+  const startTracking = async (aircraftId: string) => {
+    setTrackingState(prev => ({
+      ...prev,
+      [aircraftId]: {
+        isActive: true,
+        startTime: Date.now(),
+        elapsedMinutes: 0
+      }
+    }));
+  };
+
+  // Arrêter le suivi et créer FlightCandidate
+  const stopTracking = async (aircraftId: string) => {
+    const state = trackingState[aircraftId];
+    if (!state || !state.startTime) return;
+
+    const durationMinutes = Math.max(1, Math.floor((Date.now() - state.startTime) / 60000));
+    
+    // Créer le FlightCandidate PROPOSED
+    try {
+      const departTs = new Date(state.startTime).toISOString();
+      const arrivalTs = new Date().toISOString();
+      
+      await api.post(`/api/aircraft/${aircraftId}/flight-candidates`, {
+        depart_ts: departTs,
+        arrival_ts: arrivalTs,
+        duration_est_minutes: durationMinutes,
+        source: 'session_tracking'
+      });
+
+      Alert.alert(
+        'Vol enregistré',
+        `Durée: ${formatSessionTime(durationMinutes)}\n\nCe vol est proposé et doit être confirmé depuis le Log Book.`,
+        [{ text: 'OK' }]
+      );
+    } catch (error: any) {
+      console.error('Error creating flight candidate:', error);
+      Alert.alert('Erreur', 'Impossible d\'enregistrer le vol');
+    }
+
+    // Reset state
+    setTrackingState(prev => ({
+      ...prev,
+      [aircraftId]: {
+        isActive: false,
+        startTime: null,
+        elapsedMinutes: 0
+      }
+    }));
+  };
+
+  // Toggle suivi
+  const toggleTracking = (aircraftId: string) => {
+    const state = trackingState[aircraftId];
+    if (state?.isActive) {
+      stopTracking(aircraftId);
+    } else {
+      startTracking(aircraftId);
+    }
+  };
 
   useEffect(() => {
     loadAircraft();
@@ -76,63 +182,102 @@ export default function AircraftListScreen() {
     }
   };
 
-  const renderAircraftCard = ({ item }: any) => (
-    <TouchableOpacity
-      style={styles.card}
-      onPress={() => handleAircraftPress(item)}
-      activeOpacity={0.9}
-    >
-      <ImageBackground
-        source={item.photo_url ? { uri: item.photo_url } : require('../../assets/images/icon.png')}
-        style={styles.cardBackground}
-        imageStyle={styles.cardImage}
-      >
-        <LinearGradient
-          colors={['rgba(30, 58, 138, 0.8)', 'rgba(30, 58, 138, 0.95)']}
-          style={styles.cardGradient}
-        >
-          <View style={styles.cardHeader}>
-            <View>
-              <Text style={styles.registration}>{item.registration}</Text>
-              <Text style={styles.aircraftType}>
-                {item.manufacturer} {item.model || item.aircraft_type}
-              </Text>
-            </View>
-            {user && (
-              <View
-                style={[
-                  styles.planBadge,
-                  { backgroundColor: getPlanBadgeColor(user.subscription.plan) },
-                ]}
-              >
-                <Text style={styles.planBadgeText}>{user.subscription.plan}</Text>
-              </View>
-            )}
-          </View>
+  const renderAircraftCard = ({ item }: any) => {
+    const tracking = trackingState[item._id];
+    const isTracking = tracking?.isActive || false;
+    const sessionMinutes = tracking?.elapsedMinutes || 0;
 
-          <View style={styles.cardFooter}>
-            <View style={styles.hoursContainer}>
-              <View style={styles.hoursItem}>
-                <Ionicons name="speedometer-outline" size={16} color="#FFFFFF" />
-                <Text style={styles.hoursLabel}>Airframe</Text>
-                <Text style={styles.hoursValue}>{item.airframe_hours}h</Text>
+    return (
+      <TouchableOpacity
+        style={styles.card}
+        onPress={() => handleAircraftPress(item)}
+        activeOpacity={0.9}
+      >
+        <ImageBackground
+          source={item.photo_url ? { uri: item.photo_url } : require('../../assets/images/icon.png')}
+          style={styles.cardBackground}
+          imageStyle={styles.cardImage}
+        >
+          <LinearGradient
+            colors={['rgba(30, 58, 138, 0.8)', 'rgba(30, 58, 138, 0.95)']}
+            style={styles.cardGradient}
+          >
+            <View style={styles.cardHeader}>
+              <View>
+                <Text style={styles.registration}>{item.registration}</Text>
+                <Text style={styles.aircraftType}>
+                  {item.manufacturer} {item.model || item.aircraft_type}
+                </Text>
               </View>
-              <View style={styles.hoursItem}>
-                <Ionicons name="settings-outline" size={16} color="#FFFFFF" />
-                <Text style={styles.hoursLabel}>Engine</Text>
-                <Text style={styles.hoursValue}>{item.engine_hours}h</Text>
+              {user && (
+                <View
+                  style={[
+                    styles.planBadge,
+                    { backgroundColor: getPlanBadgeColor(user.subscription.plan) },
+                  ]}
+                >
+                  <Text style={styles.planBadgeText}>{user.subscription.plan}</Text>
+                </View>
+              )}
+            </View>
+
+            <View style={styles.cardFooter}>
+              <View style={styles.hoursContainer}>
+                <View style={styles.hoursItem}>
+                  <Ionicons name="speedometer-outline" size={16} color="#FFFFFF" />
+                  <Text style={styles.hoursLabel}>Airframe</Text>
+                  <Text style={styles.hoursValue}>{item.airframe_hours}h</Text>
+                </View>
+                <View style={styles.hoursItem}>
+                  <Ionicons name="settings-outline" size={16} color="#FFFFFF" />
+                  <Text style={styles.hoursLabel}>Engine</Text>
+                  <Text style={styles.hoursValue}>{item.engine_hours}h</Text>
+                </View>
+                <View style={styles.hoursItem}>
+                  <Ionicons name="sync-outline" size={16} color="#FFFFFF" />
+                  <Text style={styles.hoursLabel}>Propeller</Text>
+                  <Text style={styles.hoursValue}>{item.propeller_hours}h</Text>
+                </View>
               </View>
-              <View style={styles.hoursItem}>
-                <Ionicons name="sync-outline" size={16} color="#FFFFFF" />
-                <Text style={styles.hoursLabel}>Propeller</Text>
-                <Text style={styles.hoursValue}>{item.propeller_hours}h</Text>
+
+              {/* Suivi de vol - Section */}
+              <View style={styles.trackingSection}>
+                {/* Micro-compteur de session */}
+                {isTracking && (
+                  <View style={styles.sessionCounter}>
+                    <Ionicons name="time" size={14} color="#10B981" />
+                    <Text style={styles.sessionTime}>{formatSessionTime(sessionMinutes)}</Text>
+                    <View style={styles.recordingDot} />
+                  </View>
+                )}
+
+                {/* Bouton ON/OFF */}
+                <TouchableOpacity
+                  style={[
+                    styles.trackingButton,
+                    isTracking ? styles.trackingButtonActive : styles.trackingButtonInactive
+                  ]}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    toggleTracking(item._id);
+                  }}
+                >
+                  <Ionicons 
+                    name={isTracking ? "stop-circle" : "play-circle"} 
+                    size={18} 
+                    color={isTracking ? "#FFFFFF" : "#FFFFFF"} 
+                  />
+                  <Text style={styles.trackingButtonText}>
+                    {isTracking ? 'Arrêter le suivi' : 'Activer le suivi'}
+                  </Text>
+                </TouchableOpacity>
               </View>
             </View>
-          </View>
-        </LinearGradient>
-      </ImageBackground>
-    </TouchableOpacity>
-  );
+          </LinearGradient>
+        </ImageBackground>
+      </TouchableOpacity>
+    );
+  };
 
   const renderEmptyState = () => (
     <View style={styles.emptyState}>
@@ -184,7 +329,7 @@ const styles = StyleSheet.create({
     paddingBottom: 100,
   },
   card: {
-    height: 220,
+    height: 280,
     marginBottom: 16,
     borderRadius: 16,
     overflow: 'hidden',
@@ -285,5 +430,55 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.3,
     shadowRadius: 4,
+  },
+  // Styles pour le suivi de vol
+  trackingSection: {
+    marginTop: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.2)',
+  },
+  sessionCounter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(16, 185, 129, 0.2)',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 20,
+    gap: 6,
+  },
+  sessionTime: {
+    color: '#10B981',
+    fontSize: 16,
+    fontWeight: 'bold',
+    fontVariant: ['tabular-nums'],
+  },
+  recordingDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#EF4444',
+  },
+  trackingButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 20,
+    gap: 6,
+  },
+  trackingButtonInactive: {
+    backgroundColor: 'rgba(59, 130, 246, 0.9)',
+  },
+  trackingButtonActive: {
+    backgroundColor: 'rgba(239, 68, 68, 0.9)',
+  },
+  trackingButtonText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '600',
   },
 });

@@ -52,6 +52,7 @@ class FlightCandidateResponse(BaseModel):
     arrival_ts: datetime
     duration_est_minutes: int
     source: str
+    pilot_label: Optional[str] = None
     created_by_user_id: Optional[str]
     confirmed_by_user_id: Optional[str]
     created_at: datetime
@@ -251,6 +252,7 @@ async def get_flight_candidates(
             arrival_ts=f["arrival_ts"],
             duration_est_minutes=f["duration_est_minutes"],
             source=f["source"],
+            pilot_label=f.get("pilot_label"),
             created_by_user_id=f.get("created_by_user_id"),
             confirmed_by_user_id=f.get("confirmed_by_user_id"),
             created_at=f["created_at"],
