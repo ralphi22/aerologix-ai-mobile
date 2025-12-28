@@ -25,9 +25,9 @@ export default function LoginScreen() {
   const handleSubmit = async () => {
     if (!email || !password || (isSignup && !name)) {
       if (Platform.OS === 'web') {
-        window.alert('Please fill all fields');
+        window.alert('Veuillez remplir tous les champs');
       } else {
-        Alert.alert('Error', 'Please fill all fields');
+        Alert.alert('Erreur', 'Veuillez remplir tous les champs');
       }
       return;
     }
@@ -43,11 +43,11 @@ export default function LoginScreen() {
       router.replace('/(tabs)');
     } catch (error: any) {
       console.error('Auth error:', error);
-      const errorMessage = error.response?.data?.detail || error.message || 'Authentication failed';
+      const errorMessage = error.response?.data?.detail || error.message || 'Échec de l\'authentification';
       if (Platform.OS === 'web') {
         window.alert(errorMessage);
       } else {
-        Alert.alert('Error', errorMessage);
+        Alert.alert('Erreur', errorMessage);
       }
     }
   };
@@ -61,7 +61,7 @@ export default function LoginScreen() {
         <View style={styles.header}>
           <Ionicons name="airplane" size={60} color="#1E3A8A" />
           <Text style={styles.title}>AeroLogix AI</Text>
-          <Text style={styles.subtitle}>Aviation Maintenance Manager</Text>
+          <Text style={styles.subtitle}>Gestion de maintenance aéronautique</Text>
         </View>
 
         <View style={styles.form}>
@@ -70,7 +70,7 @@ export default function LoginScreen() {
               <Ionicons name="person-outline" size={20} color="#64748B" />
               <TextInput
                 style={styles.input}
-                placeholder="Name"
+                placeholder="Nom"
                 value={name}
                 onChangeText={setName}
                 autoCapitalize="words"
@@ -82,7 +82,7 @@ export default function LoginScreen() {
             <Ionicons name="mail-outline" size={20} color="#64748B" />
             <TextInput
               style={styles.input}
-              placeholder="Email"
+              placeholder="Courriel"
               value={email}
               onChangeText={setEmail}
               keyboardType="email-address"
@@ -94,7 +94,7 @@ export default function LoginScreen() {
             <Ionicons name="lock-closed-outline" size={20} color="#64748B" />
             <TextInput
               style={styles.input}
-              placeholder="Password"
+              placeholder="Mot de passe"
               value={password}
               onChangeText={setPassword}
               secureTextEntry
@@ -115,7 +115,7 @@ export default function LoginScreen() {
             {isLoading ? (
               <ActivityIndicator color="#FFFFFF" />
             ) : (
-              <Text style={styles.buttonText}>{isSignup ? 'Sign Up' : 'Login'}</Text>
+              <Text style={styles.buttonText}>{isSignup ? 'Créer un compte' : 'Connexion'}</Text>
             )}
           </Pressable>
 
@@ -125,7 +125,7 @@ export default function LoginScreen() {
             accessibilityRole="button"
           >
             <Text style={styles.switchText}>
-              {isSignup ? 'Already have an account? Login' : "Don't have an account? Sign Up"}
+              {isSignup ? 'Déjà un compte ? Connexion' : "Pas de compte ? Créer un compte"}
             </Text>
           </Pressable>
         </View>
