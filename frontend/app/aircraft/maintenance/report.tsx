@@ -721,7 +721,7 @@ export default function MaintenanceReportScreen() {
           
           <View style={styles.footerSection}>
             <Text style={styles.footerNote}>
-              Réf: Transport Canada RAC 605 / Standard 625
+              Référence réglementaire (Transport Canada — RAC 605 / Standard 625), à titre informatif
             </Text>
           </View>
         </ScrollView>
