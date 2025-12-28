@@ -38,7 +38,7 @@ export default function AddAircraftScreen() {
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permission Required', 'Please allow access to your photo library');
+      Alert.alert('Permission requise', 'Veuillez autoriser l\'accès à votre galerie photo');
       return;
     }
 
@@ -57,7 +57,7 @@ export default function AddAircraftScreen() {
 
   const handleSubmit = async () => {
     if (!formData.registration) {
-      Alert.alert('Error', 'Registration is required');
+      Alert.alert('Erreur', 'L\'immatriculation est requise');
       return;
     }
 
@@ -77,10 +77,10 @@ export default function AddAircraftScreen() {
       };
 
       await addAircraft(aircraftData);
-      Alert.alert('Success', 'Aircraft added successfully');
+      Alert.alert('Succès', 'Aéronef ajouté avec succès');
       router.back();
     } catch (error: any) {
-      Alert.alert('Error', error.response?.data?.detail || 'Failed to add aircraft');
+      Alert.alert('Erreur', error.response?.data?.detail || 'Échec de l\'ajout de l\'aéronef');
     } finally {
       setLoading(false);
     }
@@ -98,15 +98,15 @@ export default function AddAircraftScreen() {
           ) : (
             <View style={styles.photoPlaceholder}>
               <Ionicons name="camera-outline" size={40} color="#94A3B8" />
-              <Text style={styles.photoPlaceholderText}>Add Photo</Text>
+              <Text style={styles.photoPlaceholderText}>Ajouter une photo</Text>
             </View>
           )}
         </TouchableOpacity>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Required Information</Text>
+          <Text style={styles.sectionTitle}>Information requise</Text>
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Registration *</Text>
+            <Text style={styles.label}>Immatriculation *</Text>
             <TextInput
               style={styles.input}
               placeholder="C-GABC"
@@ -118,9 +118,9 @@ export default function AddAircraftScreen() {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Aircraft Details</Text>
+          <Text style={styles.sectionTitle}>Détails de l'aéronef</Text>
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Aircraft Type</Text>
+            <Text style={styles.label}>Type d'aéronef</Text>
             <TextInput
               style={styles.input}
               placeholder="Cessna 172"
@@ -131,7 +131,7 @@ export default function AddAircraftScreen() {
 
           <View style={styles.row}>
             <View style={[styles.inputGroup, { flex: 1 }]}>
-              <Text style={styles.label}>Manufacturer</Text>
+              <Text style={styles.label}>Fabricant</Text>
               <TextInput
                 style={styles.input}
                 placeholder="Cessna"
@@ -140,7 +140,7 @@ export default function AddAircraftScreen() {
               />
             </View>
             <View style={[styles.inputGroup, { flex: 1 }]}>
-              <Text style={styles.label}>Model</Text>
+              <Text style={styles.label}>Modèle</Text>
               <TextInput
                 style={styles.input}
                 placeholder="172S"
@@ -151,7 +151,7 @@ export default function AddAircraftScreen() {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Year</Text>
+            <Text style={styles.label}>Année</Text>
             <TextInput
               style={styles.input}
               placeholder="2005"
@@ -163,9 +163,9 @@ export default function AddAircraftScreen() {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Hours</Text>
+          <Text style={styles.sectionTitle}>Heures</Text>
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Airframe Hours</Text>
+            <Text style={styles.label}>Heures cellule</Text>
             <TextInput
               style={styles.input}
               placeholder="0.0"
@@ -176,7 +176,7 @@ export default function AddAircraftScreen() {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Engine Hours</Text>
+            <Text style={styles.label}>Heures moteur</Text>
             <TextInput
               style={styles.input}
               placeholder="0.0"
@@ -187,7 +187,7 @@ export default function AddAircraftScreen() {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Propeller Hours</Text>
+            <Text style={styles.label}>Heures hélice</Text>
             <TextInput
               style={styles.input}
               placeholder="0.0"
@@ -199,11 +199,11 @@ export default function AddAircraftScreen() {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Notes</Text>
+          <Text style={styles.sectionTitle}>Remarques</Text>
           <View style={styles.inputGroup}>
             <TextInput
               style={[styles.input, styles.textArea]}
-              placeholder="Additional notes about this aircraft..."
+              placeholder="Notes additionnelles sur cet aéronef..."
               value={formData.description}
               onChangeText={(text) => setFormData({ ...formData, description: text })}
               multiline
@@ -221,7 +221,7 @@ export default function AddAircraftScreen() {
           {loading ? (
             <ActivityIndicator color="#FFFFFF" />
           ) : (
-            <Text style={styles.submitButtonText}>Add Aircraft</Text>
+            <Text style={styles.submitButtonText}>Ajouter l'aéronef</Text>
           )}
         </TouchableOpacity>
       </ScrollView>
