@@ -136,7 +136,7 @@ export default function AircraftListScreen() {
     try {
       await fetchAircraft();
     } catch (error) {
-      Alert.alert('Error', 'Failed to load aircraft');
+      Alert.alert('Erreur', 'Impossible de charger les aéronefs');
     }
   };
 
@@ -152,8 +152,8 @@ export default function AircraftListScreen() {
     // Check aircraft limit
     if (user.limits.max_aircrafts !== -1 && aircraft.length >= user.limits.max_aircrafts) {
       Alert.alert(
-        'Limit Reached',
-        `Your ${user.subscription.plan} plan allows ${user.limits.max_aircrafts} aircraft(s). Upgrade your plan to add more.`,
+        'Limite atteinte',
+        `Votre plan ${user.subscription.plan} permet ${user.limits.max_aircrafts} aéronef(s). Passez à un plan supérieur pour en ajouter davantage.`,
         [{ text: 'OK' }]
       );
       return;
@@ -225,17 +225,17 @@ export default function AircraftListScreen() {
               <View style={styles.hoursContainer}>
                 <View style={styles.hoursItem}>
                   <Ionicons name="speedometer-outline" size={16} color="#FFFFFF" />
-                  <Text style={styles.hoursLabel}>Airframe</Text>
+                  <Text style={styles.hoursLabel}>Cellule</Text>
                   <Text style={styles.hoursValue}>{item.airframe_hours}h</Text>
                 </View>
                 <View style={styles.hoursItem}>
                   <Ionicons name="settings-outline" size={16} color="#FFFFFF" />
-                  <Text style={styles.hoursLabel}>Engine</Text>
+                  <Text style={styles.hoursLabel}>Moteur</Text>
                   <Text style={styles.hoursValue}>{item.engine_hours}h</Text>
                 </View>
                 <View style={styles.hoursItem}>
                   <Ionicons name="sync-outline" size={16} color="#FFFFFF" />
-                  <Text style={styles.hoursLabel}>Propeller</Text>
+                  <Text style={styles.hoursLabel}>Hélice</Text>
                   <Text style={styles.hoursValue}>{item.propeller_hours}h</Text>
                 </View>
               </View>
@@ -282,8 +282,8 @@ export default function AircraftListScreen() {
   const renderEmptyState = () => (
     <View style={styles.emptyState}>
       <Ionicons name="airplane-outline" size={80} color="#CBD5E1" />
-      <Text style={styles.emptyTitle}>No Aircraft Yet</Text>
-      <Text style={styles.emptyText}>Add your first aircraft to get started</Text>
+      <Text style={styles.emptyTitle}>Aucun aéronef</Text>
+      <Text style={styles.emptyText}>Ajoutez votre premier aéronef pour commencer</Text>
     </View>
   );
 
