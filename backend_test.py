@@ -11,7 +11,7 @@ from datetime import datetime
 from typing import Dict, Any, Optional
 
 # Configuration
-BASE_URL = "https://pilotview-1.preview.emergentagent.com"
+BASE_URL = "https://pilotshare.preview.emergentagent.com"
 TEST_EMAIL = "test@aerologix.com"
 TEST_PASSWORD = "password123"
 
