@@ -192,6 +192,14 @@ export default function OCRResultsScreen() {
           <Text style={styles.successText}>Document analysé avec succès</Text>
         </View>
 
+        {/* Verification Notice */}
+        <View style={styles.verificationNotice}>
+          <Ionicons name="information-circle-outline" size={16} color="#64748B" />
+          <Text style={styles.verificationText}>
+            Données extraites par IA — à vérifier avant d'enregistrer
+          </Text>
+        </View>
+
         {/* Hours Section */}
         {(extractedData.airframe_hours || extractedData.engine_hours || extractedData.propeller_hours) && (
           <View style={styles.section}>
