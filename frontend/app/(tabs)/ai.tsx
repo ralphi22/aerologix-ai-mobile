@@ -165,7 +165,7 @@ export default function AIAssistantScreen() {
         </View>
         <View style={styles.headerText}>
           <Text style={styles.headerTitle}>EKO</Text>
-          <Text style={styles.headerSubtitle}>Assistant Aviation TC-Safe</Text>
+          <Text style={styles.headerSubtitle}>Assistant Aviation — Information uniquement</Text>
         </View>
       </View>
 

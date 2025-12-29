@@ -525,7 +525,7 @@ export default function ELTScreen() {
           <View style={styles.noticeCard}>
             <Ionicons name="information-circle" size={20} color="#3B82F6" />
             <Text style={styles.noticeText}>
-              L'ELT doit être testé annuellement et la batterie remplacée selon les recommandations du fabricant (généralement 24 à 60 mois).
+              L'ELT doit être testé annuellement et la batterie remplacée selon les recommandations du fabricant (généralement 24 à 60 mois). Les exigences applicables peuvent varier selon l'aéronef et doivent être confirmées par le propriétaire ou un professionnel certifié.
             </Text>
           </View>
         </View>

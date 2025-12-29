@@ -32,7 +32,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Aircraft',
+          title: 'Aéronefs',
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="airplane" size={size} color={color} />
           ),
@@ -41,8 +41,8 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="fleet"
         options={{
-          title: 'Fleet',
-          headerTitle: 'Fleet - Aéronefs partagés',
+          title: 'Flotte',
+          headerTitle: 'Flotte — Aéronefs partagés',
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="people" size={size} color={color} />
           ),
@@ -51,7 +51,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="ai"
         options={{
-          title: 'AI Assistant',
+          title: 'Assistant IA',
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="sparkles" size={size} color={color} />
           ),
@@ -60,7 +60,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="profile"
         options={{
-          title: 'Profile',
+          title: 'Profil',
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="person" size={size} color={color} />
           ),

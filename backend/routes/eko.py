@@ -12,6 +12,7 @@ from collections import defaultdict
 import logging
 import time
 import os
+import httpx
 from dotenv import load_dotenv
 
 from database.mongodb import get_database
