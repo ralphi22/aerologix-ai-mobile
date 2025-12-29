@@ -304,4 +304,18 @@ const styles = StyleSheet.create({
   },
   deleteBtnDisabled: { opacity: 0.5 },
   deleteBtnText: { fontSize: 14, fontWeight: '600', color: '#EF4444' },
+  infoFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 16,
+    marginBottom: 8,
+    paddingVertical: 12,
+    gap: 6,
+  },
+  infoFooterText: {
+    fontSize: 12,
+    color: '#94A3B8',
+    fontStyle: 'italic',
+  },
 });
