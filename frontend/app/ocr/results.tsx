@@ -507,6 +507,22 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#065F46',
   },
+  verificationNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    marginHorizontal: 16,
+    marginBottom: 8,
+    padding: 10,
+    borderRadius: 8,
+    gap: 8,
+  },
+  verificationText: {
+    flex: 1,
+    fontSize: 13,
+    color: '#64748B',
+    fontStyle: 'italic',
+  },
   section: {
     paddingHorizontal: 16,
     marginBottom: 16,
