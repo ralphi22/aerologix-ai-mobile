@@ -28,14 +28,14 @@ class SubscriptionPlan(BaseModel):
 SUBSCRIPTION_PLANS = {
     PlanTier.BASIC: SubscriptionPlan(
         tier=PlanTier.BASIC,
-        name="BASIC",
+        name="Free",
         description="Plan gratuit pour démarrer",
         monthly_price=0.0,
         annual_price=0.0,
         trial_days=0,
         features=SubscriptionPlanFeatures(
             max_aircrafts=1,
-            ocr_per_month=50,
+            ocr_per_month=5,  # Free: 5 scans/month
             logbook_entries_per_month=10,
             has_predictive_maintenance=False,
             has_auto_notifications=False
@@ -43,14 +43,14 @@ SUBSCRIPTION_PLANS = {
     ),
     PlanTier.PILOT: SubscriptionPlan(
         tier=PlanTier.PILOT,
-        name="PILOT",
+        name="Basic",
         description="Recommandé pour pilotes individuels",
         monthly_price=19.0,
         annual_price=190.0,
         trial_days=7,
         features=SubscriptionPlanFeatures(
             max_aircrafts=1,
-            ocr_per_month=-1,  # unlimited
+            ocr_per_month=25,  # Basic: 25 scans/month
             logbook_entries_per_month=-1,  # unlimited
             has_predictive_maintenance=True,
             has_auto_notifications=True,
@@ -59,14 +59,14 @@ SUBSCRIPTION_PLANS = {
     ),
     PlanTier.MAINTENANCE_PRO: SubscriptionPlan(
         tier=PlanTier.MAINTENANCE_PRO,
-        name="MAINTENANCE PRO",
+        name="Pro",
         description="Pour gérer plusieurs avions",
         monthly_price=39.0,
         annual_price=390.0,
         trial_days=7,
         features=SubscriptionPlanFeatures(
             max_aircrafts=3,
-            ocr_per_month=-1,
+            ocr_per_month=100,  # Pro: 100 scans/month
             logbook_entries_per_month=-1,
             has_predictive_maintenance=True,
             has_auto_notifications=True,
@@ -76,14 +76,14 @@ SUBSCRIPTION_PLANS = {
     ),
     PlanTier.FLEET_AI: SubscriptionPlan(
         tier=PlanTier.FLEET_AI,
-        name="FLEET AI",
+        name="Premium",
         description="Solution complète pour flottes",
         monthly_price=75.0,
         annual_price=750.0,
         trial_days=7,
         features=SubscriptionPlanFeatures(
             max_aircrafts=-1,  # unlimited
-            ocr_per_month=-1,
+            ocr_per_month=500,  # Premium: 500 scans/month
             logbook_entries_per_month=-1,
             has_predictive_maintenance=True,
             has_auto_notifications=True,
