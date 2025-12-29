@@ -48,6 +48,7 @@ class UserInDB(UserBase):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     subscription: UserSubscription = Field(default_factory=UserSubscription)
     limits: UserLimits = Field(default_factory=UserLimits)
+    ocr_usage: UserOCRUsage = Field(default_factory=UserOCRUsage)
     
     class Config:
         populate_by_name = True
