@@ -695,23 +695,28 @@ async def get_ocr_quota_status(
     db=Depends(get_database)
 ):
     """
-    Get current OCR quota status for the user
+    Get current OCR quota status for the user.
+    Returns only the plan limit (not usage details for frontend).
     """
     
     user_doc = await db.users.find_one({"_id": current_user.id})
-    ocr_limit = user_doc.get("limits", {}).get("ocr_per_month", 3)
+    if not user_doc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
     
-    # Count OCR scans this month
-    start_of_month = datetime.utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    ocr_count = await db.ocr_scans.count_documents({
-        "user_id": current_user.id,
-        "created_at": {"$gte": start_of_month}
-    })
+    # Check and reset if needed
+    user_doc = await check_and_reset_ocr_usage(db, current_user.id, user_doc)
     
+    # Get limit based on plan
+    user_plan = user_doc.get("subscription", {}).get("plan", "BASIC")
+    ocr_limit = get_ocr_limit_for_plan(user_plan)
+    
+    # Return only the limit (frontend doesn't need usage details)
     return {
-        "used": ocr_count,
-        "limit": ocr_limit if ocr_limit != -1 else "unlimited",
-        "remaining": (ocr_limit - ocr_count) if ocr_limit != -1 else "unlimited"
+        "limit": ocr_limit,
+        "plan": user_plan
     }
 
 
