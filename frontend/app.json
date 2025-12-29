@@ -49,7 +49,7 @@
       "typedRoutes": true
     },
     "extra": {
-      "apiUrl": "https://pilotshare.preview.emergentagent.com/api",
+      "apiUrl": "https://aerologix-ai-mobile.onrender.com",
       "eas": {
         "projectId": "4b010684-347e-4c92-b8d4-cc6dcb721019"
       }
