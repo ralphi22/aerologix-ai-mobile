@@ -27,8 +27,13 @@ class UserSubscription(BaseModel):
 
 class UserLimits(BaseModel):
     max_aircrafts: int = 1
-    ocr_per_month: int = 3  # -1 = unlimited
+    ocr_per_month: int = 5  # Default to Free plan limit
     logbook_entries_per_month: int = 10  # -1 = unlimited
+
+class UserOCRUsage(BaseModel):
+    """Track OCR usage per user"""
+    scans_used: int = 0
+    reset_date: Optional[datetime] = None
 
 class UserBase(BaseModel):
     email: EmailStr
