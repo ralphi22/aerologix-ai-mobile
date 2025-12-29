@@ -14,12 +14,69 @@ from models.ocr_scan import (
     OCRScanCreate, OCRScan, OCRScanResponse, 
     OCRStatus, DocumentType, ExtractedMaintenanceData
 )
-from models.user import User
+from models.user import User, PlanTier, OCR_LIMITS_BY_PLAN
 import logging
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/ocr", tags=["ocr"])
+
+
+def get_ocr_limit_for_plan(plan: str) -> int:
+    """Get OCR limit based on user's subscription plan"""
+    try:
+        plan_tier = PlanTier(plan.upper()) if plan else PlanTier.BASIC
+    except ValueError:
+        plan_tier = PlanTier.BASIC
+    
+    return OCR_LIMITS_BY_PLAN.get(plan_tier, 5)
+
+
+async def check_and_reset_ocr_usage(db, user_id: str, user_doc: dict) -> dict:
+    """
+    Check if OCR usage needs to be reset (new month).
+    Returns updated user_doc.
+    """
+    now = datetime.utcnow()
+    ocr_usage = user_doc.get("ocr_usage", {})
+    reset_date = ocr_usage.get("reset_date")
+    
+    needs_reset = False
+    
+    if reset_date is None:
+        # First time - initialize
+        needs_reset = True
+    elif isinstance(reset_date, datetime):
+        # Check if we're in a new month
+        if reset_date.year != now.year or reset_date.month != now.month:
+            needs_reset = True
+    
+    if needs_reset:
+        # Reset usage for new month
+        await db.users.update_one(
+            {"_id": user_id},
+            {
+                "$set": {
+                    "ocr_usage.scans_used": 0,
+                    "ocr_usage.reset_date": now
+                }
+            }
+        )
+        logger.info(f"Reset OCR usage for user {user_id} (new month)")
+        
+        # Return updated values
+        user_doc["ocr_usage"] = {"scans_used": 0, "reset_date": now}
+    
+    return user_doc
+
+
+async def increment_ocr_usage(db, user_id: str):
+    """Increment OCR usage counter after successful scan"""
+    await db.users.update_one(
+        {"_id": user_id},
+        {"$inc": {"ocr_usage.scans_used": 1}}
+    )
+    logger.info(f"Incremented OCR usage for user {user_id}")
 
 
 @router.post("/scan", response_model=OCRScanResponse)
