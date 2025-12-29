@@ -105,23 +105,32 @@ async def scan_document(
             detail="Aircraft not found"
         )
     
-    # Check OCR quota
+    # Get user document for quota check
     user_doc = await db.users.find_one({"_id": current_user.id})
-    ocr_limit = user_doc.get("limits", {}).get("ocr_per_month", 3)
+    if not user_doc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
     
-    if ocr_limit != -1:  # -1 = unlimited
-        # Count OCR scans this month
-        start_of_month = datetime.utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-        ocr_count = await db.ocr_scans.count_documents({
-            "user_id": current_user.id,
-            "created_at": {"$gte": start_of_month}
-        })
-        
-        if ocr_count >= ocr_limit:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"OCR quota exceeded. Your plan allows {ocr_limit} scans per month. Upgrade to scan more documents."
-            )
+    # Check and reset OCR usage if new month
+    user_doc = await check_and_reset_ocr_usage(db, current_user.id, user_doc)
+    
+    # Get OCR limit based on subscription plan
+    user_plan = user_doc.get("subscription", {}).get("plan", "BASIC")
+    ocr_limit = get_ocr_limit_for_plan(user_plan)
+    
+    # Get current usage
+    ocr_usage = user_doc.get("ocr_usage", {})
+    scans_used = ocr_usage.get("scans_used", 0)
+    
+    # CHECK LIMIT BEFORE calling OpenAI Vision
+    if scans_used >= ocr_limit:
+        logger.warning(f"OCR limit reached for user {current_user.id}: {scans_used}/{ocr_limit}")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Limite de scans atteinte pour votre forfait"
+        )
     
     # Create OCR scan record
     now = datetime.utcnow()
@@ -148,8 +157,8 @@ async def scan_document(
     await db.ocr_scans.insert_one(scan_doc)
     
     try:
-        # Analyze image with OCR service
-        logger.info(f"Processing OCR scan {scan_id} for user {current_user.id}")
+        # Analyze image with OCR service (OpenAI Vision)
+        logger.info(f"Processing OCR scan {scan_id} for user {current_user.id} ({scans_used + 1}/{ocr_limit})")
         
         ocr_result = await ocr_service.analyze_image(
             image_base64=scan_request.image_base64,
@@ -157,6 +166,9 @@ async def scan_document(
         )
         
         if ocr_result["success"]:
+            # Increment OCR usage counter AFTER successful scan
+            await increment_ocr_usage(db, current_user.id)
+            
             # Update scan with results
             await db.ocr_scans.update_one(
                 {"_id": scan_id},
@@ -182,7 +194,7 @@ async def scan_document(
                 created_at=now
             )
         else:
-            # Update scan with error
+            # Update scan with error (don't increment counter for failed scans)
             await db.ocr_scans.update_one(
                 {"_id": scan_id},
                 {
