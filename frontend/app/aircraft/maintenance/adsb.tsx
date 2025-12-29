@@ -234,6 +234,14 @@ export default function MaintenanceADSBScreen() {
           keyExtractor={(item) => item._id}
           contentContainerStyle={styles.list}
           ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
+          ListFooterComponent={() => (
+            <View style={styles.infoFooter}>
+              <Ionicons name="information-circle-outline" size={14} color="#94A3B8" />
+              <Text style={styles.infoFooterText}>
+                Informatif — vérifier source TC pour conformité officielle
+              </Text>
+            </View>
+          )}
         />
       )}
     </SafeAreaView>
