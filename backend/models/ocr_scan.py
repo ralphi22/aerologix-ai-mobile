@@ -125,3 +125,46 @@ class OCRScanResponse(BaseModel):
     extracted_data: Optional[ExtractedMaintenanceData] = None
     error_message: Optional[str] = None
     created_at: datetime
+
+
+# ============== DEDUPLICATION MODELS ==============
+
+class MatchType(str, Enum):
+    """Type of match found during deduplication"""
+    EXACT = "exact"      # All key fields match
+    PARTIAL = "partial"  # Some key fields match
+    NONE = "none"        # No match
+
+class DuplicateMatch(BaseModel):
+    """A potential duplicate match"""
+    index: int                          # Index in extracted array
+    extracted: Dict[str, Any]           # Extracted data from OCR
+    existing: Optional[Dict[str, Any]]  # Existing record if found
+    existing_id: Optional[str] = None   # ID of existing record
+    match_type: MatchType               # Type of match
+
+class DuplicateCheckResponse(BaseModel):
+    """Response for duplicate check endpoint"""
+    scan_id: str
+    duplicates: Dict[str, List[DuplicateMatch]]  # ad_sb, parts, invoices, stc
+    new_items: Dict[str, List[Dict[str, Any]]]   # Items with no matches
+    summary: Dict[str, Dict[str, int]]           # Count summary per type
+
+class ItemAction(str, Enum):
+    """Action to take for an item"""
+    CREATE = "create"  # Create new record
+    LINK = "link"      # Link to existing record (update)
+    SKIP = "skip"      # Do nothing
+
+class ItemSelection(BaseModel):
+    """User selection for a single item"""
+    index: int
+    action: ItemAction
+    existing_id: Optional[str] = None  # Required if action is LINK
+
+class ApplySelections(BaseModel):
+    """User selections for applying OCR results"""
+    ad_sb: Optional[List[ItemSelection]] = None
+    parts: Optional[List[ItemSelection]] = None
+    invoices: Optional[List[ItemSelection]] = None
+    stc: Optional[List[ItemSelection]] = None
