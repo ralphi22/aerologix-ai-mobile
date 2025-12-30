@@ -597,16 +597,20 @@ async def get_ocr_scan(
 async def apply_ocr_results(
     scan_id: str,
     update_aircraft_hours: bool = True,
+    selections: Optional[ApplySelections] = Body(default=None),
     current_user: User = Depends(get_current_user),
     db=Depends(get_database)
 ):
     """
-    Apply OCR extracted data to the system:
-    - Update aircraft hours
-    - Create maintenance record
-    - Create AD/SB records
-    - Create part records
-    - Create STC records
+    Apply OCR extracted data to the system with deduplication support.
+    
+    - If `selections` is provided, use user choices for duplicates
+    - If `selections` is None, auto-create all new items (backward compatible)
+    
+    Selection actions:
+    - CREATE: Create new record
+    - LINK: Update existing record with OCR data
+    - SKIP: Do nothing for this item
     """
     
     # Get OCR scan
