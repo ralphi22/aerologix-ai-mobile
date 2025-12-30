@@ -714,18 +714,74 @@ async def apply_ocr_results(
             applied_ids["maintenance_id"] = str(result.inserted_id)
             logger.info(f"Created maintenance record {applied_ids['maintenance_id']}")
         
-        # 3. Create AD/SB records (ONLY FOR RAPPORT)
+        # 3. Create/Link AD/SB records (ONLY FOR RAPPORT) with deduplication
         if is_maintenance_report:
-            for adsb in extracted_data.get("ad_sb_references", []):
+            ad_sb_selections = {s.index: s for s in (selections.ad_sb or [])} if selections else {}
+            
+            for idx, adsb in enumerate(extracted_data.get("ad_sb_references", [])):
                 if not adsb.get("reference_number"):
                     continue
                 
+                # Check user selection if provided
+                selection = ad_sb_selections.get(idx)
+                
+                if selection:
+                    if selection.action == ItemAction.SKIP:
+                        logger.info(f"Skipping AD/SB {adsb.get('reference_number')} (user choice)")
+                        continue
+                    elif selection.action == ItemAction.LINK and selection.existing_id:
+                        # Update existing record
+                        update_data = {
+                            "status": adsb.get("status", "UNKNOWN"),
+                            "source": "ocr",
+                            "ocr_scan_id": scan_id,
+                            "updated_at": now
+                        }
+                        if adsb.get("compliance_date"):
+                            try:
+                                update_data["compliance_date"] = datetime.fromisoformat(adsb["compliance_date"])
+                            except:
+                                pass
+                        if adsb.get("airframe_hours"):
+                            update_data["compliance_airframe_hours"] = adsb["airframe_hours"]
+                        
+                        await db.adsb_records.update_one(
+                            {"_id": selection.existing_id, "user_id": current_user.id},
+                            {"$set": update_data}
+                        )
+                        applied_ids["adsb_ids"].append(selection.existing_id)
+                        logger.info(f"Linked AD/SB {adsb.get('reference_number')} to existing {selection.existing_id}")
+                        continue
+                
+                # Default: CREATE new record (or no selection provided)
                 compliance_date = None
                 if adsb.get("compliance_date"):
                     try:
                         compliance_date = datetime.fromisoformat(adsb["compliance_date"])
                     except:
                         pass
+                
+                # Auto-dedupe: check if exists when no selections provided
+                if not selections:
+                    existing = await find_duplicate_adsb(db, aircraft_id, current_user.id, adsb["reference_number"])
+                    if existing:
+                        # Update existing instead of creating duplicate
+                        update_data = {
+                            "status": adsb.get("status", "UNKNOWN"),
+                            "source": "ocr",
+                            "ocr_scan_id": scan_id,
+                            "updated_at": now
+                        }
+                        if compliance_date:
+                            update_data["compliance_date"] = compliance_date
+                        
+                        await db.adsb_records.update_one(
+                            {"_id": existing["_id"]},
+                            {"$set": update_data}
+                        )
+                        applied_ids["adsb_ids"].append(str(existing["_id"]))
+                        logger.info(f"Auto-linked AD/SB {adsb['reference_number']} to existing (dedup)")
+                        continue
                 
                 adsb_doc = {
                     "user_id": current_user.id,
