@@ -197,6 +197,158 @@ async def increment_ocr_usage(db, user_id: str):
     logger.info(f"Incremented OCR usage for user {user_id}")
 
 
+# ============== CHECK DUPLICATES ENDPOINT ==============
+
+@router.get("/check-duplicates/{scan_id}", response_model=DuplicateCheckResponse)
+async def check_duplicates(
+    scan_id: str,
+    current_user: User = Depends(get_current_user),
+    db=Depends(get_database)
+):
+    """
+    Check for potential duplicates before applying OCR results.
+    Returns existing matches for AD/SB, parts, invoices, and STCs.
+    
+    Call this BEFORE /apply/{scan_id} to let user decide what to do.
+    """
+    
+    # Get OCR scan
+    scan = await db.ocr_scans.find_one({
+        "_id": scan_id,
+        "user_id": current_user.id
+    })
+    
+    if not scan:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="OCR scan not found"
+        )
+    
+    if scan.get("status") != OCRStatus.COMPLETED.value:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Scan must be completed before checking duplicates"
+        )
+    
+    extracted_data = scan.get("extracted_data", {})
+    aircraft_id = scan["aircraft_id"]
+    
+    duplicates = {
+        "ad_sb": [],
+        "parts": [],
+        "invoices": [],
+        "stc": []
+    }
+    new_items = {
+        "ad_sb": [],
+        "parts": [],
+        "invoices": [],
+        "stc": []
+    }
+    
+    # Check AD/SB duplicates
+    for idx, adsb in enumerate(extracted_data.get("ad_sb_references", [])):
+        ref_num = adsb.get("reference_number")
+        if not ref_num:
+            continue
+        
+        existing = await find_duplicate_adsb(db, aircraft_id, current_user.id, ref_num)
+        
+        if existing:
+            duplicates["ad_sb"].append(DuplicateMatch(
+                index=idx,
+                extracted=adsb,
+                existing=serialize_mongo_doc(existing),
+                existing_id=str(existing["_id"]),
+                match_type=MatchType.EXACT
+            ))
+        else:
+            new_items["ad_sb"].append({"index": idx, **adsb})
+    
+    # Check Parts duplicates
+    for idx, part in enumerate(extracted_data.get("parts_replaced", [])):
+        part_num = part.get("part_number")
+        if not part_num:
+            continue
+        
+        existing, match_type = await find_duplicate_part(
+            db, aircraft_id, current_user.id, 
+            part_num, part.get("serial_number")
+        )
+        
+        if existing:
+            duplicates["parts"].append(DuplicateMatch(
+                index=idx,
+                extracted=part,
+                existing=serialize_mongo_doc(existing),
+                existing_id=str(existing["_id"]),
+                match_type=match_type
+            ))
+        else:
+            new_items["parts"].append({"index": idx, **part})
+    
+    # Check Invoice duplicates (for invoice document type)
+    document_type = scan.get("document_type", "")
+    if document_type == "invoice":
+        invoice_data = {
+            "invoice_number": extracted_data.get("invoice_number"),
+            "supplier": extracted_data.get("supplier"),
+            "total": extracted_data.get("total"),
+            "invoice_date": extracted_data.get("invoice_date")
+        }
+        
+        existing, match_type = await find_duplicate_invoice(
+            db, aircraft_id, current_user.id, invoice_data
+        )
+        
+        if existing:
+            duplicates["invoices"].append(DuplicateMatch(
+                index=0,
+                extracted=invoice_data,
+                existing=serialize_mongo_doc(existing),
+                existing_id=str(existing["_id"]),
+                match_type=match_type
+            ))
+        else:
+            new_items["invoices"].append({"index": 0, **invoice_data})
+    
+    # Check STC duplicates
+    for idx, stc in enumerate(extracted_data.get("stc_references", [])):
+        stc_num = stc.get("stc_number")
+        if not stc_num:
+            continue
+        
+        existing = await find_duplicate_stc(db, aircraft_id, current_user.id, stc_num)
+        
+        if existing:
+            duplicates["stc"].append(DuplicateMatch(
+                index=idx,
+                extracted=stc,
+                existing=serialize_mongo_doc(existing),
+                existing_id=str(existing["_id"]),
+                match_type=MatchType.EXACT
+            ))
+        else:
+            new_items["stc"].append({"index": idx, **stc})
+    
+    # Build summary
+    summary = {
+        "ad_sb": {"duplicates": len(duplicates["ad_sb"]), "new": len(new_items["ad_sb"])},
+        "parts": {"duplicates": len(duplicates["parts"]), "new": len(new_items["parts"])},
+        "invoices": {"duplicates": len(duplicates["invoices"]), "new": len(new_items["invoices"])},
+        "stc": {"duplicates": len(duplicates["stc"]), "new": len(new_items["stc"])}
+    }
+    
+    logger.info(f"Duplicate check for scan {scan_id}: {summary}")
+    
+    return DuplicateCheckResponse(
+        scan_id=scan_id,
+        duplicates=duplicates,
+        new_items=new_items,
+        summary=summary
+    )
+
+
 @router.post("/scan", response_model=OCRScanResponse)
 async def scan_document(
     scan_request: OCRScanCreate,
