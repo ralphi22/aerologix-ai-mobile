@@ -890,12 +890,63 @@ async def apply_ocr_results(
         
         logger.info(f"Created {len(applied_ids['part_ids'])} part records")
         
-        # 5. Create STC records (ONLY FOR RAPPORT)
+        # 5. Create/Link STC records (ONLY FOR RAPPORT) with deduplication
         if is_maintenance_report:
-            for stc in extracted_data.get("stc_references", []):
+            stc_selections = {s.index: s for s in (selections.stc or [])} if selections else {}
+            
+            for idx, stc in enumerate(extracted_data.get("stc_references", [])):
                 if not stc.get("stc_number"):
                     continue
                 
+                # Check user selection if provided
+                selection = stc_selections.get(idx)
+                
+                if selection:
+                    if selection.action == ItemAction.SKIP:
+                        logger.info(f"Skipping STC {stc.get('stc_number')} (user choice)")
+                        continue
+                    elif selection.action == ItemAction.LINK and selection.existing_id:
+                        # Update existing record
+                        update_data = {
+                            "source": "ocr",
+                            "ocr_scan_id": scan_id,
+                            "updated_at": now
+                        }
+                        if stc.get("title"):
+                            update_data["title"] = stc["title"]
+                        if stc.get("description"):
+                            update_data["description"] = stc["description"]
+                        
+                        await db.stc_records.update_one(
+                            {"_id": selection.existing_id, "user_id": current_user.id},
+                            {"$set": update_data}
+                        )
+                        applied_ids["stc_ids"].append(selection.existing_id)
+                        logger.info(f"Linked STC {stc.get('stc_number')} to existing {selection.existing_id}")
+                        continue
+                
+                # Auto-dedupe: check if exists when no selections provided
+                if not selections:
+                    existing = await find_duplicate_stc(db, aircraft_id, current_user.id, stc["stc_number"])
+                    if existing:
+                        # Update existing instead of creating duplicate
+                        update_data = {
+                            "source": "ocr",
+                            "ocr_scan_id": scan_id,
+                            "updated_at": now
+                        }
+                        if stc.get("title"):
+                            update_data["title"] = stc["title"]
+                        
+                        await db.stc_records.update_one(
+                            {"_id": existing["_id"]},
+                            {"$set": update_data}
+                        )
+                        applied_ids["stc_ids"].append(str(existing["_id"]))
+                        logger.info(f"Auto-linked STC {stc['stc_number']} to existing (dedup)")
+                        continue
+                
+                # Default: CREATE new record
                 installation_date = None
                 if stc.get("installation_date"):
                     try:
