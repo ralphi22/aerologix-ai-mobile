@@ -806,12 +806,66 @@ async def apply_ocr_results(
         
         logger.info(f"Created {len(applied_ids['adsb_ids'])} AD/SB records")
         
-        # 4. Create part records (ONLY FOR RAPPORT - pas pour factures!)
+        # 4. Create/Link part records (ONLY FOR RAPPORT) with deduplication
         if is_maintenance_report:
-            for part in extracted_data.get("parts_replaced", []):
+            parts_selections = {s.index: s for s in (selections.parts or [])} if selections else {}
+            
+            for idx, part in enumerate(extracted_data.get("parts_replaced", [])):
                 if not part.get("part_number"):
                     continue
                 
+                # Check user selection if provided
+                selection = parts_selections.get(idx)
+                
+                if selection:
+                    if selection.action == ItemAction.SKIP:
+                        logger.info(f"Skipping part {part.get('part_number')} (user choice)")
+                        continue
+                    elif selection.action == ItemAction.LINK and selection.existing_id:
+                        # Update existing record
+                        update_data = {
+                            "source": "ocr",
+                            "ocr_scan_id": scan_id,
+                            "updated_at": now
+                        }
+                        if part.get("serial_number"):
+                            update_data["serial_number"] = part["serial_number"]
+                        if part.get("price"):
+                            update_data["purchase_price"] = part["price"]
+                        
+                        await db.part_records.update_one(
+                            {"_id": selection.existing_id, "user_id": current_user.id},
+                            {"$set": update_data}
+                        )
+                        applied_ids["part_ids"].append(selection.existing_id)
+                        logger.info(f"Linked part {part.get('part_number')} to existing {selection.existing_id}")
+                        continue
+                
+                # Auto-dedupe: check if exists when no selections provided
+                if not selections:
+                    existing, match_type = await find_duplicate_part(
+                        db, aircraft_id, current_user.id,
+                        part["part_number"], part.get("serial_number")
+                    )
+                    if existing and match_type == MatchType.EXACT:
+                        # Update existing instead of creating duplicate
+                        update_data = {
+                            "source": "ocr",
+                            "ocr_scan_id": scan_id,
+                            "updated_at": now
+                        }
+                        if part.get("price"):
+                            update_data["purchase_price"] = part["price"]
+                        
+                        await db.part_records.update_one(
+                            {"_id": existing["_id"]},
+                            {"$set": update_data}
+                        )
+                        applied_ids["part_ids"].append(str(existing["_id"]))
+                        logger.info(f"Auto-linked part {part['part_number']} to existing (exact dedup)")
+                        continue
+                
+                # Default: CREATE new record
                 part_doc = {
                     "user_id": current_user.id,
                     "aircraft_id": aircraft_id,
