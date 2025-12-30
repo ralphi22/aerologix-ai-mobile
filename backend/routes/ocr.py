@@ -3,8 +3,8 @@ OCR Routes for AeroLogix AI
 Handles document scanning and data extraction
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from typing import List, Optional
+from fastapi import APIRouter, Depends, HTTPException, status, Body
+from typing import List, Optional, Dict, Any
 from datetime import datetime
 from bson import ObjectId
 from database.mongodb import get_database
@@ -12,7 +12,9 @@ from services.auth_deps import get_current_user
 from services.ocr_service import ocr_service
 from models.ocr_scan import (
     OCRScanCreate, OCRScan, OCRScanResponse, 
-    OCRStatus, DocumentType, ExtractedMaintenanceData
+    OCRStatus, DocumentType, ExtractedMaintenanceData,
+    DuplicateCheckResponse, DuplicateMatch, MatchType,
+    ApplySelections, ItemAction, ItemSelection
 )
 from models.user import User, PlanTier, OCR_LIMITS_BY_PLAN
 import logging
@@ -20,6 +22,122 @@ import logging
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/ocr", tags=["ocr"])
+
+
+# ============== DEDUPLICATION HELPERS ==============
+
+async def find_duplicate_adsb(db, aircraft_id: str, user_id: str, reference_number: str) -> Optional[Dict]:
+    """Find existing AD/SB by aircraft_id + reference_number"""
+    return await db.adsb_records.find_one({
+        "aircraft_id": aircraft_id,
+        "user_id": user_id,
+        "reference_number": reference_number
+    })
+
+
+async def find_duplicate_part(db, aircraft_id: str, user_id: str, part_number: str, serial_number: Optional[str] = None) -> tuple:
+    """
+    Find existing part by aircraft_id + part_number (+ serial_number if provided)
+    Returns (existing_doc, match_type)
+    """
+    # First try exact match with serial number
+    if serial_number:
+        exact = await db.part_records.find_one({
+            "aircraft_id": aircraft_id,
+            "user_id": user_id,
+            "part_number": part_number,
+            "serial_number": serial_number
+        })
+        if exact:
+            return exact, MatchType.EXACT
+    
+    # Try partial match (part_number only)
+    partial = await db.part_records.find_one({
+        "aircraft_id": aircraft_id,
+        "user_id": user_id,
+        "part_number": part_number
+    })
+    if partial:
+        return partial, MatchType.PARTIAL
+    
+    return None, MatchType.NONE
+
+
+async def find_duplicate_invoice(db, aircraft_id: str, user_id: str, invoice_data: Dict) -> tuple:
+    """
+    Find existing invoice by multiple criteria
+    Returns (existing_doc, match_type)
+    """
+    invoice_number = invoice_data.get("invoice_number")
+    supplier = invoice_data.get("supplier")
+    total = invoice_data.get("total")
+    invoice_date = invoice_data.get("invoice_date")
+    
+    # Try exact match: invoice_number + supplier
+    if invoice_number and supplier:
+        exact = await db.invoices.find_one({
+            "aircraft_id": aircraft_id,
+            "user_id": user_id,
+            "invoice_number": invoice_number,
+            "supplier": supplier
+        })
+        if exact:
+            return exact, MatchType.EXACT
+    
+    # Try partial: invoice_number only
+    if invoice_number:
+        partial = await db.invoices.find_one({
+            "aircraft_id": aircraft_id,
+            "user_id": user_id,
+            "invoice_number": invoice_number
+        })
+        if partial:
+            return partial, MatchType.PARTIAL
+    
+    # Try partial: same date + total
+    if total and invoice_date:
+        try:
+            date_obj = datetime.fromisoformat(invoice_date) if isinstance(invoice_date, str) else invoice_date
+            partial = await db.invoices.find_one({
+                "aircraft_id": aircraft_id,
+                "user_id": user_id,
+                "total": total,
+                "invoice_date": date_obj
+            })
+            if partial:
+                return partial, MatchType.PARTIAL
+        except:
+            pass
+    
+    return None, MatchType.NONE
+
+
+async def find_duplicate_stc(db, aircraft_id: str, user_id: str, stc_number: str) -> Optional[Dict]:
+    """Find existing STC by aircraft_id + stc_number"""
+    return await db.stc_records.find_one({
+        "aircraft_id": aircraft_id,
+        "user_id": user_id,
+        "stc_number": stc_number
+    })
+
+
+def serialize_mongo_doc(doc: Dict) -> Dict:
+    """Convert MongoDB document to JSON-serializable dict"""
+    if doc is None:
+        return None
+    result = {}
+    for key, value in doc.items():
+        if isinstance(value, ObjectId):
+            result[key] = str(value)
+        elif isinstance(value, datetime):
+            result[key] = value.isoformat()
+        elif isinstance(value, dict):
+            result[key] = serialize_mongo_doc(value)
+        elif isinstance(value, list):
+            result[key] = [serialize_mongo_doc(v) if isinstance(v, dict) else v for v in value]
+        else:
+            result[key] = value
+    return result
 
 
 def get_ocr_limit_for_plan(plan: str) -> int:
